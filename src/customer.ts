@@ -48,6 +48,11 @@ declare global {
 		name: string;
 	}
 
+	interface Auth extends Customer {
+		accessToken: string;
+		refreshToken: string;
+	}
+
 }
 
 export { };

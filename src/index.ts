@@ -1,6 +1,8 @@
+
 export * from './account';
 export * from './afip';
 export * from './api';
+export * from './auth';
 export * from './basket';
 export * from './cash';
 export * from './customer';
