@@ -1,7 +1,7 @@
 {
   "name": "sinfactura-types",
   "private": false,
-  "version": "0.0.2",
+  "version": "0.0.3",
   "type": "module",
   "keywords": [
     "typescript",
@@ -13,7 +13,6 @@
   ],
   "license": "MIT",
   "homepage": "https://sinfactura.com",
-  "main": "index.ts",
   "repository": {
     "url": "https://github.com/sinfactura/types",
     "type": "git"
@@ -30,6 +29,7 @@
   "author": "Moises Samuel Maison Maison",
   "types": "dist/index.d.ts",
   "devDependencies": {
+    "@mui/material": "^5.15.4",
     "typescript": "^5.3.3"
   }
 }
