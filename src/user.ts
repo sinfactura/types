@@ -46,7 +46,7 @@ declare global {
 		displayName: string;
 	}
 
-	interface Auth extends User {
+	interface AuthUser extends User {
 		refreshToken: string;
 	}
 

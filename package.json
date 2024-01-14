@@ -1,9 +1,9 @@
 {
   "name": "sinfactura-types",
   "private": false,
-  "version": "0.0.7",
+  "version": "1.0.0",
   "type": "module",
-  "main": "index.ts",
+  "main": "dist/index.d.ts",
   "keywords": [
     "typescript",
     "dev",
@@ -26,9 +26,9 @@
       "main"
     ]
   },
-  "peerDependencies": {},
   "author": "Moises Samuel Maison Maison",
   "types": "dist/index.d.ts",
+  "typings": "dist/index.d.ts",
   "devDependencies": {
     "typescript": "^5.3.3"
   }

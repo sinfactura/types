@@ -48,7 +48,7 @@ declare global {
 		name: string;
 	}
 
-	interface Auth extends Customer {
+	interface AuthCustomer extends Customer {
 		accessToken: string;
 		refreshToken: string;
 	}
