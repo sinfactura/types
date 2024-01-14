@@ -2,7 +2,7 @@
   "compilerOptions": {
     "outDir": "dist",
     "target": "ESNext",
-    "module": "NodeNext",
+    "module": "CommonJS",
     "declaration": true,
     "emitDeclarationOnly": true,
     "declarationMap": false,
