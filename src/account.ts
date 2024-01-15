@@ -15,6 +15,8 @@ declare global {
 		amount?: number;
 		currencyValue?: number;
 		balance?: number;
+		userId: string;
+		deleted?: boolean;
 	}
 
 }
