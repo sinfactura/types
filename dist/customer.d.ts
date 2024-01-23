@@ -36,12 +36,7 @@ declare global {
         hash?: string;
         salt?: string;
         balance?: number;
-        favorites?: Favorite[];
-    }
-    interface Favorite {
-        productId: string;
-        dated: number;
-        name: string;
+        favorites?: Partial<Product>[];
     }
     interface AuthCustomer extends Customer {
         accessToken: string;
