@@ -7,9 +7,40 @@ declare global {
 		fiscalConditions: FiscalCondition[];
 		ivaTypes: Method[];
 		notificationOptions: Method[];
+		minWithDni: number;
 		stats: {
 			store: number;
 		};
+	}
+
+	interface Ecommerce {
+		isActive?: boolean;
+		prices: {
+			requireLogin?: boolean;
+		};
+		sideBar?: {
+			show?: boolean;
+			showCategories?: boolean;
+			showBrands?: boolean;
+			showIncomes?: boolean;
+			showFavorites?: boolean;
+			showBasket?: boolean;
+			showOrders?: boolean;
+			showInvoices?: boolean;
+		};
+		footerBar?: {
+			show?: boolean;
+			showOrders?: boolean;
+			showInvoices?: boolean;
+			showBasket?: boolean;
+			showFavorites?: boolean;
+		}
+		themeColors?: {
+			main?: string;
+			navbar?: string;
+		};
+		appVersion?: number;
+		stats?: Record<string, string>;
 	}
 
 	interface Store {
@@ -32,6 +63,8 @@ declare global {
 			changePrice: boolean;
 			currency: number;
 		};
+		// ECOMMERCE
+		ecommerce?: Ecommerce;
 		// HANDLE IMAGES
 		photoURL: string;
 		photoData?: string;
@@ -94,11 +127,11 @@ declare global {
 		appVersion: number;
 		ivaTypes: Method[];
 		fiscalConditions: FiscalCondition[];
+		minWithDni: number;
 		notificationOptions?: {
 			id: string;
 			name: string;
 		}[];
-		minWithDni: number;
 	}
 
 	type StoreAttributeNames = keyof Store;
