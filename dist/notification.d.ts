@@ -7,6 +7,7 @@ declare global {
         title: string;
         orderId?: string;
         userId?: string;
+        customerId?: string;
         read?: boolean;
         description?: string;
         details?: string;
