@@ -101,28 +101,7 @@ declare global {
 			refreshToken?: string;
 		};
 		// AFIP
-		afip: {
-			// ADDRESS
-			address?: string;
-			city?: string;
-			condFiscal?: number;
-			cuit?: number;
-			condFiscalName?: string;
-			postalCode?: string;
-			province?: string;
-			razonSocial?: string;
-			// new
-			pointOfSale?: number; // PTO_VTA
-			activitiesStartedAt?: number; // INICIO_ACTIVIDADES
-			invoiceNote?: string; // NOTA EN FACTURA
-			showInvoiceLogo?: string; // logo en factura
-			// ACCESS
-			cert?: string;
-			csr?: string;
-			key?: string;
-			accessTicket_EB?: string;
-			accessTicket_RSF?: string;
-		};
+		afip: Afip;
 		// FROM CONFIG
 		appVersion: number;
 		ivaTypes: Method[];
@@ -132,6 +111,30 @@ declare global {
 			id: string;
 			name: string;
 		}[];
+	}
+
+	interface Afip {
+		// ADDRESS
+		address?: string;
+		city?: string;
+		condFiscal?: number;
+		cuit?: number;
+		condFiscalName?: string;
+		postalCode?: string;
+		province?: string;
+		razonSocial?: string;
+		// NEW
+		pointOfSale?: number; // PTO_VTA
+		activitiesStartedAt?: number; // INICIO_ACTIVIDADES
+		invoiceNote?: string; // NOTA EN FACTURA
+		showInvoiceLogo?: string; // logo en factura
+		currency: 1 | 2; // 1 PESOS, 2 DOLARES
+		// ACCESS
+		cert?: string;
+		csr?: string;
+		key?: string;
+		accessTicket_EB?: string;
+		accessTicket_RSF?: string;
 	}
 
 	type StoreAttributeNames = keyof Store;

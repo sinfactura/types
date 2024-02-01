@@ -89,25 +89,7 @@ declare global {
             code?: string;
             refreshToken?: string;
         };
-        afip: {
-            address?: string;
-            city?: string;
-            condFiscal?: number;
-            cuit?: number;
-            condFiscalName?: string;
-            postalCode?: string;
-            province?: string;
-            razonSocial?: string;
-            pointOfSale?: number;
-            activitiesStartedAt?: number;
-            invoiceNote?: string;
-            showInvoiceLogo?: string;
-            cert?: string;
-            csr?: string;
-            key?: string;
-            accessTicket_EB?: string;
-            accessTicket_RSF?: string;
-        };
+        afip: Afip;
         appVersion: number;
         ivaTypes: Method[];
         fiscalConditions: FiscalCondition[];
@@ -116,6 +98,26 @@ declare global {
             id: string;
             name: string;
         }[];
+    }
+    interface Afip {
+        address?: string;
+        city?: string;
+        condFiscal?: number;
+        cuit?: number;
+        condFiscalName?: string;
+        postalCode?: string;
+        province?: string;
+        razonSocial?: string;
+        pointOfSale?: number;
+        activitiesStartedAt?: number;
+        invoiceNote?: string;
+        showInvoiceLogo?: string;
+        currency: 1 | 2;
+        cert?: string;
+        csr?: string;
+        key?: string;
+        accessTicket_EB?: string;
+        accessTicket_RSF?: string;
     }
     type StoreAttributeNames = keyof Store;
     interface Method {
