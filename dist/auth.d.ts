@@ -9,7 +9,7 @@ declare global {
     interface Register {
         email: string;
         password: string;
-        cuit?: number;
+        cuit: string;
         fullName: string;
         phone?: number;
     }
