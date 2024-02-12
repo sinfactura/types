@@ -114,6 +114,7 @@ declare global {
 	}
 
 	interface Afip {
+		production: boolean;
 		// ADDRESS
 		address?: string;
 		city?: string;

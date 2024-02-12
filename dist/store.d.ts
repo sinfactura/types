@@ -100,6 +100,7 @@ declare global {
         }[];
     }
     interface Afip {
+        production: boolean;
         address?: string;
         city?: string;
         condFiscal?: number;
