@@ -28,5 +28,23 @@ declare global {
         disabled?: boolean;
         items: Partial<BasketItem>[];
     }
+    interface ZebraTag {
+        orderId: string;
+        fullName: string;
+        phone: string;
+        address: string;
+        city: string;
+        quantity: number;
+        comments: string;
+        sender: {
+            razonSocial: string;
+            cuit: string;
+            phone: string;
+            address: string;
+            city: string;
+            postalCode: string;
+            province: string;
+        };
+    }
 }
 export {};
