@@ -7,7 +7,7 @@ declare global {
         mode?: string;
         userId?: string;
         customerId?: string;
-        customerName?: string;
+        fullName?: string;
         url: string;
         details?: string;
         moreDetails?: string;
