@@ -4,12 +4,14 @@ declare global {
         logId: string;
         createdAt: number;
         dated: number;
-        userId: string;
+        mode?: string;
+        userId?: string;
         customerId?: string;
         customerName?: string;
         url: string;
         details?: string;
         moreDetails?: string;
+        ip: string;
     }
 }
 export {};
