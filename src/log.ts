@@ -14,6 +14,7 @@ declare global {
 		details?: string;
 		moreDetails?: string;
 		ip: string;
+		action?: string; // only to send the socket
 	}
 
 }
