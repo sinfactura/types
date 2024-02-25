@@ -13,6 +13,8 @@ declare global {
         moreDetails?: string;
         ip: string;
         action?: string;
+        screenType?: 'mobile' | 'tablet' | 'desktop';
+        screenSize?: number;
     }
 }
 export {};

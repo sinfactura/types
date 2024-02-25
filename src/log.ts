@@ -15,6 +15,8 @@ declare global {
 		moreDetails?: string;
 		ip: string;
 		action?: string; // only to send the socket
+		screenType?: 'mobile' | 'tablet' | 'desktop'; // mobile < smDown > tablet < mdDown > desktop
+		screenSize?: number; // screen width
 	}
 
 }
