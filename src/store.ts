@@ -103,13 +103,10 @@ declare global {
 		afip: Afip;
 		// FROM CONFIG
 		appVersion: number;
-		ivaTypes: Method[];
 		fiscalConditions: FiscalCondition[];
+		ivaTypes: Method[];
 		minWithDni: number;
-		notificationOptions?: {
-			id: string;
-			name: string;
-		}[];
+		notificationOptions?: Method[];
 	}
 
 	interface Afip {
