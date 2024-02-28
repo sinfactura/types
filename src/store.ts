@@ -2,12 +2,11 @@
 declare global {
 
 	interface Config {
-		storeId: number;
 		appVersion: number;
 		fiscalConditions: FiscalCondition[];
 		ivaTypes: Method[];
-		notificationOptions: Method[];
 		minWithDni: number;
+		notificationOptions: Method[];
 		stats: {
 			store: number;
 		};
