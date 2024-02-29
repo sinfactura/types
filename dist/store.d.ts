@@ -1,19 +1,22 @@
 declare global {
     interface Config {
-        storeId: number;
         appVersion: number;
         fiscalConditions: FiscalCondition[];
         ivaTypes: Method[];
-        notificationOptions: Method[];
         minWithDni: number;
+        notificationOptions: {
+            id: string;
+            name: string;
+        }[];
         stats: {
             store: number;
         };
     }
     interface Ecommerce {
         isActive?: boolean;
-        prices: {
-            requireLogin?: boolean;
+        config?: {
+            showPricesNoLogin?: boolean;
+            showStocks?: boolean;
         };
         sideBar?: {
             show?: boolean;
@@ -91,13 +94,10 @@ declare global {
         };
         afip: Afip;
         appVersion: number;
-        ivaTypes: Method[];
         fiscalConditions: FiscalCondition[];
+        ivaTypes: Method[];
         minWithDni: number;
-        notificationOptions?: {
-            id: string;
-            name: string;
-        }[];
+        notificationOptions?: Method[];
     }
     interface Afip {
         production: boolean;

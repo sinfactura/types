@@ -1,7 +1,7 @@
 
 declare global {
 
-	interface Config {
+	interface Config { // PK // global config
 		appVersion: number;
 		fiscalConditions: FiscalCondition[];
 		ivaTypes: Method[];
@@ -17,8 +17,9 @@ declare global {
 
 	interface Ecommerce {
 		isActive?: boolean;
-		prices: {
-			requireLogin?: boolean;
+		config?: {
+			showPricesNoLogin?: boolean;
+			showStocks?: boolean;
 		};
 		sideBar?: {
 			show?: boolean;
@@ -104,7 +105,7 @@ declare global {
 		};
 		// AFIP
 		afip: Afip;
-		// FROM CONFIG
+		// FROM CONFIG PK
 		appVersion: number;
 		fiscalConditions: FiscalCondition[];
 		ivaTypes: Method[];
