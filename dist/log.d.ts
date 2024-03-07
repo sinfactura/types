@@ -15,6 +15,7 @@ declare global {
         action?: string;
         screenType?: 'mobile' | 'tablet' | 'desktop';
         screenSize?: number;
+        appVersion?: number;
     }
 }
 export {};

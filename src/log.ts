@@ -17,6 +17,7 @@ declare global {
 		action?: string; // only to send the socket
 		screenType?: 'mobile' | 'tablet' | 'desktop'; // mobile < smDown > tablet < mdDown > desktop
 		screenSize?: number; // screen width
+		appVersion?: number; // 1.10
 	}
 
 }
