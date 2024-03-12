@@ -13,5 +13,6 @@ export * from './order';
 export * from './product';
 export * from './stock';
 export * from './store';
+export * from './supplier';
 export * from './user';
 export * from './whatsapp';
