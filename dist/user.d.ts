@@ -34,6 +34,7 @@ declare global {
         accountant?: boolean;
         payments?: boolean;
         cash?: boolean;
+        packOrder?: boolean;
     };
     interface UserGoogle extends User {
         displayName: string;
