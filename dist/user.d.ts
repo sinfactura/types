@@ -25,6 +25,7 @@ declare global {
         dollarOficial?: boolean;
         dollarInformal?: boolean;
         dollarBna?: boolean;
+        printer?: boolean;
     };
     type UserPermissions = {
         currency?: boolean;
