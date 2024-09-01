@@ -25,6 +25,7 @@ declare global {
         dollarOficial?: boolean;
         dollarInformal?: boolean;
         dollarBna?: boolean;
+        printer?: boolean;
     };
     type UserPermissions = {
         currency?: boolean;
@@ -34,6 +35,7 @@ declare global {
         accountant?: boolean;
         payments?: boolean;
         cash?: boolean;
+        packOrder?: boolean;
     };
     interface UserGoogle extends User {
         displayName: string;

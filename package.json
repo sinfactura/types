@@ -1,9 +1,12 @@
 {
   "name": "sinfactura-types",
   "private": false,
-  "version": "1.0.25",
+  "version": "1.0.32",
   "type": "module",
   "main": "dist/index.d.ts",
+  "scripts": {
+    "publish": "tsc && npm publish --access public"
+  },
   "keywords": [
     "typescript",
     "dev",
@@ -30,6 +33,6 @@
   "types": "dist/index.d.ts",
   "typings": "dist/index.d.ts",
   "devDependencies": {
-    "typescript": "^5.3.3"
+    "typescript": "^5.5.4"
   }
 }

@@ -4,6 +4,7 @@ declare global {
 	interface Account {
 		storeId: string;
 		accountId: string;
+		orderId?: string;
 		createdAt: number; // timestamp
 		dated: number; // 20220123
 		customerId?: string;
