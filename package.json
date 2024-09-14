@@ -1,7 +1,7 @@
 {
   "name": "sinfactura-types",
   "private": false,
-  "version": "1.0.32",
+  "version": "1.0.36",
   "type": "module",
   "main": "dist/index.d.ts",
   "scripts": {
@@ -33,6 +33,6 @@
   "types": "dist/index.d.ts",
   "typings": "dist/index.d.ts",
   "devDependencies": {
-    "typescript": "^5.5.4"
+    "typescript": "^5.6.2"
   }
 }
