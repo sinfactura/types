@@ -12,6 +12,7 @@ declare global {
         description?: string;
         details?: string;
         total?: number;
+        TableName?: string;
     }
     interface Currency {
         currencyId: string;

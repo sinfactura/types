@@ -40,8 +40,8 @@ declare global {
 		// OPTIONS
 		currency: number;
 		ivaType: number;
-		category: number;
-		brand: number;
+		category: number; // migrate to categoryId
+		brand: number; // migrate to brandId
 		inOffer: boolean;
 		isNew: boolean;
 		isService: boolean;
