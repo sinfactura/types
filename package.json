@@ -1,7 +1,7 @@
 {
   "name": "sinfactura-types",
   "private": false,
-  "version": "1.0.36",
+  "version": "1.0.38",
   "type": "module",
   "main": "dist/index.d.ts",
   "scripts": {
