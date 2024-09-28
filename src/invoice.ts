@@ -17,7 +17,7 @@ declare global {
 		location: string; // city and province
 		concept: number; // CONCEPTO 1 productos 2 servicios
 		cuitType: number; // CUIT_TIPO
-		cuit: number; // CUIT CF?
+		cuit: string; // CUIT CF?
 		currency?: 'PES' | 'DOL';
 		currencyValue?: number;
 		fiscalCondition: string; // COND_FISCAL / RESPONSABLE INSCRIPTO

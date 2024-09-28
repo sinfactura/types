@@ -14,7 +14,7 @@ declare global {
         location: string;
         concept: number;
         cuitType: number;
-        cuit: number;
+        cuit: string;
         currency?: 'PES' | 'DOL';
         currencyValue?: number;
         fiscalCondition: string;
