@@ -43,4 +43,4 @@ declare global {
         refreshToken: string;
     }
 }
-export { };
+export {};

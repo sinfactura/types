@@ -54,4 +54,4 @@ declare global {
         deleted: boolean;
     }
 }
-export { };
+export {};
