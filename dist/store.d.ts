@@ -52,7 +52,7 @@ declare global {
             city: string;
             province: string;
         };
-        cuit: number;
+        cuit: string;
         phone: number;
         email: string;
         config: {
@@ -104,7 +104,7 @@ declare global {
         address?: string;
         city?: string;
         condFiscal?: number;
-        cuit?: number;
+        cuit?: string;
         condFiscalName?: string;
         postalCode?: string;
         province?: string;
@@ -129,7 +129,7 @@ declare global {
         editable?: boolean;
     }
     interface Category {
-        categoryId: number;
+        categoryId: string;
         name: string;
         photoURL?: string;
         photoData?: string;
@@ -140,7 +140,7 @@ declare global {
         isNew?: boolean;
     }
     interface Brand {
-        brandId: number;
+        brandId: string;
         name: string;
         photoURL?: string;
         photoData?: string;

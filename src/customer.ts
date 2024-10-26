@@ -2,7 +2,7 @@
 declare global {
 
 	interface CustomerAfip {
-		cuit: number;
+		cuit: string;
 		razonSocial: string;
 		condFiscal: number;
 		condFiscalName: string;

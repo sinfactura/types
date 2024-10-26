@@ -6,7 +6,7 @@ declare global {
         createdAt: number;
         photoURL: string;
         company: string;
-        cuit: number;
+        cuit: string;
         razonSocial: string;
         contactName: string;
         phone: number;
@@ -26,7 +26,7 @@ declare global {
         dated: number;
         number: string;
         razonSocial: string;
-        cuit: number;
+        cuit: string;
         neto: number;
         iva10: number;
         iva21: number;

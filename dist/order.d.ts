@@ -16,7 +16,7 @@ declare global {
         invoiceMethod?: {
             condFiscal: number;
             condFiscalName: string;
-            cuit: number;
+            cuit: string;
             razonSocial: string;
         };
         cost: number;
