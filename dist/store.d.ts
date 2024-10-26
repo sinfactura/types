@@ -129,7 +129,7 @@ declare global {
         editable?: boolean;
     }
     interface Category {
-        categoryId: number;
+        categoryId: string;
         name: string;
         photoURL?: string;
         photoData?: string;
@@ -140,7 +140,7 @@ declare global {
         isNew?: boolean;
     }
     interface Brand {
-        brandId: number;
+        brandId: string;
         name: string;
         photoURL?: string;
         photoData?: string;

@@ -35,8 +35,8 @@ declare global {
         zone?: string;
         currency: number;
         ivaType: number;
-        categoryId: number;
-        brandId: number;
+        categoryId: string;
+        brandId: string;
         inOffer: boolean;
         isNew: boolean;
         isService: boolean;
