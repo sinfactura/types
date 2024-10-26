@@ -52,7 +52,7 @@ declare global {
             city: string;
             province: string;
         };
-        cuit: number;
+        cuit: string;
         phone: number;
         email: string;
         config: {
@@ -104,7 +104,7 @@ declare global {
         address?: string;
         city?: string;
         condFiscal?: number;
-        cuit?: number;
+        cuit?: string;
         condFiscalName?: string;
         postalCode?: string;
         province?: string;
@@ -164,4 +164,4 @@ declare global {
         name: string;
     }
 }
-export {};
+export { };

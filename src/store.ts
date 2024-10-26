@@ -56,7 +56,7 @@ declare global {
 			city: string;
 			province: string;
 		};
-		cuit: number;
+		cuit: string;
 		phone: number;
 		email: string;
 		// CONFIG
@@ -119,7 +119,7 @@ declare global {
 		address?: string;
 		city?: string;
 		condFiscal?: number;
-		cuit?: number;
+		cuit?: string;
 		condFiscalName?: string;
 		postalCode?: string;
 		province?: string;
