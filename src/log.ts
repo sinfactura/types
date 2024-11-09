@@ -5,6 +5,7 @@ declare global {
 		storeId: string;
 		logId: string;
 		createdAt: number; // timestamp
+		updatedAt: number; // timestamp
 		dated: number; // 20220924
 		mode?: string;
 		userId?: string;

@@ -3,6 +3,7 @@ declare global {
         storeId: string;
         logId: string;
         createdAt: number;
+        updatedAt: number;
         dated: number;
         mode?: string;
         userId?: string;
