@@ -1,9 +1,17 @@
 declare global {
+    enum NotificationTypeEnum {
+        ORDER = "ORDER",
+        MERCADOPAGO = "MERCADOPAGO",
+        DOLAROFICIAL = "DOLAROFICIAL",
+        DOLARINFORMAL = "DOLARINFORMAL",
+        DOLARBNA = "DOLARBNA",
+        ERROR = "ERROR"
+    }
     interface NotificationInterface {
         storeId: string;
         notificationId: string;
         createdAt: number;
-        type: 'order' | 'mercadopago' | 'dollarOficial' | 'dollarInformal' | 'dollarBna';
+        type: NotificationTypeEnum;
         title: string;
         orderId?: string;
         userId?: string;
