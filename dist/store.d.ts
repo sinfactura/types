@@ -15,25 +15,25 @@ declare global {
     interface Ecommerce {
         isActive?: boolean;
         config?: {
-            showPricesNoLogin?: boolean;
+            showDefaultPriceList?: number;
             showStocks?: boolean;
         };
-        sideBar?: {
+        sidebar?: {
             show?: boolean;
-            showCategories?: boolean;
-            showBrands?: boolean;
-            showIncomes?: boolean;
-            showFavorites?: boolean;
-            showBasket?: boolean;
-            showOrders?: boolean;
-            showInvoices?: boolean;
+            categories?: boolean;
+            brands?: boolean;
+            incomes?: boolean;
+            favorites?: boolean;
+            basket?: boolean;
+            orders?: boolean;
+            invoices?: boolean;
         };
         footerBar?: {
             show?: boolean;
-            showOrders?: boolean;
-            showInvoices?: boolean;
-            showBasket?: boolean;
-            showFavorites?: boolean;
+            orders?: boolean;
+            invoices?: boolean;
+            basket?: boolean;
+            favorites?: boolean;
         };
         themeColors?: {
             main?: string;
@@ -41,6 +41,56 @@ declare global {
         };
         appVersion?: number;
         stats?: Record<string, string>;
+    }
+    interface FeatureFlags {
+        navbar?: {
+            show?: boolean;
+        };
+        sidebar?: {
+            show?: boolean;
+            customerFinder?: {
+                show?: boolean;
+                showPicture?: boolean;
+                showEditButton?: boolean;
+                showStatsButton?: boolean;
+                showExitButton?: boolean;
+                showBalance?: boolean;
+                showPaymentButton?: boolean;
+            };
+            showHome?: boolean;
+            showCash?: boolean;
+            showOrders?: boolean;
+            showInvoices?: boolean;
+            showBaskets?: boolean;
+            showCustomers?: boolean;
+            showProducts?: boolean;
+            showReports?: boolean;
+            store?: {
+                show?: boolean;
+                showConfig?: boolean;
+                showCategories?: boolean;
+                showBrands?: boolean;
+                showProviders?: boolean;
+                showUsers?: boolean;
+                showIntegrations?: boolean;
+            };
+            showBalance?: boolean;
+        };
+        footer?: {
+            desktopNavigation?: {
+                show?: boolean;
+                showCopyright?: boolean;
+                showPrivacy?: boolean;
+                showAppVersion?: boolean;
+            };
+            mobileNavigation?: {
+                show?: boolean;
+                showOrders?: boolean;
+                showInvoices?: boolean;
+                showBasket?: boolean;
+                showFavorites?: boolean;
+            };
+        };
     }
     interface Store {
         storeId: string;
@@ -61,6 +111,7 @@ declare global {
             changePrice: boolean;
             currency: number;
         };
+        features: FeatureFlags;
         ecommerce?: Ecommerce;
         photoURL: string;
         photoData?: string;
