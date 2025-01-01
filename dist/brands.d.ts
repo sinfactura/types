@@ -6,10 +6,9 @@ declare global {
         photoURL?: string;
         photoData?: string;
         removePhotoURL?: string;
-        isFather?: boolean;
-        father?: number;
-        disabled?: boolean;
-        isNew?: boolean;
+        isFather: boolean;
+        father?: string;
+        disabled: boolean;
     }
 }
 export {};
