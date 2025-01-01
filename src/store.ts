@@ -199,29 +199,6 @@ declare global {
     editable?: boolean;
   }
 
-  interface Category {
-    categoryId: string;
-    name: string;
-    photoURL?: string;
-    photoData?: string;
-    removePhotoURL?: string;
-    isFather?: boolean;
-    father?: number;
-    disabled?: boolean;
-    isNew?: boolean;
-  }
-  interface Brand {
-    brandId: string;
-    name: string;
-    photoURL?: string;
-    photoData?: string;
-    removePhotoURL?: string;
-    isFather?: boolean;
-    father?: number;
-    disabled?: boolean;
-    isNew?: boolean;
-  }
-
   interface FiscalCondition {
     CbteTipo: {
       FAC: number;

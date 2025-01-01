@@ -13,10 +13,6 @@ npm install -d sinfactura-types
 
 See https://github.com/sinfactura/types
 
-## API
-
-See https://github.com/sinfactura/types
-
 ## Build a new version
 
 ```js
