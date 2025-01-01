@@ -4,10 +4,7 @@
   "main": "dist/index.d.ts",
   "type": "module",
   "scripts": {
-    "build": "tsc",
-    "patch": "npm version patch",
-    "publish": "npm publish",
-    "release": "tsc && npm run patch && npm run publish"
+    "publish": "tsc && npm version patch --no-git-tag-version && npm publish --access public"
   },
   "repository": {
     "type": "git",
