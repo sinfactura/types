@@ -1,10 +1,11 @@
 {
   "name": "sinfactura-types",
-  "version": "1.0.55",
+  "version": "1.0.63",
   "main": "dist/index.d.ts",
   "type": "module",
   "scripts": {
-    "publish": "tsc && npm version patch --no-git-tag-version && npm publish --access public"
+    "prepublish": "tsc && npm version patch --no-git-tag-version",
+    "publish": "npm publish --access public"
   },
   "repository": {
     "type": "git",
