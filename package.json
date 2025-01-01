@@ -1,26 +1,22 @@
 {
   "name": "sinfactura-types",
-  "private": false,
   "version": "1.0.54",
+  "main": "dist/index.d.ts",
   "type": "module",
-  "main": "./dist/index.d.ts",
   "scripts": {
-    "publish": "tsc && npm publish --access public"
+    "build": "tsc",
+    "patch": "npm version patch",
+    "publish": "npm publish",
+    "release": "tsc && npm run patch && npm run publish"
   },
-  "keywords": [
-    "typescript",
-    "dev",
-    "sinfactura",
-    "Moises",
-    "Samuel",
-    "Maison"
-  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sinfactura/types"
+  },
+  "keywords": [],
+  "author": "Moises Samuel Maison Maison",
   "license": "MIT",
   "homepage": "https://sinfactura.com",
-  "repository": {
-    "url": "https://github.com/sinfactura/types",
-    "type": "git"
-  },
   "files": [
     "./dist"
   ],
@@ -29,10 +25,10 @@
       "main"
     ]
   },
-  "author": "Moises Samuel Maison Maison",
   "types": "./dist/index.d.ts",
   "typings": "./dist/index.d.ts",
   "devDependencies": {
     "typescript": "^5.6.3"
-  }
+  },
+  "packageManager": "yarn@4.6.0+sha512.5383cc12567a95f1d668fbe762dfe0075c595b4bfff433be478dbbe24e05251a8e8c3eb992a986667c1d53b6c3a9c85b8398c35a960587fbd9fa3a0915406728"
 }
