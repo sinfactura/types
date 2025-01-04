@@ -1,7 +1,7 @@
 declare global {
   interface Brand {
     storeId: string;
-    categoryId: string;
+    brandId: string;
     name: string;
     photoURL?: string;
     photoData?: string;
