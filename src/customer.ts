@@ -1,52 +1,58 @@
-
 declare global {
+  interface CustomerAfip {
+    cuit: string;
+    razonSocial: string;
+    condFiscal: number;
+    condFiscalName: string;
+    address: string;
+    postalCode: string;
+    city: string;
+    province: string;
+  }
 
-	interface CustomerAfip {
-		cuit: string;
-		razonSocial: string;
-		condFiscal: number;
-		condFiscalName: string;
-		address: string;
-		postalCode: string;
-		city: string;
-		province: string;
-	}
+  interface CustomerMarketing {
+    addsMarketing: boolean;
+    emailMarketing: boolean;
+    phoneMarketing: boolean;
+    smsMarketing: boolean;
+    whatsappMarketing: boolean;
+  }
 
-	interface Customer {
-		storeId: string;
-		customerId: string;
-		disabled: boolean;
-		search: string;
-		photoURL: string;
-		fullName: string;
-		cuit: string;
-		phone: string;
-		email: string;
-		address: string;
-		postalCode: string;
-		city: string;
-		province: string;
-		discount: number;
-		minBuy?: number;
-		priceList: number;
-		paymentMethod: number;
-		deliveryMethod: number;
-		afip: CustomerAfip[]
-		createdAt: number;
-		updatedAt?: number;
-		lastBuy?: number;
-		lastLog?: number;
-		hash?: string;
-		salt?: string;
-		balance?: number;
-		favorites?: Partial<Product>[];
-	}
+  interface Customer {
+    storeId: string;
+    customerId: string;
+    address: string;
+    afip: CustomerAfip[];
+    balance?: number;
+    city: string;
+    createdAt: number;
+    cuit: string;
+    deliveryMethod: number;
+    disabled: boolean;
+    discount: number;
+    email: string;
+    favorites?: Partial<Product>[];
+    fullName: string;
+    hash?: string;
+    lastBuy?: number;
+    lastLog?: number;
+    marketing?: CustomerMarketing;
+    minBuy?: number;
+    paymentMethod: number;
+    phone: string;
+    photoURL: string;
+    postalCode: string;
+    priceList: number;
+    province: string;
+    salt?: string;
+    search: string;
+    updatedAt?: number;
+  }
 
-	interface AuthCustomer extends Customer {
-		accessToken: string;
-		refreshToken: string;
-	}
-
+  interface AuthCustomer extends Customer {
+    accessToken: string;
+    refreshToken: string;
+  }
 }
 
-export { };
+export {};

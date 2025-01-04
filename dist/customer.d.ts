@@ -9,34 +9,42 @@ declare global {
         city: string;
         province: string;
     }
+    interface CustomerMarketing {
+        addsMarketing: boolean;
+        emailMarketing: boolean;
+        phoneMarketing: boolean;
+        smsMarketing: boolean;
+        whatsappMarketing: boolean;
+    }
     interface Customer {
         storeId: string;
         customerId: string;
-        disabled: boolean;
-        search: string;
-        photoURL: string;
-        fullName: string;
-        cuit: string;
-        phone: string;
-        email: string;
         address: string;
-        postalCode: string;
-        city: string;
-        province: string;
-        discount: number;
-        minBuy?: number;
-        priceList: number;
-        paymentMethod: number;
-        deliveryMethod: number;
         afip: CustomerAfip[];
+        balance?: number;
+        city: string;
         createdAt: number;
-        updatedAt?: number;
+        cuit: string;
+        deliveryMethod: number;
+        disabled: boolean;
+        discount: number;
+        email: string;
+        favorites?: Partial<Product>[];
+        fullName: string;
+        hash?: string;
         lastBuy?: number;
         lastLog?: number;
-        hash?: string;
+        marketing?: CustomerMarketing;
+        minBuy?: number;
+        paymentMethod: number;
+        phone: string;
+        photoURL: string;
+        postalCode: string;
+        priceList: number;
+        province: string;
         salt?: string;
-        balance?: number;
-        favorites?: Partial<Product>[];
+        search: string;
+        updatedAt?: number;
     }
     interface AuthCustomer extends Customer {
         accessToken: string;
