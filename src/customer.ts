@@ -11,11 +11,11 @@ declare global {
   }
 
   interface CustomerMarketing {
-    addsMarketing: boolean;
-    emailMarketing: boolean;
-    phoneMarketing: boolean;
-    smsMarketing: boolean;
-    whatsappMarketing: boolean;
+    adds?: boolean;
+    email?: boolean;
+    phone?: boolean;
+    sms?: boolean;
+    whatsapp?: boolean;
   }
 
   interface Customer {
