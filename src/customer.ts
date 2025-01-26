@@ -47,6 +47,7 @@ declare global {
     salt?: string;
     search: string;
     updatedAt?: number;
+    currencyId?: number;
   }
 
   interface AuthCustomer extends Customer {
