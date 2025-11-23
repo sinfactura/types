@@ -28,6 +28,16 @@ declare global {
             orders?: boolean;
             invoices?: boolean;
         };
+        home?: {
+            displayCurrencyCard?: boolean;
+            displayCurrencyDetails?: boolean;
+            displayProfile?: boolean;
+            displayFeaturedProducts?: boolean;
+            displayCategories?: boolean;
+            displayPaymentCard?: boolean;
+            displayWhatsappCard?: boolean;
+            displayOrders?: boolean;
+        };
         footerBar?: {
             show?: boolean;
             orders?: boolean;
