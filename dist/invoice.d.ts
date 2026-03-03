@@ -15,7 +15,7 @@ declare global {
         concept: number;
         cuitType: number;
         cuit: string;
-        currency?: 'PES' | 'DOL';
+        currency?: "PES" | "DOL";
         currencyValue?: number;
         fiscalCondition: string;
         paymentCondition: string;
@@ -25,6 +25,7 @@ declare global {
         neto21: number;
         iva10: number;
         iva21: number;
+        discount?: number;
         total: number;
         cae: string;
         caeExpiration: string;
@@ -47,7 +48,7 @@ declare global {
         fiscalCondition: FiscalCondition;
         netos: Neto;
         ivaTypes: Method[];
-        currency: 'PES' | 'DOL';
+        currency: "PES" | "DOL";
         currencyValue: number;
         total: number;
         observations?: string;
