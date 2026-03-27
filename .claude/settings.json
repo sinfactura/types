@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "defaultMode": "plan",
+    "additionalDirectories": ["~/Workspace/sinfactura"],
+    "allow": [
+      "Skill(update-config)",
+      "WebFetch",
+      "WebSearch",
+      "Bash",
+      "Edit",
+      "Write",
+      "mcp__plugin_*",
+      "mcp__plugin_context7_context7__*",
+      "mcp__plugin_github_github__*"
+    ],
+    "deny": [
+      "Read(**/.env*)",
+      "Read(**/*credentials*)",
+      "Read(**/*secret*)",
+      "Bash(rm -rf *)",
+      "Bash(yarn install *)",
+      "Bash(yarn add *)",
+      "Bash(yarn remove *)",
+      "Bash(git checkout *)",
+      "Bash(git reset *)"
+    ],
+    "ask": ["Bash(mv:*)"]
+  }
+}
