@@ -45,13 +45,6 @@ jobs:
           git commit -m "chore: bump version to $(node -p 'require("./package.json").version')"
           git push
 
-      - name: Check NPM_TOKEN
-        run: |
-          if [ -z "${{ secrets.NPM_TOKEN }}" ]; then
-            echo "❌ NPM_TOKEN secret is not set. Please add it in your repository settings."
-            exit 1
-          fi
-
       - name: Publish
         run: npm publish --access public
         env:
