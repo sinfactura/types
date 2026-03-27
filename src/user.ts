@@ -17,7 +17,7 @@ declare global {
     roleProducts?: boolean;
     roleCustomers?: boolean;
     roleAfip?: boolean;
-    // NOTIFICATIONS2
+    // NOTIFICATIONS
     notifications?: UserNotifications;
     permissions?: UserPermissions;
   }
