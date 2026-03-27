@@ -29,6 +29,9 @@ declare global {
 		invoices?: Partial<Invoice>[];
 		disabled?: boolean;
 		items: Partial<BasketItem>[];
+		rating?: number;
+		comment?: string;
+		surveyDate?: number;
 	}
 
 	interface ZebraTag {

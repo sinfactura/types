@@ -18,3 +18,4 @@ export * from "./store";
 export * from "./supplier";
 export * from "./user";
 export * from "./whatsapp";
+export * from "./provinces";
