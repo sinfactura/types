@@ -1,6 +1,7 @@
 # `sinfactura-types`
 
 sinfactura.com interfaces and types.
+updated
 
 ## Usage
 
