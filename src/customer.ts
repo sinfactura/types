@@ -48,6 +48,14 @@ declare global {
     search: string;
     updatedAt?: number;
     currencyId?: number;
+    deliveryAddress?: {
+      fullName: string;
+      address: string;
+      phone: string;
+      city: string;
+      province: string;
+      postalCode: string;
+    };
   }
 
   interface AuthCustomer extends Customer {
