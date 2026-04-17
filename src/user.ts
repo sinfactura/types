@@ -20,6 +20,13 @@ declare global {
     // NOTIFICATIONS
     notifications?: UserNotifications;
     permissions?: UserPermissions;
+    // EMAIL VERIFICATION (#773)
+    // Grandfather clause: `emailVerified === undefined` means a legacy
+    // user that predates the OTP flow — apps should treat undefined as
+    // verified. New registrations carry an explicit `false` until OTP
+    // completes; provider-verified social signups start at `true`.
+    emailVerified?: boolean;
+    emailVerifiedAt?: number;
   }
 
   type UserNotifications = {
