@@ -6,6 +6,7 @@ declare global {
     message?: string;
     startedAt?: number;
     startedBy?: { userId: string; fullName: string };
+    endsAt?: number;
   }
 }
 
