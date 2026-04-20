@@ -172,6 +172,8 @@ declare global {
     ivaTypes: Method[];
     minWithDni: number;
     notificationOptions?: Method[];
+    // MAINTENANCE (see sinfactura/app#1126)
+    maintenance?: MaintenanceInfo;
   }
 
   interface Afip {

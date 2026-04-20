@@ -10,6 +10,7 @@ export * from "./customer";
 export * from "./imports";
 export * from "./invoice";
 export * from "./log";
+export * from "./maintenance";
 export * from "./notification";
 export * from "./order";
 export * from "./product";
