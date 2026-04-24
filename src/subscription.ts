@@ -1,0 +1,201 @@
+/**
+ * Subscription types — plan tiers, entitlements, feature matrix, subscription state.
+ *
+ * Ships app#710 (Chunk 1). Canonical decisions live in
+ * sinfactura/app/docs/plans/SUBSCRIPTION_BUSINESS_DECISIONS.md.
+ *
+ * Notes:
+ * - Tier names are the 4 locked Spanish tiers (per SUBSCRIPTION_TIERS_BEST_PRACTICES §0).
+ * - `fundador` is a `SubscriptionStatus` on `negocio`-tier plans (ADR-0009).
+ * - `FeatureKey` uses flat camelCase (not the dotted `reports.advanced` from the design kit).
+ * - Monetary amounts are integers in minor units (ARS cents) to avoid float issues.
+ * - WhatsApp-specific feature keys + `customDomain` are intentionally OUT of scope here;
+ *   they ship with their own epics (#1072, #1152) after Product sign-off.
+ */
+
+declare global {
+	// ───────────────────────────── Plan structure ─────────────────────────────
+
+	type PlanTier = 'basico' | 'emprendedor' | 'negocio' | 'empresa';
+
+	/**
+	 * Lifecycle status of a tenant's subscription.
+	 *
+	 * - `trialing` — new signup in the 30-day NEGOCIO trial (no payment method).
+	 * - `active` — paid subscription, period current.
+	 * - `past_due` — payment failed, in the 7-day grace window.
+	 * - `readonly` — grace elapsed, writes blocked, tenant can still read.
+	 * - `canceled` — tenant ended subscription; data retained per grace policy.
+	 * - `fundador` — pre-launch cohort, 12-month free NEGOCIO entitlements (ADR-0009).
+	 */
+	type SubscriptionStatus =
+		| 'trialing'
+		| 'active'
+		| 'past_due'
+		| 'readonly'
+		| 'canceled'
+		| 'fundador';
+
+	type BillingCycle = 'monthly' | 'annual';
+
+	// ───────────────────────────── Entitlements ─────────────────────────────
+
+	/**
+	 * Shape of a single entitlement on a (tier, feature) cell.
+	 *
+	 * - `boolean`  — on/off gate. `enabled` is the only relevant field.
+	 * - `numeric`  — hard cap; `limit` required; block on overage.
+	 * - `metered`  — usage-tracked; `limit` required. At launch behaves the same as
+	 *                `numeric` (counter-based enforcement, no overage billing). Kept
+	 *                distinct so post-launch metered billing can flip behavior without
+	 *                a migration.
+	 */
+	type EntitlementType = 'boolean' | 'numeric' | 'metered';
+
+	interface Entitlement {
+		type: EntitlementType;
+		enabled: boolean;
+		/** Required for `numeric` and `metered`. `Infinity`-equivalent — treat sentinel value for "unlimited". */
+		limit?: number;
+	}
+
+	// ───────────────────────────── Feature keys ─────────────────────────────
+
+	/**
+	 * All gated features. Add new keys here when a new feature becomes gateable;
+	 * every existing plan in `FEATURE_MATRIX` must then declare the new key
+	 * (TypeScript enforces this via `Record<FeatureKey, Entitlement>`).
+	 */
+	type FeatureKey =
+		// Usage limits (numeric / metered)
+		| 'maxOrdersMonth'
+		| 'maxInvoicesMonth'
+		| 'maxProducts'
+		| 'maxUsers'
+		| 'maxCustomers'
+		| 'maxStores'
+		// Facturación
+		| 'afip'
+		| 'stripePayments'
+		| 'suppliers'
+		// Operación
+		| 'cash'
+		| 'multiStore'
+		| 'importExport'
+		// Análisis
+		| 'reportsAdvanced'
+		// Empresa
+		| 'customBranding'
+		| 'apiAccess'
+		| 'prioritySupport';
+
+	/** Full feature matrix — every tier declares every feature. */
+	type FeatureMatrix = Record<PlanTier, Record<FeatureKey, Entitlement>>;
+
+	/** Resolved entitlements for a specific tenant (matrix + overrides applied). */
+	type ResolvedEntitlements = Record<FeatureKey, Entitlement>;
+
+	// ───────────────────────────── Plan catalog ─────────────────────────────
+
+	/**
+	 * A sellable plan in the catalog. Seeded into DynamoDB by api#626 and
+	 * served to the frontend via GET /subscription/plans.
+	 *
+	 * Prices are integers in ARS cents (e.g. $40 000 = 4_000_000).
+	 * `null` = "Contactar ventas" (EMPRESA, pre-unlock).
+	 */
+	interface Plan {
+		tier: PlanTier;
+		/** Display label — "BÁSICO", "EMPRENDEDOR", "NEGOCIO", "EMPRESA". */
+		label: string;
+		/** Short marketing tagline (Spanish). */
+		blurb?: string;
+		/** Price in ARS cents for monthly billing. `null` = contactar. */
+		priceMonthly: number | null;
+		/** Price in ARS cents for annual billing (total / 12; ~20% discount). `null` = contactar. */
+		priceAnnual: number | null;
+		/** 'ARS' at launch. Reserved for future multi-currency. */
+		currency: 'ARS';
+		/**
+		 * Whether the plan is accepting new subscribers. Closed-cohort plans
+		 * (e.g. Founders after 2026-05-31) set this to `false` without deleting
+		 * the plan row.
+		 */
+		isActive: boolean;
+		/** Marked as the anchor / recommended tier on the pricing page. NEGOCIO at launch. */
+		isPopular?: boolean;
+		/**
+		 * Visibility on the public pricing page. EMPRESA = `false` until
+		 * ≥2 Planned features ship (per SUBSCRIPTION_TIERS_BEST_PRACTICES §0).
+		 */
+		isPublic: boolean;
+		/** Stripe Price IDs once the plan is wired to Stripe Products (api#627). */
+		stripeMonthlyPriceId?: string;
+		stripeAnnualPriceId?: string;
+		/** Per-tier entitlement configuration. */
+		entitlements: Record<FeatureKey, Entitlement>;
+		createdAt: number;
+		updatedAt: number;
+	}
+
+	// ───────────────────────────── Subscription state ─────────────────────────────
+
+	/**
+	 * A tenant's current subscription row. One per `tenantId`.
+	 * Stored in DynamoDB; mirrored to Stripe when `stripeSubscriptionId` is present.
+	 */
+	interface Subscription {
+		tenantId: string;
+		planTier: PlanTier;
+		status: SubscriptionStatus;
+		billingCycle: BillingCycle;
+		/** Current period window (Unix ms). */
+		currentPeriodStart: number;
+		currentPeriodEnd: number;
+		/** Set while `status === 'trialing'`. Unix ms. */
+		trialEndsAt?: number;
+		/** Set while `status === 'fundador'`. Unix ms. Per ADR-0009: 2027-06-30T00:00:00Z. */
+		freeUntil?: number;
+		/** Stripe identifiers (absent for trialing/fundador before checkout). */
+		stripeCustomerId?: string;
+		stripeSubscriptionId?: string;
+		/**
+		 * Per-tenant entitlement overrides (grandfathering). Applied on top of the
+		 * plan's base entitlements when resolving.
+		 */
+		overrides?: Partial<Record<FeatureKey, Entitlement>>;
+		createdAt: number;
+		updatedAt: number;
+	}
+
+	// ───────────────────────────── Usage (counter-based) ─────────────────────────────
+
+	/**
+	 * Per-tenant, per-period usage counters for `metered` features. Monthly reset
+	 * via scheduled Lambda (api#629). At launch, used only for local enforcement;
+	 * not reported to Stripe Meter (metered billing is a post-launch concern).
+	 */
+	interface UsageCounters {
+		tenantId: string;
+		/** Period start (Unix ms). Aligns with `Subscription.currentPeriodStart`. */
+		periodStart: number;
+		periodEnd: number;
+		/** Counters keyed by the metered-feature FeatureKey. Keys default to 0 when absent. */
+		counters: Partial<Record<FeatureKey, number>>;
+		updatedAt: number;
+	}
+
+	// ───────────────────────────── WebSocket sync ─────────────────────────────
+
+	/**
+	 * Full subscription snapshot pushed to the frontend on subscription/entitlement
+	 * changes. Consumers use this to invalidate RTK Query caches and re-render gates.
+	 */
+	interface SubscriptionSyncPayload {
+		subscription: Subscription;
+		entitlements: ResolvedEntitlements;
+		usage?: UsageCounters;
+	}
+}
+
+export {};
