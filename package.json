@@ -1,6 +1,6 @@
 {
   "name": "sinfactura-types",
-  "version": "1.0.91",
+  "version": "1.0.94",
   "main": "dist/index.js",
   "type": "module",
   "types": "./dist/index.d.ts",
@@ -12,7 +12,12 @@
   },
   "scripts": {
     "build": "tsc",
-    "prepublishOnly": "tsc"
+    "prepublishOnly": "tsc",
+    "release": "npm version patch --no-git-tag-version && npm publish"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "repository": {
     "type": "git",
