@@ -27,6 +27,7 @@ declare global {
 		orderPrinted?: boolean;
 		tagPrinted?: boolean;
 		invoices?: Partial<Invoice>[];
+		returns?: Partial<Return>[];
 		disabled?: boolean;
 		items: Partial<BasketItem>[];
 		rating?: number;

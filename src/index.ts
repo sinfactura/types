@@ -1,6 +1,7 @@
 export * from "./account";
 export * from "./afip";
 export * from "./api";
+export * from "./audit";
 export * from "./auth";
 export * from "./basket";
 export * from "./brands";
@@ -14,6 +15,7 @@ export * from "./maintenance";
 export * from "./notification";
 export * from "./order";
 export * from "./product";
+export * from "./return";
 export * from "./stock";
 export * from "./store";
 export * from "./subscription";
