@@ -13,8 +13,11 @@
  *   flow now sets status='active' on fundador subscriptions).
  * - `FeatureKey` uses flat camelCase (not the dotted `reports.advanced` from the design kit).
  * - Monetary amounts are integers in minor units (ARS cents) to avoid float issues.
- * - WhatsApp-specific feature keys + `customDomain` are intentionally OUT of scope here;
- *   they ship with their own epics (#1072, #1152) after Product sign-off.
+ * - Feature keys now match the BE wire format directly (renamed afip→afipInvoicing,
+ *   cash→cashManagement, stripePayments→paymentIntegrations, reportsAdvanced→advancedReports
+ *   as of 2026-04-26). New keys whatsappCommerce/aiFeatures/mobileApp/customDomain are
+ *   declared here even when their epics haven't shipped — the matrix can set
+ *   enabled:false until they do.
  */
 
 declare global {
@@ -59,9 +62,12 @@ declare global {
 
 	interface Entitlement {
 		type: EntitlementType;
-		enabled: boolean;
+		/** `null` for `numeric`/`metered` types where on/off semantics don't apply (limit-driven). */
+		enabled: boolean | null;
 		/** Required for `numeric` and `metered`. `Infinity`-equivalent — treat sentinel value for "unlimited". */
 		limit?: number;
+		/** Origin of this entitlement entry. `plan` = from the tier matrix; `override` = tenant-specific override; `trial` = trial bonus. */
+		source?: 'plan' | 'override' | 'trial';
 	}
 
 	// ───────────────────────────── Feature keys ─────────────────────────────
@@ -80,19 +86,24 @@ declare global {
 		| 'maxCustomers'
 		| 'maxStores'
 		// Facturación
-		| 'afip'
-		| 'stripePayments'
+		| 'afipInvoicing'
+		| 'paymentIntegrations'
 		| 'suppliers'
 		// Operación
-		| 'cash'
+		| 'cashManagement'
 		| 'multiStore'
 		| 'importExport'
 		// Análisis
-		| 'reportsAdvanced'
+		| 'advancedReports'
 		// Avanzado
 		| 'customBranding'
 		| 'apiAccess'
-		| 'prioritySupport';
+		| 'prioritySupport'
+		// Future / cross-epic features (matrix may set enabled:false until epic ships)
+		| 'whatsappCommerce'
+		| 'aiFeatures'
+		| 'mobileApp'
+		| 'customDomain';
 
 	/** Full feature matrix — every tier declares every feature. */
 	type FeatureMatrix = Record<PlanTier, Record<FeatureKey, Entitlement>>;
@@ -201,14 +212,41 @@ declare global {
 
 	// ───────────────────────────── WebSocket sync ─────────────────────────────
 
+	/** A single entitlement entry as returned by GET /subscription. */
+	interface SubscriptionEntitlementEntry {
+		key: FeatureKey;
+		type: EntitlementType;
+		enabled: boolean | null;
+		limit: number | null;
+		source: 'plan' | 'override' | 'trial';
+	}
+
+	/** A single usage entry as returned by GET /subscription. */
+	interface SubscriptionUsageEntry {
+		key: FeatureKey;
+		/** Period in YYYYMM format. */
+		period: string;
+		current: number;
+		limit: number;
+		remaining: number;
+	}
+
 	/**
 	 * Full subscription snapshot pushed to the frontend on subscription/entitlement
-	 * changes. Consumers use this to invalidate RTK Query caches and re-render gates.
+	 * changes. Flat shape — matches GET /subscription wire format directly.
 	 */
 	interface SubscriptionSyncPayload {
-		subscription: Subscription;
-		entitlements: ResolvedEntitlements;
-		usage?: UsageCounters;
+		planTier: PlanTier;
+		status: SubscriptionStatus;
+		billingCycle: BillingCycle | null;
+		currentPeriodStart: number | null;
+		currentPeriodEnd: number | null;
+		trialEndsAt: number | null;
+		freeUntil?: string;
+		cancelAt: number | null;
+		canceledAt: number | null;
+		entitlements: SubscriptionEntitlementEntry[];
+		usage: SubscriptionUsageEntry[];
 	}
 }
 
