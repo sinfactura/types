@@ -5,8 +5,12 @@
  * sinfactura/app/docs/plans/SUBSCRIPTION_BUSINESS_DECISIONS.md.
  *
  * Notes:
- * - Tier names are the 4 locked Spanish tiers (per SUBSCRIPTION_TIERS_BEST_PRACTICES §0).
- * - `fundador` is a `SubscriptionStatus` on `negocio`-tier plans (ADR-0009).
+ * - Tier names are the 5 locked Spanish tiers (per SUBSCRIPTION_TIERS_BEST_PRACTICES §0
+ *   and api#802 — the launch lineup is BÁSICO, EMPRENDEDOR, PROFESIONAL, AVANZADO,
+ *   plus FUNDADOR for the pre-launch cohort).
+ * - `fundador` is BOTH a `PlanTier` (the cohort plan template seeded at api#802) and a
+ *   pre-existing `SubscriptionStatus` value (kept for backward compat — the registration
+ *   flow now sets status='active' on fundador subscriptions).
  * - `FeatureKey` uses flat camelCase (not the dotted `reports.advanced` from the design kit).
  * - Monetary amounts are integers in minor units (ARS cents) to avoid float issues.
  * - WhatsApp-specific feature keys + `customDomain` are intentionally OUT of scope here;
@@ -16,17 +20,18 @@
 declare global {
 	// ───────────────────────────── Plan structure ─────────────────────────────
 
-	type PlanTier = 'basico' | 'emprendedor' | 'negocio' | 'empresa';
+	type PlanTier = 'basico' | 'emprendedor' | 'profesional' | 'avanzado' | 'fundador';
 
 	/**
 	 * Lifecycle status of a tenant's subscription.
 	 *
-	 * - `trialing` — new signup in the 30-day NEGOCIO trial (no payment method).
+	 * - `trialing` — new signup in the 30-day PROFESIONAL trial (no payment method).
 	 * - `active` — paid subscription, period current.
 	 * - `past_due` — payment failed, in the 7-day grace window.
 	 * - `readonly` — grace elapsed, writes blocked, tenant can still read.
 	 * - `canceled` — tenant ended subscription; data retained per grace policy.
-	 * - `fundador` — pre-launch cohort, 12-month free NEGOCIO entitlements (ADR-0009).
+	 * - `fundador` — legacy pre-cohort status. Post-api#802, fundador subscriptions
+	 *   carry `status: 'active'` and are identified via `planTier === 'fundador'`.
 	 */
 	type SubscriptionStatus =
 		| 'trialing'
@@ -84,7 +89,7 @@ declare global {
 		| 'importExport'
 		// Análisis
 		| 'reportsAdvanced'
-		// Empresa
+		// Avanzado
 		| 'customBranding'
 		| 'apiAccess'
 		| 'prioritySupport';
@@ -102,11 +107,11 @@ declare global {
 	 * served to the frontend via GET /subscription/plans.
 	 *
 	 * Prices are integers in ARS cents (e.g. $40 000 = 4_000_000).
-	 * `null` = "Contactar ventas" (EMPRESA, pre-unlock).
+	 * `null` = "Contactar ventas" (AVANZADO, pre-unlock).
 	 */
 	interface Plan {
 		tier: PlanTier;
-		/** Display label — "BÁSICO", "EMPRENDEDOR", "NEGOCIO", "EMPRESA". */
+		/** Display label — "BÁSICO", "EMPRENDEDOR", "PROFESIONAL", "AVANZADO", "FUNDADOR". */
 		label: string;
 		/** Short marketing tagline (Spanish). */
 		blurb?: string;
@@ -122,10 +127,10 @@ declare global {
 		 * the plan row.
 		 */
 		isActive: boolean;
-		/** Marked as the anchor / recommended tier on the pricing page. NEGOCIO at launch. */
+		/** Marked as the anchor / recommended tier on the pricing page. PROFESIONAL at launch. */
 		isPopular?: boolean;
 		/**
-		 * Visibility on the public pricing page. EMPRESA = `false` until
+		 * Visibility on the public pricing page. AVANZADO = `false` until
 		 * ≥2 Planned features ship (per SUBSCRIPTION_TIERS_BEST_PRACTICES §0).
 		 */
 		isPublic: boolean;
@@ -154,8 +159,17 @@ declare global {
 		currentPeriodEnd: number;
 		/** Set while `status === 'trialing'`. Unix ms. */
 		trialEndsAt?: number;
-		/** Set while `status === 'fundador'`. Unix ms. Per ADR-0009: 2027-06-30T00:00:00Z. */
-		freeUntil?: number;
+		/**
+		 * Founders cohort only — YYYY-MM-DD when the 12-month free PROFESIONAL
+		 * entitlement window ends. Set on registration when `?mode=founders`
+		 * is opted into and the cohort is open. String (not numeric ms) so it's
+		 * human-readable in the DynamoDB console — matches api#802 verbatim.
+		 */
+		freeUntil?: string;
+		/** Founders cohort only — YYYY-MM-DD when the post-free grace period ends. */
+		graceUntil?: string;
+		/** Founders cohort only — eligible for the perpetual founder discount after cutoff. */
+		founderDiscountEligible?: boolean;
 		/** Stripe identifiers (absent for trialing/fundador before checkout). */
 		stripeCustomerId?: string;
 		stripeSubscriptionId?: string;
