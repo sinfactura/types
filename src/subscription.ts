@@ -126,12 +126,17 @@ declare global {
 		label: string;
 		/** Short marketing tagline (Spanish). */
 		blurb?: string;
-		/** Price in ARS cents for monthly billing. `null` = contactar. */
+		/** Price in the plan's `currency` smallest unit for monthly billing. `null` = contactar. */
 		priceMonthly: number | null;
-		/** Price in ARS cents for annual billing (total / 12; ~20% discount). `null` = contactar. */
+		/** Price in the plan's `currency` smallest unit for annual billing (total / 12; ~20% discount). `null` = contactar. */
 		priceAnnual: number | null;
-		/** 'ARS' at launch. Reserved for future multi-currency. */
-		currency: 'ARS';
+		/**
+		 * Currency the prices are denominated in. `'ARS'` at launch; `'USD'`
+		 * is the migration target (api#841). Widened from the launch-only
+		 * `'ARS'` literal in api#842 so the FE can render either currency
+		 * without a type change once the platform flips.
+		 */
+		currency: 'ARS' | 'USD';
 		/**
 		 * Whether the plan is accepting new subscribers. Closed-cohort plans
 		 * (e.g. Founders after 2026-05-31) set this to `false` without deleting
@@ -148,6 +153,14 @@ declare global {
 		/** Stripe Price IDs once the plan is wired to Stripe Products (api#627). */
 		stripeMonthlyPriceId?: string;
 		stripeAnnualPriceId?: string;
+		/**
+		 * MercadoPago PreApprovalPlan IDs — populated by the future
+		 * `seed-mercadopago-plans` Lambda (api#843). Coexist with the Stripe
+		 * IDs above on the same Plan row so both providers' state can live
+		 * in one place; unused fields stay dormant.
+		 */
+		mpPreApprovalPlanIdMonthly?: string;
+		mpPreApprovalPlanIdAnnual?: string;
 		/** Per-tier entitlement configuration. */
 		entitlements: Record<FeatureKey, Entitlement>;
 		createdAt: number;
@@ -165,6 +178,15 @@ declare global {
 		planTier: PlanTier;
 		status: SubscriptionStatus;
 		billingCycle: BillingCycle;
+		/**
+		 * Currency this subscription was billed in at checkout time.
+		 * Snapshotted from the Plan's `currency` field so it survives
+		 * platform-wide currency switches (api#841 / api#842) — a customer
+		 * who signed up on ARS keeps being charged in ARS even after the
+		 * platform flips to USD for new signups. Required for accurate
+		 * historical reporting + AFIP invoices.
+		 */
+		currency?: 'ARS' | 'USD';
 		/** Current period window (Unix ms). */
 		currentPeriodStart: number;
 		currentPeriodEnd: number;
