@@ -114,57 +114,125 @@ declare global {
 	// ───────────────────────────── Plan catalog ─────────────────────────────
 
 	/**
-	 * A sellable plan in the catalog. Seeded into DynamoDB by api#626 and
-	 * served to the frontend via GET /subscription/plans.
+	 * Implementation status of a feature on a plan row. Informational —
+	 * gating still happens via `enabled` / `limit`. `'service'` rows
+	 * (e.g. prioritySupport) are human-delivered but still gated like
+	 * booleans.
+	 */
+	type PlanFeatureStatus = 'live' | 'planned' | 'future' | 'service';
+
+	/**
+	 * A single feature row in a Plan's `features[]` array. Matches the
+	 * BE wire format from `GET /subscription/plans` exactly — boolean
+	 * features carry `enabled`, numeric/metered carry `limit` (-1 =
+	 * unlimited).
+	 */
+	interface PlanFeature {
+		key: FeatureKey;
+		type: EntitlementType;
+		status: PlanFeatureStatus;
+		/** User-facing Spanish description. */
+		description: string;
+		/** Set on `boolean` features; `null` on numeric/metered. */
+		enabled: boolean | null;
+		/** Set on `numeric`/`metered` features; `null` on boolean. -1 = unlimited. */
+		limit: number | null;
+	}
+
+	/**
+	 * A sellable plan in the catalog. Aligned with the BE wire format from
+	 * `GET /subscription/plans` (api#859). Source of truth lives in
+	 * DynamoDB (`PLAN#{tier}` partition), administered via `POST /sa/plans`
+	 * + `PATCH /sa/plans/{tier}` (api#859).
 	 *
-	 * Prices are integers in ARS cents (e.g. $40 000 = 4_000_000).
-	 * `null` = "Contactar ventas" (AVANZADO, pre-unlock).
+	 * Prices are integers in the `currency` smallest unit (centavos for ARS,
+	 * cents for USD). `null` = "Contactar ventas" (AVANZADO annual at launch
+	 * is sales-led; basico/fundador are free) per spec §6.4.
+	 *
+	 * **Breaking change vs 1.1.x:** the catalog Plan interface was reshaped
+	 * to match the BE wire format. Renames & removals:
+	 *   - `label` → `name`
+	 *   - `blurb` → `description`
+	 *   - `priceMonthly` → `priceMonthlyCents` (number | null)
+	 *   - `priceAnnual` → `priceAnnualCents` (number | null)
+	 *   - `currency` widened to `'ARS' | 'USD' | null`
+	 *   - `entitlements: Record<FeatureKey, Entitlement>` → `features: PlanFeature[]`
+	 *   - `isPublic` removed (use `isActive` for visibility gating)
+	 *   - `stripeMonthlyPriceId` / `stripeAnnualPriceId` /
+	 *     `mpPreApprovalPlanIdMonthly` / `mpPreApprovalPlanIdAnnual` removed
+	 *     (BE-internal — not on the public wire format)
+	 *   - `createdAt` / `updatedAt` removed (not on the public wire format)
+	 *
+	 * Added per api#859:
+	 *   - `displayOrder` (number)
+	 *   - `color` (single hex string, FE derives `soft`/`border` shades)
+	 *   - `isPopular` (now required, was optional)
 	 */
 	interface Plan {
 		tier: PlanTier;
-		/** Display label — "BÁSICO", "EMPRENDEDOR", "PROFESIONAL", "AVANZADO", "FUNDADOR". */
-		label: string;
-		/** Short marketing tagline (Spanish). */
-		blurb?: string;
-		/** Price in the plan's `currency` smallest unit for monthly billing. `null` = contactar. */
-		priceMonthly: number | null;
-		/** Price in the plan's `currency` smallest unit for annual billing (total / 12; ~20% discount). `null` = contactar. */
-		priceAnnual: number | null;
+		/** Display name in Spanish (e.g. "Profesional"). */
+		name: string;
+		/** Short marketing one-liner in Spanish. */
+		description: string;
 		/**
-		 * Currency the prices are denominated in. `'ARS'` at launch; `'USD'`
-		 * is the migration target (api#841). Widened from the launch-only
-		 * `'ARS'` literal in api#842 so the FE can render either currency
-		 * without a type change once the platform flips.
-		 */
-		currency: 'ARS' | 'USD';
-		/**
-		 * Whether the plan is accepting new subscribers. Closed-cohort plans
-		 * (e.g. Founders after 2026-05-31) set this to `false` without deleting
-		 * the plan row.
+		 * Whether the plan is shown on the pricing page and accepting new
+		 * subscribers. Closed-cohort plans (e.g. Founders after the cutoff)
+		 * and pre-launch tiers (e.g. AVANZADO until ≥2 Planned features ship)
+		 * set this to `false` without deleting the plan row.
 		 */
 		isActive: boolean;
-		/** Marked as the anchor / recommended tier on the pricing page. PROFESIONAL at launch. */
-		isPopular?: boolean;
 		/**
-		 * Visibility on the public pricing page. AVANZADO = `false` until
-		 * ≥2 Planned features ship (per SUBSCRIPTION_TIERS_BEST_PRACTICES §0).
+		 * Anchor / recommended tier on the pricing page. The FE typically
+		 * renders the "Más elegido" pill on the plan(s) flagged here. The
+		 * BE does not enforce uniqueness — admins can flag any number of
+		 * plans, but the canonical convention is exactly one.
 		 */
-		isPublic: boolean;
-		/** Stripe Price IDs once the plan is wired to Stripe Products (api#627). */
-		stripeMonthlyPriceId?: string;
-		stripeAnnualPriceId?: string;
+		isPopular: boolean;
+		/** Sort order on the pricing page (ascending). Ties allowed. */
+		displayOrder: number;
+		/** Monthly price in `currency` smallest units. `null` = sales-led / free. */
+		priceMonthlyCents: number | null;
+		/** Annual price in `currency` smallest units. `null` = sales-led / free. */
+		priceAnnualCents: number | null;
 		/**
-		 * MercadoPago PreApprovalPlan IDs — populated by the future
-		 * `seed-mercadopago-plans` Lambda (api#843). Coexist with the Stripe
-		 * IDs above on the same Plan row so both providers' state can live
-		 * in one place; unused fields stay dormant.
+		 * Currency the prices are denominated in. `'ARS'` at launch; `'USD'`
+		 * is the migration target (api#841). `null` on free / off-billing
+		 * tiers (basico, fundador).
 		 */
-		mpPreApprovalPlanIdMonthly?: string;
-		mpPreApprovalPlanIdAnnual?: string;
-		/** Per-tier entitlement configuration. */
-		entitlements: Record<FeatureKey, Entitlement>;
+		currency: 'ARS' | 'USD' | null;
+		/**
+		 * Single brand hex color (e.g. '#590d82'). The FE derives `soft`
+		 * (light tint) and `border` shades via MUI's `alpha()` helper.
+		 * `null` on plans created/seeded before the api#859 backfill.
+		 */
+		color: string | null;
+		/**
+		 * Per-feature configuration. Every `FeatureKey` appears exactly once.
+		 * Boolean features carry `enabled`; numeric/metered carry `limit`.
+		 */
+		features: PlanFeature[];
+	}
+
+	// ───────────────────────────── Plan audit ─────────────────────────────
+
+	/**
+	 * One audit row per SUPER_ADMIN-driven plan mutation. Returned by
+	 * `GET /sa/plans/{tier}/audit` (api#859). The same row shape is used
+	 * for the sibling `STORE` audit partition (api#827).
+	 *
+	 * `before` and `after` carry only the fields that changed (diff slice),
+	 * not the full row blob.
+	 */
+	interface PlanAuditEntry {
+		entity: 'PLAN';
+		entityId: string;
+		timestamp: number;
+		actor: { userId: string; fullName: string };
+		action: string;
+		before: Record<string, unknown>;
+		after: Record<string, unknown>;
+		reason: string;
 		createdAt: number;
-		updatedAt: number;
 	}
 
 	// ───────────────────────────── Subscription state ─────────────────────────────
