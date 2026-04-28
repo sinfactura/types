@@ -2,15 +2,17 @@
  * Subscription types — plan tiers, entitlements, feature matrix, subscription state.
  *
  * Ships app#710 (Chunk 1). Canonical decisions live in
- * sinfactura/app/docs/plans/SUBSCRIPTION_BUSINESS_DECISIONS.md.
+ * sinfactura/app/docs/plans/SUBSCRIPTION_BUSINESS_DECISIONS.md and
+ * sinfactura/app/docs/adr/0010-launch-trial-policy.md.
  *
  * Notes:
- * - Tier names are the 5 locked Spanish tiers (per SUBSCRIPTION_TIERS_BEST_PRACTICES §0
- *   and api#802 — the launch lineup is BÁSICO, EMPRENDEDOR, PROFESIONAL, AVANZADO,
- *   plus FUNDADOR for the pre-launch cohort).
- * - `fundador` is BOTH a `PlanTier` (the cohort plan template seeded at api#802) and a
- *   pre-existing `SubscriptionStatus` value (kept for backward compat — the registration
- *   flow now sets status='active' on fundador subscriptions).
+ * - Tier names are the 4 locked Spanish tiers (per SUBSCRIPTION_TIERS_BEST_PRACTICES §0
+ *   and api#802): BÁSICO, EMPRENDEDOR, PROFESIONAL, AVANZADO. The launch policy
+ *   (ADR-0010) gives every new paid subscription a 30-day Stripe trial; courtesy
+ *   gifts (formerly the Founders cohort) are now a one-off ops action via
+ *   `gift-subscription` that sets `freeUntil` on the SUBSCRIPTION row.
+ * - `freeUntil` lives on every Subscription independent of status. It is the
+ *   courtesy-gift cutoff; while `freeUntil > now` the BE suppresses billing.
  * - `FeatureKey` uses flat camelCase (not the dotted `reports.advanced` from the design kit).
  * - Monetary amounts are integers in minor units (ARS cents) to avoid float issues.
  * - Feature keys now match the BE wire format directly (renamed afip→afipInvoicing,
@@ -23,26 +25,27 @@
 declare global {
 	// ───────────────────────────── Plan structure ─────────────────────────────
 
-	type PlanTier = 'basico' | 'emprendedor' | 'profesional' | 'avanzado' | 'fundador';
+	type PlanTier = 'basico' | 'emprendedor' | 'profesional' | 'avanzado';
 
 	/**
 	 * Lifecycle status of a tenant's subscription.
 	 *
-	 * - `trialing` — new signup in the 30-day PROFESIONAL trial (no payment method).
+	 * - `trialing` — new paid-tier signup in their 30-day Stripe trial.
 	 * - `active` — paid subscription, period current.
 	 * - `past_due` — payment failed, in the 7-day grace window.
 	 * - `readonly` — grace elapsed, writes blocked, tenant can still read.
 	 * - `canceled` — tenant ended subscription; data retained per grace policy.
-	 * - `fundador` — legacy pre-cohort status. Post-api#802, fundador subscriptions
-	 *   carry `status: 'active'` and are identified via `planTier === 'fundador'`.
+	 *
+	 * Courtesy gifts (formerly the Founders cohort, ADR-0009) are no longer a
+	 * status — they are represented by `Subscription.freeUntil` on top of any
+	 * normal status. See ADR-0010.
 	 */
 	type SubscriptionStatus =
 		| 'trialing'
 		| 'active'
 		| 'past_due'
 		| 'readonly'
-		| 'canceled'
-		| 'fundador';
+		| 'canceled';
 
 	type BillingCycle = 'monthly' | 'annual';
 
@@ -176,9 +179,8 @@ declare global {
 		description: string;
 		/**
 		 * Whether the plan is shown on the pricing page and accepting new
-		 * subscribers. Closed-cohort plans (e.g. Founders after the cutoff)
-		 * and pre-launch tiers (e.g. AVANZADO until ≥2 Planned features ship)
-		 * set this to `false` without deleting the plan row.
+		 * subscribers. Pre-launch / sales-led tiers (e.g. AVANZADO until ≥2
+		 * Planned features ship) set this to `false` without deleting the row.
 		 */
 		isActive: boolean;
 		/**
@@ -197,7 +199,7 @@ declare global {
 		/**
 		 * Currency the prices are denominated in. `'ARS'` at launch; `'USD'`
 		 * is the migration target (api#841). `null` on free / off-billing
-		 * tiers (basico, fundador).
+		 * tiers (basico).
 		 */
 		currency: 'ARS' | 'USD' | null;
 		/**
@@ -261,17 +263,13 @@ declare global {
 		/** Set while `status === 'trialing'`. Unix ms. */
 		trialEndsAt?: number;
 		/**
-		 * Founders cohort only — YYYY-MM-DD when the 12-month free PROFESIONAL
-		 * entitlement window ends. Set on registration when `?mode=founders`
-		 * is opted into and the cohort is open. String (not numeric ms) so it's
-		 * human-readable in the DynamoDB console — matches api#802 verbatim.
+		 * Courtesy-gift cutoff (ADR-0010) — YYYY-MM-DD up to which billing is
+		 * suppressed regardless of `status`. String (not numeric ms) so it's
+		 * human-readable in the DynamoDB console. Set/cleared via the
+		 * `gift-subscription` super endpoint with an audit-logged reason.
 		 */
 		freeUntil?: string;
-		/** Founders cohort only — YYYY-MM-DD when the post-free grace period ends. */
-		graceUntil?: string;
-		/** Founders cohort only — eligible for the perpetual founder discount after cutoff. */
-		founderDiscountEligible?: boolean;
-		/** Stripe identifiers (absent for trialing/fundador before checkout). */
+		/** Stripe identifiers (absent before first checkout). */
 		stripeCustomerId?: string;
 		stripeSubscriptionId?: string;
 		/**
@@ -332,6 +330,7 @@ declare global {
 		currentPeriodStart: number | null;
 		currentPeriodEnd: number | null;
 		trialEndsAt: number | null;
+		/** Courtesy-gift cutoff (ADR-0010). YYYY-MM-DD or omitted. */
 		freeUntil?: string;
 		cancelAt: number | null;
 		canceledAt: number | null;
