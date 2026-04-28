@@ -213,6 +213,18 @@ declare global {
 		 * Boolean features carry `enabled`; numeric/metered carry `limit`.
 		 */
 		features: PlanFeature[];
+		/**
+		 * Marketing-curated short bullets shown on the customer-facing
+		 * pricing card. Display order = array order. Recommended 3-5
+		 * entries; the BE allows up to 6, each up to 80 chars (one card
+		 * line). Always present — empty array when no bullets are set
+		 * (FE then falls back to a synthesized list from `features[]`).
+		 *
+		 * Lifted onto the row in api#869 to let marketing tweak copy via
+		 * `/sa/plans` without a redeploy. Replaces the FE-only
+		 * `BULLET_LIST_BY_TIER` constant.
+		 */
+		bullets: string[];
 	}
 
 	// ───────────────────────────── Plan audit ─────────────────────────────
