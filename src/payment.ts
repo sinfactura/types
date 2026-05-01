@@ -21,3 +21,32 @@ export interface PaymentReceivedWsPayload {
 	orderId?: string;
 	invoiceId?: string;
 }
+
+/**
+ * REST shape of a payment row returned by `GET /payments/received` (api#902).
+ *
+ * Distinct from `PaymentReceivedWsPayload` (api#880, the WS broadcast):
+ *   - This carries denormalized labels (customerName, orderCode, invoiceCode)
+ *     attached server-side at response time so the FE doesn't N+1 fetch.
+ *   - The WS broadcast is the lean live-tail event; this is the canonical row.
+ */
+export interface PaymentReceived {
+	paymentId: string;
+	source: PaymentReceivedSource;
+	total: number;
+	currency: string;
+	payerName?: string;
+	payerEmail?: string;
+	payerCuit?: string;
+	paidAt: number; // unix milliseconds
+	// Linkage — any one means "linked"
+	customerId?: string;
+	customerName?: string; // denormalized
+	orderId?: string;
+	orderCode?: string; // denormalized — equals orderId today
+	invoiceId?: string;
+	invoiceCode?: string; // denormalized — equals invoiceId today
+	accountId?: string;
+	linkedAt?: number;
+	linkSource?: "auto" | "manual";
+}
