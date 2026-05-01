@@ -201,10 +201,26 @@ declare global {
     statementDescriptor?: string;  // shows on customer's bank statement.
     notificationUrl?: string;      // webhook URL registered with MP.
 
-    // POINT OF SALE (api#879) — in-person QR via MP Point.
+    // POINT OF SALE (api#885) — in-person QR via MP Point devices
+    // (Smart 1/2 hardware terminals). Distinct from `staticQr` below
+    // — Point uses a connected device that displays per-transaction
+    // dynamic QRs; static QR is a printable image with no hardware.
     pos?: {
       defaultDeviceId?: string;    // selected POS terminal id.
       defaultStoreMpId?: string;   // MP's store_id for multi-branch merchants.
+    };
+
+    // STATIC QR (api#879) — over-the-counter scan-to-pay. Cached MP
+    // POS row that owns the tenant's permanent QR image
+    // (`qr.image` / `qr.template_image`). Re-generation hits a fast
+    // path via `posId` lookup; recovery via `external_id` if the
+    // cached id is lost. The `external_id` is pinned by the BE to a
+    // deterministic `SF-${storeId}` so the linkage survives both
+    // backups and operator-driven POS edits in the MP dashboard.
+    staticQr?: {
+      posId: string;             // MP-issued POS numeric id (stringified).
+      externalPosId: string;     // SINFACTURA-pinned external id (`SF-{storeId}`).
+      createdAt: number;         // unix ms when the POS was created.
     };
 
     // FEATURE TOGGLES per store, surfaced in the FE Integrations hub.
