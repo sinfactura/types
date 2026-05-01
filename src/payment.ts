@@ -1,0 +1,23 @@
+/**
+ * WebSocket broadcast payload for the `payment_received` action.
+ *
+ * Fired by the API when a "money received" event is persisted across any
+ * of three sources (MP webhook, Stripe webhook, MP movements poller).
+ * Receivers (FE) should:
+ *   1. Render an immediate snackbar toast using `total` + `currency` + `payerName`.
+ *   2. Invalidate RTK Query tags `PaymentReceived` + `PaymentReceivedUnlinked`
+ *      so the canonical row is refetched from `GET /payments/received`.
+ */
+export type PaymentReceivedSource = "mp" | "stripe" | "mp_movement";
+
+export interface PaymentReceivedWsPayload {
+	source: PaymentReceivedSource;
+	paymentId: string;
+	total: number;
+	currency: string; // ISO 4217 (e.g. 'ARS', 'USD')
+	payerName?: string;
+	paidAt: number; // unix milliseconds
+	customerId?: string;
+	orderId?: string;
+	invoiceId?: string;
+}
