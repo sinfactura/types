@@ -15,6 +15,7 @@ export * from "./maintenance";
 export * from "./mercadopago";
 export * from "./notification";
 export * from "./order";
+export * from "./payment";
 export * from "./product";
 export * from "./return";
 export * from "./stock";
