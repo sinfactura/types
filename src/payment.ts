@@ -50,3 +50,63 @@ export interface PaymentReceived {
 	linkedAt?: number;
 	linkSource?: "auto" | "manual";
 }
+
+/**
+ * Confidence tier for a link suggestion (api#904).
+ *
+ * Mapped from heuristic match strength:
+ *   - 'Alta': customer CUIT/email exact OR order amount-exact + ±24h
+ *   - 'Media': order amount ±5% within ±7d
+ *   - 'Baja': reserved for future broader heuristics (currently unused)
+ */
+export type LinkSuggestionConfidence = "Alta" | "Media" | "Baja";
+
+/**
+ * One ranked customer candidate for a payment's link dialog (api#904).
+ * The FE renders the chip with `fullName`, the confidence badge, and the
+ * `reason` text verbatim.
+ */
+export interface CustomerCandidate {
+	customerId: string;
+	fullName: string;
+	cuit?: string;
+	email?: string;
+	confidence: LinkSuggestionConfidence;
+	reason: string;
+	score: number;
+}
+
+/**
+ * One ranked order candidate for a payment's link dialog (api#904).
+ * `orderCode` is currently identical to `orderId` (no separate short code
+ * field on Order today); kept as a distinct field for forward-compat with
+ * a future Order.code rollout.
+ *
+ * `currency` is always 'ARS' in v1 (the storage currency for SINFACTURA's
+ * Argentine tenants); USD-priced orders surface their ARS-equivalent total.
+ * `total` is therefore in ARS regardless of how the order was originally
+ * priced; FE may derive USD display from `Order.currency` (the FX rate)
+ * if needed.
+ */
+export interface OrderCandidate {
+	orderId: string;
+	orderCode: string;
+	customerId: string;
+	customerName: string;
+	total: number;
+	currency: string;
+	dated: number;
+	confidence: LinkSuggestionConfidence;
+	reason: string;
+	score: number;
+}
+
+/**
+ * Response shape of `GET /payments/{source}/{paymentId}/link-suggestions`.
+ * Both arrays may be empty when no signal — FE renders "Sin sugerencias
+ * automáticas" and falls back to manual customer / order search inputs.
+ */
+export interface LinkSuggestionsResponse {
+	customers: CustomerCandidate[];
+	orders: OrderCandidate[];
+}
