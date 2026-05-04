@@ -223,6 +223,18 @@ declare global {
       createdAt: number;         // unix ms when the POS was created.
     };
 
+    // DYNAMIC QR (api#884) — per-transaction amount-bound QR generated
+    // via MP's Order API (`PUT /instore/orders/qr/.../qrs`) on a sibling
+    // POS row pinned to `external_id: SF{storeId}DYN`, `fixed_amount: true`.
+    // Distinct from `staticQr` above — that POS is `fixed_amount: false`
+    // (variable-amount over-the-counter), this one is bound to single-use
+    // transactions with the amount embedded.
+    dynamicQrPos?: {
+      posId: string;             // MP-issued POS numeric id (stringified).
+      externalPosId: string;     // SINFACTURA-pinned external id (`SF{storeId}DYN`).
+      createdAt: number;         // unix ms when the POS was created.
+    };
+
     // FEATURE TOGGLES per store, surfaced in the FE Integrations hub.
     features?: {
       checkoutPro?: boolean;       // online payments via Checkout Pro.
