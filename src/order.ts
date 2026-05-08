@@ -12,7 +12,8 @@ declare global {
 		deliveredAt?: number;
 		deliveredDate?: number;
 		comments?: string;
-		currency: number;
+		// catalogId (api#942) — FK to PlatformCurrency.
+		currency: string;
 		paymentMethod: number;
 		deliveryMethod: number;
 		invoiceMethod?: {

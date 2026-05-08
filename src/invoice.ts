@@ -16,7 +16,9 @@ declare global {
     concept: number; // CONCEPTO 1 productos 2 servicios
     cuitType: number; // CUIT_TIPO
     cuit: string; // CUIT CF?
-    currency?: "PES" | "DOL";
+    // catalogId (api#942) — FK to PlatformCurrency. AFIP `'PES'/'DOL'`
+    // projection happens at invoice-write time via `catalog.afipCode`.
+    currency?: string;
     currencyValue?: number;
     fiscalCondition: string; // COND_FISCAL / RESPONSABLE INSCRIPTO
     paymentCondition: string; // COND_VENTA
@@ -54,7 +56,9 @@ declare global {
     fiscalCondition: FiscalCondition;
     netos: Neto;
     ivaTypes: Method[];
-    currency: "PES" | "DOL";
+    // catalogId (api#942) — projection to AFIP `'PES'/'DOL'` happens
+    // at the AFIP-package boundary, not in this response shape.
+    currency: string;
     currencyValue: number;
     total: number;
     observations?: string;

@@ -47,7 +47,8 @@ declare global {
     salt?: string;
     search: string;
     updatedAt?: number;
-    currencyId?: number;
+    // catalogId (api#942) — FK to PlatformCurrency.
+    currencyId?: string;
     deliveryAddress?: {
       fullName: string;
       address: string;

@@ -124,7 +124,9 @@ declare global {
       priceDecimals: 0 | 1 | 2 | 3;
       stock: boolean;
       changePrice: boolean;
-      currency: number;
+      // catalogId of the store's display currency (api#942). Was a
+      // tenant-local integer; now an FK to PlatformCurrency.
+      currency: string;
     };
     features: FeatureFlags;
     // ECOMMERCE
@@ -135,7 +137,9 @@ declare global {
     newPhotoURL?: string;
     removePhotoURL?: string;
     // GENERAL
-    currencies: Method[];
+    // api#942 — catalog references with per-tenant value + autoUpdate
+    // overrides. Was `Method[]` (free-text name + integer id).
+    currencies: StoreCurrencySubscription[];
     cashInMethods: Method[];
     cashOutMethods: Method[];
     debitMethods: Method[];
@@ -159,9 +163,24 @@ declare global {
       products?: number;
       users?: number;
     };
+    /**
+     * @deprecated api#890 — use `store.integrations.mercadopago`. This
+     * top-level field is dual-written for one release window and removed
+     * in the api#890 cleanup PR.
+     */
     mercadopago?: Mercadopago;
-    // AFIP
+    /**
+     * @deprecated api#890 — use `store.integrations.afip`. This top-level
+     * field is dual-written for one release window and removed in the
+     * api#890 cleanup PR.
+     */
     afip: Afip;
+    // PER-TENANT INTEGRATIONS UMBRELLA (api#890) — single namespace for
+    // every per-store integration blob. Populated by the dual-write code
+    // path; backfilled for existing rows by the
+    // `migrate-store-integrations` super endpoint. Optional during the
+    // migration window so older rows still type-check.
+    integrations?: StoreIntegrations;
     // FROM CONFIG PK
     appVersion: number;
     fiscalConditions: FiscalCondition[];
@@ -170,6 +189,21 @@ declare global {
     notificationOptions?: Method[];
     // MAINTENANCE (see sinfactura/app#1126)
     maintenance?: MaintenanceInfo;
+    // api#942 — populated by the migrate-currency-catalog SUPER
+    // endpoint. Maps legacy tenant-local integer ids to catalogIds so
+    // existing `Product.currency: 1` etc. resolve during the
+    // transition. Dropped once every reader consumes catalogId
+    // directly (filed as a follow-up cleanup ticket).
+    legacyCurrencyIds?: Record<number, string>;
+  }
+
+  // api#890 — Umbrella for every per-tenant integration blob. New
+  // providers slot in here without growing the top-level Store namespace.
+  // GSI keys (`mercadopagoUserId`) stay top-level — DynamoDB GSIs can't
+  // index nested attributes — only the *config* moves under the umbrella.
+  interface StoreIntegrations {
+    afip?: Afip;
+    mercadopago?: Mercadopago;
   }
 
   // Per-tenant MercadoPago integration (epic #832). Populated by the
@@ -270,7 +304,13 @@ declare global {
     activitiesStartedAt?: number; // INICIO_ACTIVIDADES
     invoiceNote?: string; // NOTA EN FACTURA
     showInvoiceLogo?: string; // logo en factura
-    currency: 1 | 2; // 1 PESOS, 2 DOLARES
+    // catalogId (api#942) — FK to PlatformCurrency. The AFIP MonId
+    // projection (`'PES' | 'DOL'`) is derived at invoice-write time from
+    // `PlatformCurrency.afipCode` of the referenced catalog row. Was
+    // `1 | 2` (legacy tenant-local Method ids; 1=PESOS, 2=DOLARES).
+    // The matching `StoreCurrencySubscription.value` provides the AFIP
+    // `MonCotiz` exchange rate.
+    currency: string;
     // ACCESS
     cert?: string;
     csr?: string;
