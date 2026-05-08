@@ -8,7 +8,8 @@ declare global {
 		createdAt: number;
 		updatedAt: number;
 		quantity: number;
-		currency: number,
+		// catalogId (api#942) — FK to PlatformCurrency.
+		currency: string,
 		cost: number;
 		total: number;
 		items: BasketItem[];

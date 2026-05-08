@@ -16,7 +16,8 @@ declare global {
 		email: string;
 		// options
 		balance: number;
-		currencyId: number;
+		// catalogId (api#942) — FK to PlatformCurrency.
+		currencyId: string;
 		service: boolean;
 		disabled: boolean;
 	}

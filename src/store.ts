@@ -124,7 +124,9 @@ declare global {
       priceDecimals: 0 | 1 | 2 | 3;
       stock: boolean;
       changePrice: boolean;
-      currency: number;
+      // catalogId of the store's display currency (api#942). Was a
+      // tenant-local integer; now an FK to PlatformCurrency.
+      currency: string;
     };
     features: FeatureFlags;
     // ECOMMERCE
@@ -135,7 +137,9 @@ declare global {
     newPhotoURL?: string;
     removePhotoURL?: string;
     // GENERAL
-    currencies: Method[];
+    // api#942 — catalog references with per-tenant value + autoUpdate
+    // overrides. Was `Method[]` (free-text name + integer id).
+    currencies: StoreCurrencySubscription[];
     cashInMethods: Method[];
     cashOutMethods: Method[];
     debitMethods: Method[];
@@ -185,6 +189,12 @@ declare global {
     notificationOptions?: Method[];
     // MAINTENANCE (see sinfactura/app#1126)
     maintenance?: MaintenanceInfo;
+    // api#942 — populated by the migrate-currency-catalog SUPER
+    // endpoint. Maps legacy tenant-local integer ids to catalogIds so
+    // existing `Product.currency: 1` etc. resolve during the
+    // transition. Dropped once every reader consumes catalogId
+    // directly (filed as a follow-up cleanup ticket).
+    legacyCurrencyIds?: Record<number, string>;
   }
 
   // api#890 — Umbrella for every per-tenant integration blob. New

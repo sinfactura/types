@@ -7,6 +7,7 @@ export * from "./basket";
 export * from "./brands";
 export * from "./cash";
 export * from "./categories";
+export * from "./currency";
 export * from "./customer";
 export * from "./imports";
 export * from "./invoice";

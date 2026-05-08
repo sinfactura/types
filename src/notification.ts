@@ -26,12 +26,8 @@ declare global {
 		TableName?: string;
 	}
 
-	interface Currency {
-		currencyId: string;
-		dated: string;
-		value: number;
-		name?: string;
-	}
+	// `Currency` (FX-rate time-series sample) moved to `currency.ts` and
+	// renamed `currencyId` → `catalogId` in api#942.
 
 }
 

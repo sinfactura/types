@@ -38,7 +38,9 @@ declare global {
 		zone?: string;
 
 		// OPTIONS
-		currency: number;
+		// catalogId (api#942) — FK to PlatformCurrency. Was a
+		// tenant-local integer; now resolves via the catalog directly.
+		currency: string;
 		ivaType: number;
 		categoryId: string;
 		brandId: string;
