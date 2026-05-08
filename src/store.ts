@@ -159,9 +159,24 @@ declare global {
       products?: number;
       users?: number;
     };
+    /**
+     * @deprecated api#890 — use `store.integrations.mercadopago`. This
+     * top-level field is dual-written for one release window and removed
+     * in the api#890 cleanup PR.
+     */
     mercadopago?: Mercadopago;
-    // AFIP
+    /**
+     * @deprecated api#890 — use `store.integrations.afip`. This top-level
+     * field is dual-written for one release window and removed in the
+     * api#890 cleanup PR.
+     */
     afip: Afip;
+    // PER-TENANT INTEGRATIONS UMBRELLA (api#890) — single namespace for
+    // every per-store integration blob. Populated by the dual-write code
+    // path; backfilled for existing rows by the
+    // `migrate-store-integrations` super endpoint. Optional during the
+    // migration window so older rows still type-check.
+    integrations?: StoreIntegrations;
     // FROM CONFIG PK
     appVersion: number;
     fiscalConditions: FiscalCondition[];
@@ -170,6 +185,15 @@ declare global {
     notificationOptions?: Method[];
     // MAINTENANCE (see sinfactura/app#1126)
     maintenance?: MaintenanceInfo;
+  }
+
+  // api#890 — Umbrella for every per-tenant integration blob. New
+  // providers slot in here without growing the top-level Store namespace.
+  // GSI keys (`mercadopagoUserId`) stay top-level — DynamoDB GSIs can't
+  // index nested attributes — only the *config* moves under the umbrella.
+  interface StoreIntegrations {
+    afip?: Afip;
+    mercadopago?: Mercadopago;
   }
 
   // Per-tenant MercadoPago integration (epic #832). Populated by the
