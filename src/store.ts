@@ -304,7 +304,13 @@ declare global {
     activitiesStartedAt?: number; // INICIO_ACTIVIDADES
     invoiceNote?: string; // NOTA EN FACTURA
     showInvoiceLogo?: string; // logo en factura
-    currency: 1 | 2; // 1 PESOS, 2 DOLARES
+    // catalogId (api#942) — FK to PlatformCurrency. The AFIP MonId
+    // projection (`'PES' | 'DOL'`) is derived at invoice-write time from
+    // `PlatformCurrency.afipCode` of the referenced catalog row. Was
+    // `1 | 2` (legacy tenant-local Method ids; 1=PESOS, 2=DOLARES).
+    // The matching `StoreCurrencySubscription.value` provides the AFIP
+    // `MonCotiz` exchange rate.
+    currency: string;
     // ACCESS
     cert?: string;
     csr?: string;
