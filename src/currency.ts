@@ -34,21 +34,14 @@ declare global {
 	}
 
 	// Per-tenant subscription to a catalog entry. Lives on the STORE
-	// row under `currencies[]`. Tenants control `value` (the FX rate),
-	// `order` (display position), and `autoUpdate` (per-binding
-	// refresh policy from api#941). The catalog FK + read-time
-	// projection give the FE everything it needs to render without
-	// name-fuzzy matching.
+	// row under `currencies[]`. Tenants control `value` (the FX rate)
+	// and `order` (display position). Auto-update bindings live in
+	// `Store.fxAutoUpdate.bindings[]` (top-level), keyed by `catalogId`
+	// — see `StoreFxAutoUpdate` in `./store.ts`.
 	interface StoreCurrencySubscription {
 		catalogId: string; // FK to PlatformCurrency
 		value: number; // ARS-per-unit; auto-updated when bound (api#941)
 		order?: number; // display ordering on the FE
-		autoUpdate?: {
-			sourceId: string; // PLATFORM/FX_SOURCES.sources[].id (api#941)
-			strategy: "overwrite" | "overwrite-if-stale" | "notify-only";
-			lastUpdatedAt?: number; // unix ms when worker last applied an update
-			lastValue?: number; // last value the worker set (for diff/notify)
-		};
 	}
 
 	// Wire shape for `GET /store` and `GET /currencies` — denormalized

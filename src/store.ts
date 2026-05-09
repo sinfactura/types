@@ -164,6 +164,12 @@ declare global {
       users?: number;
     };
     integrations?: StoreIntegrations;
+    // api#941 — tenant-controlled FX auto-update bindings. When
+    // `enabled: true`, the platform's FX poller (propagate-fx worker)
+    // fans out to this store and applies each binding's strategy
+    // against the matching `currencies[i].value`. Bindings keyed by
+    // (catalogId, sourceId).
+    fxAutoUpdate?: StoreFxAutoUpdate;
     appVersion: number;
     fiscalConditions: FiscalCondition[];
     ivaTypes: Method[];
@@ -176,6 +182,40 @@ declare global {
   interface StoreIntegrations {
     afip?: Afip;
     mercadopago?: Mercadopago;
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // FX auto-update bindings (epic api#941)
+  // ─────────────────────────────────────────────────────────────────
+
+  // How a binding should react when the platform observes a fresh
+  // rate for the bound (isoCode, variant):
+  //   - 'overwrite'           — always rewrite store.currencies[i].value
+  //   - 'overwrite-if-stale'  — only rewrite if the binding's
+  //                             lastUpdatedAt is older than the source's
+  //                             configured maxStaleness
+  //   - 'notify-only'         — never touch currencies; just emit an
+  //                             audit entry + WS broadcast so the FE
+  //                             can surface a banner
+  type FxAutoUpdateStrategy = "overwrite" | "overwrite-if-stale" | "notify-only";
+
+  // Single auto-update binding. Pairs a catalog row with the source
+  // and refresh policy the tenant wants. `lastUpdatedAt` and
+  // `lastValue` are stamped server-side by propagate-fx; FE writers
+  // omit them when creating/editing.
+  interface FxAutoUpdateBinding {
+    catalogId: string; // FK to PlatformCurrency
+    sourceId: string; // PLATFORM/FX_SOURCES.sources[].id
+    strategy: FxAutoUpdateStrategy;
+    lastUpdatedAt?: number; // unix ms — set by propagate-fx worker
+    lastValue?: number; // last value the worker observed
+  }
+
+  // Top-level FX auto-update config on `Store`. `enabled: false`
+  // disables every binding without losing the configuration.
+  interface StoreFxAutoUpdate {
+    enabled: boolean;
+    bindings: FxAutoUpdateBinding[]; // max 32 enforced by BE Zod
   }
 
   interface Mercadopago {
