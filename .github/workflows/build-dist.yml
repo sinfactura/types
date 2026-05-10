@@ -1,0 +1,73 @@
+name: Build dist branch
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-dist
+  cancel-in-progress: false
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable Corepack (uses Yarn from packageManager field)
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Build types
+        run: yarn build
+
+      - name: Publish dist branch
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          SOURCE_REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Stash the build output and the metadata files outside the git tree
+          STAGE="$(mktemp -d)"
+          cp -r dist "$STAGE/dist"
+          cp package.json "$STAGE/package.json"
+          [ -f LICENCE ] && cp LICENCE "$STAGE/LICENCE" || true
+          [ -f LICENSE ] && cp LICENSE "$STAGE/LICENSE" || true
+          [ -f README.md ] && cp README.md "$STAGE/README.md" || true
+
+          # Replace working tree with an orphan branch — clean slate, no src/
+          git checkout --orphan dist-build
+          git rm -rf --quiet . > /dev/null 2>&1 || true
+          # `git rm` only nukes tracked files; `git clean -fdx` removes
+          # leftover gitignored content (dist/, node_modules/, tsbuildinfo).
+          git clean -fdx > /dev/null 2>&1
+
+          # Lay down only what consumers need (working tree is empty now)
+          cp -r "$STAGE/dist" dist
+          cp "$STAGE/package.json" package.json
+          [ -f "$STAGE/LICENCE" ] && cp "$STAGE/LICENCE" LICENCE
+          [ -f "$STAGE/LICENSE" ] && cp "$STAGE/LICENSE" LICENSE
+          [ -f "$STAGE/README.md" ] && cp "$STAGE/README.md" README.md
+
+          # Commit and force-push to the `dist` branch (single-commit, force-pushed each run)
+          git add -f .
+          git commit -m "build: dist from $SOURCE_REF@${SOURCE_SHA:0:7}"
+          git push --force origin dist-build:dist
