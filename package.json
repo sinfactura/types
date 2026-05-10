@@ -12,7 +12,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "prepublishOnly": "tsc",
+    "prepare": "tsc",
     "login": "npm login",
     "release": "npm version patch --no-git-tag-version && npm publish"
   },
