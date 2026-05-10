@@ -23,8 +23,26 @@ The package contains only TypeScript type declarations — no runtime code. Zod 
 
 ## Installation
 
+Two distribution channels:
+
+### Git (preferred — no NPM publish step)
+
+Consumers reference the auto-built `dist` branch directly:
+
+```jsonc
+// app/package.json (and api, web, landing)
+{
+  "devDependencies": {
+    "sinfactura-types": "github:sinfactura/types#dist"
+  }
+}
+```
+
+The [`build-dist`](.github/workflows/build-dist.yml) GitHub Actions workflow runs on every push to `main`, builds `dist/`, and force-pushes a clean orphan commit to the `dist` branch. Consumers fetch a ready-to-use package — no build step required at install time.
+
+### npm (legacy — being phased out)
+
 ```bash
-# In a SINFACTURA consumer repo (app, web, etc.)
 yarn add --dev sinfactura-types
 ```
 
@@ -34,16 +52,34 @@ yarn add --dev sinfactura-types
 import type { IUser, IOrder, IInvoice, IProduct } from "sinfactura-types";
 ```
 
-## Publishing a New Version
+## Updating Types
 
-1. Bump the `version` field in `package.json` (follow semver)
-2. Publish to npm:
+### Authoring side (this repo)
+
+1. Edit types in `src/`.
+2. Commit + push to `main`.
+3. The `build-dist` workflow runs automatically, force-pushes the new build to `dist`.
+
+No manual version bump, no NPM publish. (The `version` field in `package.json` still gets bumped for npm publishing if/when needed; consumers using the git URL ignore it — they pin commit hashes via their lockfiles.)
+
+### Consumer side (app, api, web, landing)
+
+After a new types build lands, consumers explicitly pull it:
 
 ```bash
-yarn publish
+yarn up "sinfactura-types@github:sinfactura/types#dist"
 ```
 
-3. In each consumer repo, bump the `sinfactura-types` dependency (e.g. `app` currently uses `^1.0.90`)
+This re-resolves the git ref to the latest commit on `dist` and pins it in the lockfile. Commit the lockfile change.
+
+> **Why explicit?** `yarn install` does NOT re-resolve git branch refs to their current HEAD — it reuses the cached resolution for reproducibility. Consumers that want auto-bump-on-pull can add a `post-merge` Husky hook that runs `yarn up sinfactura-types@github:sinfactura/types#dist` whenever `package.json`/`yarn.lock` changed in the merge.
+
+## Legacy: Publishing a New NPM Version
+
+Kept for reference / external consumers. New SINFACTURA repos should use the git URL instead.
+
+1. Bump the `version` field in `package.json` (follow semver)
+2. Publish to npm: `yarn publish`
 
 ## License
 
