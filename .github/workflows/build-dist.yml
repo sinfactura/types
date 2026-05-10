@@ -55,9 +55,12 @@ jobs:
 
           # Replace working tree with an orphan branch — clean slate, no src/
           git checkout --orphan dist-build
-          git rm -rf --quiet . || true
+          git rm -rf --quiet . > /dev/null 2>&1 || true
+          # `git rm` only nukes tracked files; `git clean -fdx` removes
+          # leftover gitignored content (dist/, node_modules/, tsbuildinfo).
+          git clean -fdx > /dev/null 2>&1
 
-          # Lay down only what consumers need
+          # Lay down only what consumers need (working tree is empty now)
           cp -r "$STAGE/dist" dist
           cp "$STAGE/package.json" package.json
           [ -f "$STAGE/LICENCE" ] && cp "$STAGE/LICENCE" LICENCE
