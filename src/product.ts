@@ -41,6 +41,10 @@ declare global {
 		// catalogId (api#942) — FK to PlatformCurrency. Was a
 		// tenant-local integer; now resolves via the catalog directly.
 		currency: string;
+		// Self-describing currency stamp (app#1539 / ADR-0013): FX rate and
+		// the Unix ms at which it was effective.
+		currencyValue?: number;
+		currencyValueAt?: number;
 		ivaType: number;
 		categoryId: string;
 		brandId: string;

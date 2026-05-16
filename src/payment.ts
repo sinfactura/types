@@ -35,6 +35,10 @@ export interface PaymentReceived {
 	source: PaymentReceivedSource;
 	total: number;
 	currency: string;
+	// Self-describing currency stamp (app#1539 / ADR-0013): FX rate and
+	// the Unix ms at which it was effective.
+	currencyValue?: number;
+	currencyValueAt?: number;
 	payerName?: string;
 	payerEmail?: string;
 	payerCuit?: string;

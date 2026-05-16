@@ -20,6 +20,8 @@ declare global {
     // projection happens at invoice-write time via `catalog.afipCode`.
     currency?: string;
     currencyValue?: number;
+    // Unix ms at which `currencyValue` was effective (app#1539 / ADR-0013).
+    currencyValueAt?: number;
     fiscalCondition: string; // COND_FISCAL / RESPONSABLE INSCRIPTO
     paymentCondition: string; // COND_VENTA
     deliveryCondition: string; // COND_ENTREGA

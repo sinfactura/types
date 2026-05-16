@@ -14,7 +14,12 @@ declare global {
 		debit?: number;
 		credit?: number;
 		amount?: number;
+		// catalogId (api#942) — FK to PlatformCurrency. Promoted from the
+		// api#945 module augmentation (app#1539 / ADR-0013).
+		currency?: string;
 		currencyValue?: number;
+		// Unix ms at which `currencyValue` was effective (app#1539 / ADR-0013).
+		currencyValueAt?: number;
 		balance?: number;
 		userId: string;
 		deleted?: boolean;
