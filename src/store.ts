@@ -124,9 +124,32 @@ declare global {
       priceDecimals: 0 | 1 | 2 | 3;
       stock: boolean;
       changePrice: boolean;
-      // catalogId of the store's display currency (api#942). Was a
-      // tenant-local integer; now an FK to PlatformCurrency.
+      /**
+       * @deprecated since app#1539 — alias of `displayCurrency`. Kept
+       * during the migration so unmigrated readers stay correct.
+       * Removed once every FE read-site has switched to
+       * `displayCurrency`.
+       */
       currency: string;
+      /**
+       * Back-office display currency (catalogId). The single currency
+       * the operator's screens are framed in — distinct from the
+       * currency of any individual money entity (Order / Invoice /
+       * etc carry their own self-describing `currency` stamps).
+       */
+      displayCurrency?: string;
+      /**
+       * Seed catalogId for new Product writes. Used by the FE product
+       * form to populate the currency selector default — does NOT
+       * reinterpret existing Product rows.
+       */
+      defaultProductCurrency?: string;
+      /**
+       * Seed catalogId for new Account / SupplierAccount writes. Used
+       * by the FE cuenta form to populate the currency selector
+       * default — does NOT reinterpret existing Account rows.
+       */
+      defaultAccountCurrency?: string;
     };
     features: FeatureFlags;
     // ECOMMERCE
