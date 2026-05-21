@@ -23,6 +23,10 @@ declare global {
     // Unix ms at which `currencyValue` was effective (app#1539 / ADR-0013).
     currencyValueAt?: number;
     fiscalCondition: string; // COND_FISCAL / RESPONSABLE INSCRIPTO
+    // ARCA RG 5616 — buyer's IVA condition under the 1-13 codeset.
+    // Mapped server-side from legacy `condFiscal` (20/30/32/96/99) on every
+    // issued invoice. Audit field — the value sent to AFIP. (api#1173)
+    condicionIvaReceptor?: number;
     paymentCondition: string; // COND_VENTA
     deliveryCondition: string; // COND_ENTREGA
 
@@ -65,6 +69,9 @@ declare global {
     total: number;
     observations?: string;
     invoiceType: number;
+    // ARCA RG 5616 — passed back from AFIP request so _post.ts can stamp
+    // it on the persisted Invoice. (api#1173)
+    condicionIvaReceptor?: number;
   }
 
   type Neto = Record<string, { Id: number; BaseImp: number; Importe: number }>;
