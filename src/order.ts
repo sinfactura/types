@@ -83,4 +83,4 @@ declare global {
 
 }
 
-export { };
+export {}; // NOSONAR

@@ -70,4 +70,4 @@ declare global {
   type Neto = Record<string, { Id: number; BaseImp: number; Importe: number }>;
 }
 
-export {};
+export {}; // NOSONAR
