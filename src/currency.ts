@@ -3,6 +3,27 @@ declare global {
 	// Platform-managed currency catalog (epic api#942)
 	// ───────────────────────────────────────────────────────────────
 
+	// Canonical catalogIds — the seeded set in api's
+	// `stacks/services/currencyCatalog.ts:PLATFORM_CURRENCY_CATALOG`.
+	// Adding a new platform-managed currency requires releasing a new
+	// sinfactura-types version with the id appended here.
+	//
+	// Narrowed from `string` in types#63 so comparisons against AFIP
+	// wire codes (`'PES'`/`'DOL'`) or other non-catalog literals fail
+	// at compile time — surfaced by the always-false `afip.currency ===
+	// 'PES'` regression caught in app#1576 (`ButtonInvoice`).
+	type CatalogId =
+		| "ars"
+		| "usd-oficial"
+		| "usd-blue"
+		| "usd-mep"
+		| "usd-ccl"
+		| "usd-turista"
+		| "usd-informal"
+		| "usd-oficial-bcra"
+		| "eur-oficial"
+		| "brl-oficial";
+
 	// Variant of an isoCode currency. Disambiguates Argentine USD types
 	// (oficial / blue / MEP / CCL / turista / informal) plus reserved
 	// slots for crypto and BCRA reference rates.

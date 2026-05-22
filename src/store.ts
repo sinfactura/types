@@ -333,7 +333,13 @@ declare global {
     // `1 | 2` (legacy tenant-local Method ids; 1=PESOS, 2=DOLARES).
     // The matching `StoreCurrencySubscription.value` provides the AFIP
     // `MonCotiz` exchange rate.
-    currency: string;
+    //
+    // Narrowed to `CatalogId` in types#63 — readers comparing this
+    // against `'PES'` / `'DOL'` (AFIP wire codes) now fail at compile
+    // time. Wire boundary callers receiving DDB rows can keep using
+    // `as CatalogId` once the BE schema validation lands (api companion
+    // PR — `afipSchema.currency` validated against `currencyCatalogIdSchema`).
+    currency: CatalogId;
     // ACCESS
     cert?: string;
     csr?: string;
