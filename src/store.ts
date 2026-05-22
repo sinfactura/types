@@ -125,13 +125,6 @@ declare global {
       stock: boolean;
       changePrice: boolean;
       /**
-       * @deprecated since app#1539 — alias of `displayCurrency`. Kept
-       * during the migration so unmigrated readers stay correct.
-       * Removed once every FE read-site has switched to
-       * `displayCurrency`.
-       */
-      currency: string;
-      /**
        * Back-office display currency (catalogId). The single currency
        * the operator's screens are framed in — distinct from the
        * currency of any individual money entity (Order / Invoice /
