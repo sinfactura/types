@@ -1,4 +1,17 @@
 declare global {
+  // Fiscal lifecycle state. V1.0 issues only `authorized_cae`, `pending_cae`,
+  // `rejected`, `voided`; CAEA states ship in V1.2 (ADR-0012) but are defined
+  // up-front to avoid a breaking type change on retrofit. Optional on Invoice
+  // for backwards compatibility — existing rows treat absence as
+  // `authorized_cae` (the implicit V1.0 happy path).
+  type FiscalStatus =
+    | 'pending_cae'
+    | 'authorized_cae'
+    | 'authorized_caea'
+    | 'caea_reported'
+    | 'rejected'
+    | 'voided';
+
   interface Invoice {
     storeId: string;
     invoiceId: string; // ID
@@ -41,6 +54,11 @@ declare global {
     cae: string; // CAE
     caeExpiration: string; // CAE_VENCIMIENTO
     observations?: string; // afip observations
+    // ARCA fiscal lifecycle (app#1409 / app#1023 split A). Optional —
+    // absent means `authorized_cae` (V1.0 implicit happy path). BE sets
+    // `pending_cae` when WSFEv1 network-failed, `rejected` on business
+    // validation errors. See ADR-0012 for the CAEA states.
+    fiscalStatus?: FiscalStatus;
   }
 
   interface InvoiceItem {
