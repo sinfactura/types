@@ -145,14 +145,18 @@ declare global {
       defaultAccountCurrency?: string;
     };
     features: FeatureFlags;
-    // ECOMMERCE
     ecommerce?: Ecommerce;
     // HANDLE IMAGES
     photoURL: string;
     photoData?: string;
     newPhotoURL?: string;
     removePhotoURL?: string;
-    // GENERAL
+    // STORE row reverse-lookup by tenant MP user_id — hot path for the
+    // per-tenant payment webhook. Sparse: only STORE rows with an
+    // active MP OAuth connection carry `mercadopagoUserId` (set by the
+    // callback handler, removed by disconnect). KEYS_ONLY because a
+    // follow-up Get fetches the full row including the access token.
+    mercadopagoUserId?: string;
     // api#942 — catalog references with per-tenant value + autoUpdate
     // overrides. Was `Method[]` (free-text name + integer id).
     currencies: StoreCurrencySubscription[];
