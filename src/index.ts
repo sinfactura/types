@@ -21,6 +21,7 @@ export * from "./product";
 export * from "./return";
 export * from "./stock";
 export * from "./store";
+export * from "./storefrontEvent";
 export * from "./subscription";
 export * from "./supplier";
 export * from "./user";
