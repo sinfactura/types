@@ -25,5 +25,6 @@ export * from "./storefrontEvent";
 export * from "./subscription";
 export * from "./supplier";
 export * from "./user";
+export * from "./userActivity";
 export * from "./whatsapp";
 export * from "./provinces";
