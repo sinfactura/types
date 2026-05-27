@@ -14,9 +14,10 @@
 //   - Erasure: append-only / anti-erasure per Ley 25.326 audit-trail exemption
 //   - Ingest: synchronous REST-handler helper (WS ingest explicitly disallowed)
 //
-// 49 variants:
+// 57 variants:
 //   - 1.6.11 (Phase 1, 17 variants) — MVP wire-ins covering the hot paths
 //   - 1.6.12 (Phase 2, +32 variants) — full mutating admin-handler coverage
+//   - 1.6.13 (Phase 3, +8 UI-only variants) — FE companion (app#1642, api#1247)
 
 declare global {
 
@@ -384,7 +385,77 @@ declare global {
 	}
 
 	// ──────────────────────────────────────────────────────────────────────────
-	// Discriminated union — 49 variants
+	// Phase 3 (1.6.13) — +8 UI-only variants emitted by the FE companion
+	// (`app#1642`) via the dedicated ingest endpoint (`api#1247`).
+	//
+	// Distinct from Phase 1/2 variants which originate from BE mutating
+	// handlers. UI-only variants are gated on the api side by an explicit
+	// whitelist (`UI_ONLY_USER_ACTIVITY_VARIANTS` below) so the FE cannot
+	// spoof emissions that should only come from BE-side mutations.
+	// ──────────────────────────────────────────────────────────────────────────
+
+	// Meta + read-side audit (3) — Argentine regulator expectations include
+	// meta-audit of audit-log views and PII reveals.
+
+	interface AuditTrailViewedEvent extends UserActivityEventBase {
+		event: 'Audit Trail Viewed';
+		scope: 'tenant' | 'platform';
+		filters?: Record<string, unknown>;
+	}
+
+	interface ReportViewedEvent extends UserActivityEventBase {
+		event: 'Report Viewed';
+		report_id: string;
+		report_name: string;
+	}
+
+	interface CustomerPiiViewedEvent extends UserActivityEventBase {
+		event: 'Customer PII Viewed';
+		customer_id: string;
+		// Explicit list of fields the operator unmasked (e.g. ['cuit', 'email']).
+		// FE only emits on explicit reveal-click — not on every detail pane open.
+		fields_revealed: string[];
+	}
+
+	// Cash drawer UI lifecycle (2) — distinct from the BE `Cash Drawer
+	// Opened/Closed` variants which record the POST mutation. These record
+	// the UI act of opening/closing the drawer panel.
+
+	interface CashDrawerUiOpenedEvent extends UserActivityEventBase {
+		event: 'Cash Drawer UI Opened';
+		cash_id: string;
+	}
+
+	interface CashDrawerUiClosedEvent extends UserActivityEventBase {
+		event: 'Cash Drawer UI Closed';
+		cash_id: string;
+	}
+
+	// Export (1)
+
+	interface ExportInitiatedEvent extends UserActivityEventBase {
+		event: 'Export Initiated';
+		format: 'csv' | 'pdf' | 'xlsx';
+		entity_type: string;       // e.g. 'customers', 'orders', 'invoices'
+		row_count: number;
+	}
+
+	// Impersonation UI lifecycle (2) — distinct from the BE-side
+	// `Tenant Impersonated` which records the POST that mints the
+	// impersonation token. These bracket the FE-side session.
+
+	interface ImpersonationUiStartedEvent extends UserActivityEventBase {
+		event: 'Impersonation UI Started';
+		target_store_id: string;
+	}
+
+	interface ImpersonationUiEndedEvent extends UserActivityEventBase {
+		event: 'Impersonation UI Ended';
+		target_store_id: string;
+	}
+
+	// ──────────────────────────────────────────────────────────────────────────
+	// Discriminated union — 57 variants
 	// ──────────────────────────────────────────────────────────────────────────
 
 	type UserActivityEvent =
@@ -438,8 +509,38 @@ declare global {
 		| TenantCreatedEvent
 		| LiteralUpdatedEvent
 		| SupportTicketCreatedEvent
-		| SupportTicketUpdatedEvent;
+		| SupportTicketUpdatedEvent
+		// Phase 3 (UI-only — emitted via api#1247 ingest endpoint)
+		| AuditTrailViewedEvent
+		| ReportViewedEvent
+		| CustomerPiiViewedEvent
+		| CashDrawerUiOpenedEvent
+		| CashDrawerUiClosedEvent
+		| ExportInitiatedEvent
+		| ImpersonationUiStartedEvent
+		| ImpersonationUiEndedEvent;
 
 }
 
-export {}; // NOSONAR
+/**
+ * Canonical whitelist of UI-only `UserActivityEvent` variant names — the 8
+ * Phase 3 verbs shipped in 1.6.13 (types#74). Imported by the api side
+ * (`POST /audit/user-activity`, api#1247) to gate the FE-ingest endpoint:
+ * any `event` value NOT in this set originates from a BE mutating handler
+ * and must be rejected to prevent the FE from spoofing audit emissions.
+ *
+ * Source of truth lives here so the api whitelist can't drift from the
+ * actual UI-only variant taxonomy.
+ */
+export const UI_ONLY_USER_ACTIVITY_VARIANTS = [
+	'Audit Trail Viewed',
+	'Report Viewed',
+	'Customer PII Viewed',
+	'Cash Drawer UI Opened',
+	'Cash Drawer UI Closed',
+	'Export Initiated',
+	'Impersonation UI Started',
+	'Impersonation UI Ended',
+] as const;
+
+export type UiOnlyUserActivityVariant = (typeof UI_ONLY_USER_ACTIVITY_VARIANTS)[number];

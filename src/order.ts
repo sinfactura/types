@@ -60,6 +60,16 @@ declare global {
 				createdAt: number;          // unix ms
 			};
 		};
+		// Denormalized linked-payment metadata, keyed by paymentId so DELETE is
+		// `REMOVE linkedPayments.#pid` (atomic, race-safe) instead of array
+		// splice (api#981).
+		linkedPayments?: Record<string, LinkedPaymentEntry>;
+	}
+
+	interface LinkedPaymentEntry {
+		source: 'mp' | 'stripe' | 'mp_movement';
+		total: number;
+		linkedAt: number;
 	}
 
 	interface ZebraTag {
