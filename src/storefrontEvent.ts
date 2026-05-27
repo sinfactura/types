@@ -119,6 +119,19 @@ declare global {
 		customer_id: string;
 	}
 
+	// Customer requested a password-reset email. Fires from the BE-side
+	// `web/lambdas/auth/recover.ts` (not from the FE's `track()` path) —
+	// the reset flow runs before any WS connects, so this is BE-emitted.
+	// `customer_found: false` rows are valuable for credential-stuffing /
+	// email-enumeration detection; the handler still returns the generic
+	// "if an account exists…" message to the customer, so this never leaks
+	// existence back to the requester.
+	interface CustomerPasswordResetRequestedEvent extends StorefrontEventBase {
+		event: 'Customer Password Reset Requested';
+		email: string;
+		customer_found: boolean;
+	}
+
 	type StorefrontEvent =
 		| ProductViewedEvent
 		| ProductListViewedEvent
@@ -133,7 +146,8 @@ declare global {
 		| CustomerLoggedInEvent
 		| CustomerSignedUpEvent
 		| CustomerLoggedOutEvent
-		| CustomerIdentifiedEvent;
+		| CustomerIdentifiedEvent
+		| CustomerPasswordResetRequestedEvent;
 
 	// Anonymous-to-customer stitch row, written when an anonymous visitor
 	// authenticates (api#1240). Partition key on `(tenant_store_id, anonymous_id)`;
