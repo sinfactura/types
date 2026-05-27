@@ -21,6 +21,10 @@ declare global {
     customerId?: string;
     orderId?: string;
     invoiceId?: string;
+    // MP/Stripe-side external_reference. Lets the FE filter the live tail
+    // by the new amount-bound /qr/dynamic shape that no longer round-trips
+    // orderId (api#959).
+    externalReference?: string;
   }
 
   /**

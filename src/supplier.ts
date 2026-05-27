@@ -47,6 +47,9 @@ declare global {
 		currencyValue: number;
 		// Unix ms at which `currencyValue` was effective (app#1539 / ADR-0013).
 		currencyValueAt?: number;
+		// Lowercase '#'-joined search index, written by
+		// `buildSupplierInvoiceSearch` on every insert/update (api#1233).
+		search?: string;
 	}
 
 	interface SupplierAccount {
