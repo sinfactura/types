@@ -14,8 +14,9 @@
 //   - Erasure: append-only / anti-erasure per Ley 25.326 audit-trail exemption
 //   - Ingest: synchronous REST-handler helper (WS ingest explicitly disallowed)
 //
-// 17 variants — covers the Phase 1 MVP wire-ins in api#1244 plus the rest of
-// the canonical taxonomy. Add new variants here as Phase 2/3 ships coverage.
+// 49 variants:
+//   - 1.6.11 (Phase 1, 17 variants) — MVP wire-ins covering the hot paths
+//   - 1.6.12 (Phase 2, +32 variants) — full mutating admin-handler coverage
 
 declare global {
 
@@ -29,6 +30,10 @@ declare global {
 		schema_version: 1;             // literal — bump on breaking change
 		ts: string;                    // ISO 8601 with offset
 	}
+
+	// ──────────────────────────────────────────────────────────────────────────
+	// Phase 1 (1.6.11) — 17 variants
+	// ──────────────────────────────────────────────────────────────────────────
 
 	// Auth (4)
 
@@ -73,7 +78,7 @@ declare global {
 		to_tier: string;
 	}
 
-	// Business operations (5)
+	// Business operations (4)
 
 	interface InvoiceCreatedEvent extends UserActivityEventBase {
 		event: 'Invoice Created';
@@ -147,7 +152,243 @@ declare global {
 		secret_name: string;
 	}
 
+	// ──────────────────────────────────────────────────────────────────────────
+	// Phase 2 (1.6.12) — +32 variants, full admin mutating-handler coverage
+	// ──────────────────────────────────────────────────────────────────────────
+
+	// Auth (2)
+
+	interface UserCreatedEvent extends UserActivityEventBase {
+		event: 'User Created';
+		target_user_id: string;
+		target_user_roles: string[];
+	}
+
+	interface UserUpdatedEvent extends UserActivityEventBase {
+		event: 'User Updated';
+		target_user_id: string;
+		fields_changed: string[];
+	}
+
+	// Catalog (7)
+
+	interface ProductCreatedEvent extends UserActivityEventBase {
+		event: 'Product Created';
+		product_id: string;
+		name: string;
+	}
+
+	interface ProductUpdatedEvent extends UserActivityEventBase {
+		event: 'Product Updated';
+		product_id: string;
+		fields_changed: string[];
+	}
+
+	interface StockIncomeCreatedEvent extends UserActivityEventBase {
+		event: 'Stock Income Created';
+		product_id: string;
+		quantity: number;
+		cost: number;
+		currency: string;
+		supplier_id?: string;
+	}
+
+	interface CategoryCreatedEvent extends UserActivityEventBase {
+		event: 'Category Created';
+		category_id: string;
+		name: string;
+	}
+
+	interface CategoryUpdatedEvent extends UserActivityEventBase {
+		event: 'Category Updated';
+		category_id: string;
+		fields_changed: string[];
+	}
+
+	interface BrandCreatedEvent extends UserActivityEventBase {
+		event: 'Brand Created';
+		brand_id: string;
+		name: string;
+	}
+
+	interface BrandUpdatedEvent extends UserActivityEventBase {
+		event: 'Brand Updated';
+		brand_id: string;
+		fields_changed: string[];
+	}
+
+	// Suppliers (5)
+
+	interface SupplierCreatedEvent extends UserActivityEventBase {
+		event: 'Supplier Created';
+		supplier_id: string;
+		name: string;
+	}
+
+	interface SupplierUpdatedEvent extends UserActivityEventBase {
+		event: 'Supplier Updated';
+		supplier_id: string;
+		fields_changed: string[];
+	}
+
+	interface SupplierInvoiceCreatedEvent extends UserActivityEventBase {
+		event: 'Supplier Invoice Created';
+		supplier_id: string;
+		supplier_invoice_id: string;
+		total: number;
+		currency: string;
+	}
+
+	interface SupplierAccountCreatedEvent extends UserActivityEventBase {
+		event: 'Supplier Account Created';
+		supplier_id: string;
+		account_id: string;
+		currency: string;
+	}
+
+	interface SupplierAccountUpdatedEvent extends UserActivityEventBase {
+		event: 'Supplier Account Updated';
+		supplier_id: string;
+		account_id: string;
+		fields_changed: string[];
+	}
+
+	// Accounts + Baskets + Cash (5)
+
+	interface AccountCreatedEvent extends UserActivityEventBase {
+		event: 'Account Created';
+		customer_id: string;
+		account_id: string;
+		currency: string;
+		amount: number;
+	}
+
+	interface AccountDeletedEvent extends UserActivityEventBase {
+		event: 'Account Deleted';
+		customer_id: string;
+		account_id: string;
+	}
+
+	interface BasketUpdatedEvent extends UserActivityEventBase {
+		event: 'Basket Updated';
+		customer_id: string;
+		items_count: number;
+		total: number;
+	}
+
+	interface BasketDeletedEvent extends UserActivityEventBase {
+		event: 'Basket Deleted';
+		customer_id: string;
+	}
+
+	interface CashDrawerMovementEvent extends UserActivityEventBase {
+		event: 'Cash Drawer Movement';
+		cash_id: string;
+		direction: 'income' | 'outcome';
+		amount: number;
+		currency: string;
+		concept: string;
+	}
+
+	// Payments (4)
+
+	interface PaymentCreatedEvent extends UserActivityEventBase {
+		event: 'Payment Created';
+		payment_id: string;
+		provider: 'mercadopago' | 'stripe';
+		amount: number;
+		currency: string;
+	}
+
+	interface PaymentLinkedEvent extends UserActivityEventBase {
+		event: 'Payment Linked';
+		payment_id: string;
+		source: 'mp' | 'stripe' | 'mp_movement';
+		target_type: 'customer' | 'order' | 'account';
+		target_id: string;
+	}
+
+	interface PaymentUnlinkedEvent extends UserActivityEventBase {
+		event: 'Payment Unlinked';
+		payment_id: string;
+		source: 'mp' | 'stripe' | 'mp_movement';
+	}
+
+	interface PaymentLinkageUpdatedEvent extends UserActivityEventBase {
+		event: 'Payment Linkage Updated';
+		payment_id: string;
+		before: Record<string, unknown>;
+		after: Record<string, unknown>;
+	}
+
+	// Notifications / Logs / Plans (3)
+
+	interface NotificationReadEvent extends UserActivityEventBase {
+		event: 'Notification Read';
+		notification_id?: string;
+		bulk: boolean;
+		read_count?: number;
+	}
+
+	interface LogDeletedEvent extends UserActivityEventBase {
+		event: 'Log Deleted';
+		log_mode: string;
+		deleted_count: number;
+	}
+
+	interface PlanCreatedEvent extends UserActivityEventBase {
+		event: 'Plan Created';
+		tier: string;
+		name: string;
+	}
+
+	// Store / Platform / Tenant (4)
+
+	interface StoreMaintenanceToggledEvent extends UserActivityEventBase {
+		event: 'Store Maintenance Toggled';
+		enabled: boolean;
+		reason?: string;
+	}
+
+	interface PlatformMaintenanceToggledEvent extends UserActivityEventBase {
+		event: 'Platform Maintenance Toggled';
+		enabled: boolean;
+		reason?: string;
+	}
+
+	interface TenantCreatedEvent extends UserActivityEventBase {
+		event: 'Tenant Created';
+		target_store_id: string;
+		name: string;
+	}
+
+	interface LiteralUpdatedEvent extends UserActivityEventBase {
+		event: 'Literal Updated';
+		key: string;
+		before: string;
+		after: string;
+	}
+
+	// Support (2)
+
+	interface SupportTicketCreatedEvent extends UserActivityEventBase {
+		event: 'Support Ticket Created';
+		ticket_id: string;
+		subject: string;
+	}
+
+	interface SupportTicketUpdatedEvent extends UserActivityEventBase {
+		event: 'Support Ticket Updated';
+		ticket_id: string;
+		fields_changed: string[];
+	}
+
+	// ──────────────────────────────────────────────────────────────────────────
+	// Discriminated union — 49 variants
+	// ──────────────────────────────────────────────────────────────────────────
+
 	type UserActivityEvent =
+		// Phase 1
 		| UserLoggedInEvent
 		| UserLoggedOutEvent
 		| UserPasswordChangedEvent
@@ -164,7 +405,40 @@ declare global {
 		| CashDrawerOpenedEvent
 		| CashDrawerClosedEvent
 		| TenantImpersonatedEvent
-		| SecretRotatedEvent;
+		| SecretRotatedEvent
+		// Phase 2
+		| UserCreatedEvent
+		| UserUpdatedEvent
+		| ProductCreatedEvent
+		| ProductUpdatedEvent
+		| StockIncomeCreatedEvent
+		| CategoryCreatedEvent
+		| CategoryUpdatedEvent
+		| BrandCreatedEvent
+		| BrandUpdatedEvent
+		| SupplierCreatedEvent
+		| SupplierUpdatedEvent
+		| SupplierInvoiceCreatedEvent
+		| SupplierAccountCreatedEvent
+		| SupplierAccountUpdatedEvent
+		| AccountCreatedEvent
+		| AccountDeletedEvent
+		| BasketUpdatedEvent
+		| BasketDeletedEvent
+		| CashDrawerMovementEvent
+		| PaymentCreatedEvent
+		| PaymentLinkedEvent
+		| PaymentUnlinkedEvent
+		| PaymentLinkageUpdatedEvent
+		| NotificationReadEvent
+		| LogDeletedEvent
+		| PlanCreatedEvent
+		| StoreMaintenanceToggledEvent
+		| PlatformMaintenanceToggledEvent
+		| TenantCreatedEvent
+		| LiteralUpdatedEvent
+		| SupportTicketCreatedEvent
+		| SupportTicketUpdatedEvent;
 
 }
 
