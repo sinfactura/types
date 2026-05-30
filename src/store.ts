@@ -368,6 +368,16 @@ declare global {
     id: number;
     name: string;
   }
+
+  // Non-blocking store warning surfaced on create/edit responses (api#1276).
+  // CUIT_SHARED: another store already uses this (normalized) CUIT — one CUIT
+  // may own many stores (AFIP per-PtoVta), so it informs, never blocks.
+  type StoreWarningCode = "CUIT_SHARED";
+
+  interface StoreWarning {
+    code: StoreWarningCode;
+    stores: string[]; // other STO ids sharing the CUIT
+  }
 }
 
 export {}; // NOSONAR
