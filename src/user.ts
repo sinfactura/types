@@ -1,3 +1,5 @@
+import type { NotificationTypeEnum } from "./notification";
+
 declare global {
   interface User {
     storeId: string;
@@ -29,14 +31,14 @@ declare global {
     emailVerifiedAt?: number;
   }
 
-  type UserNotifications = {
-    orders?: boolean;
-    mercadopago?: boolean;
-    dollarOficial?: boolean;
-    dollarInformal?: boolean;
-    dollarBna?: boolean;
-    printer?: boolean;
-  };
+  // Per-user notification opt-ins, keyed by the canonical UPPERCASE
+  // `NotificationTypeEnum` values — the only attribute names the BE
+  // fanout filter-reads (`notifications.<KEY> = true`). Closed key set,
+  // no string index (#78; the dynamic tenant-key taxonomy was dropped
+  // in app#1675). Legacy lowercase keys (`orders`, `dollarOficial`, …)
+  // may persist on old user records but are never read by the BE and
+  // never written by the FE — intentionally not modeled.
+  type UserNotifications = Partial<Record<NotificationTypeEnum, boolean>>;
 
   type UserPermissions = {
     currency?: boolean;
