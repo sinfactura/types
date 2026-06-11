@@ -14,7 +14,7 @@ declare global {
 		password: string;
 		cuit: string;
 		fullName: string;
-		phone?: number;
+		phone?: string;
 	}
 
 	interface Recover {

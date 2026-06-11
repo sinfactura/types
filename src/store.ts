@@ -117,7 +117,7 @@ declare global {
       province: string;
     };
     cuit: string;
-    phone: number;
+    phone: string;
     email: string;
     // CONFIG // NOT FEATURE FLAGS // FUNCTIONAL CONFIG
     config: {
@@ -343,6 +343,9 @@ declare global {
     key?: string;
     accessTicket_EB?: string;
     accessTicket_RSF?: string;
+    // Derived read-only flags (api#1318): cert/key existence, projected on read — never the bytes.
+    hasCert?: boolean;
+    hasKey?: boolean;
   }
 
   type StoreAttributeNames = keyof Store;

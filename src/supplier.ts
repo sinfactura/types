@@ -12,7 +12,7 @@ declare global {
 		razonSocial: string;
 		// contact
 		contactName: string;
-		phone: number;
+		phone: string;
 		email: string;
 		// options
 		balance: number;
