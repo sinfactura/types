@@ -14,10 +14,11 @@
 //   - Erasure: append-only / anti-erasure per Ley 25.326 audit-trail exemption
 //   - Ingest: synchronous REST-handler helper (WS ingest explicitly disallowed)
 //
-// 57 variants:
+// 59 variants:
 //   - 1.6.11 (Phase 1, 17 variants) — MVP wire-ins covering the hot paths
 //   - 1.6.12 (Phase 2, +32 variants) — full mutating admin-handler coverage
 //   - 1.6.13 (Phase 3, +8 UI-only variants) — FE companion (app#1642, api#1247)
+//   - 1.6.18 (+2 variants) — TOTP 2FA enroll/disable lifecycle (types#68, api#636)
 
 declare global {
 
@@ -56,6 +57,19 @@ declare global {
 		event: 'User Suspended';
 		target_user_id: string;
 		reason: string;
+	}
+
+	// TOTP 2FA lifecycle (1.6.18 — types#68, api#636). Self-service only
+	// today, so `user_id` is both actor and target. Step-up login success
+	// reuses `UserLoggedInEvent.method = 'totp'`; wrong-code attempts go to
+	// the LOGIN# login-history partition, not this feed.
+
+	interface TwoFactorEnrolledEvent extends UserActivityEventBase {
+		event: 'Two-Factor Enrolled';
+	}
+
+	interface TwoFactorDisabledEvent extends UserActivityEventBase {
+		event: 'Two-Factor Disabled';
 	}
 
 	// Tenant config (3)
@@ -464,6 +478,9 @@ declare global {
 		| UserLoggedOutEvent
 		| UserPasswordChangedEvent
 		| UserSuspendedEvent
+		// TOTP 2FA (1.6.18 — types#68)
+		| TwoFactorEnrolledEvent
+		| TwoFactorDisabledEvent
 		| StorePaletteChangedEvent
 		| StoreSettingsUpdatedEvent
 		| PlanChangedEvent

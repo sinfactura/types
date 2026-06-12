@@ -29,6 +29,18 @@ declare global {
     // completes; provider-verified social signups start at `true`.
     emailVerified?: boolean;
     emailVerifiedAt?: number;
+    // TOTP 2FA (#68, api#636). `secretRef` / `pendingSecretRef` are
+    // KMS-encrypted handles — never the plaintext base32 seed. Absent
+    // `totp` means the user never started enrollment.
+    totp?: {
+      enabled: boolean;
+      secretRef?: string;        // KMS ciphertext of the active TOTP seed
+      pendingSecretRef?: string; // KMS ciphertext awaiting verify-enrollment
+      pendingAt?: number;        // unix ms — enrollment start (expiry window)
+      enrolledAt?: number;       // unix ms
+      lastUsedAt?: number;       // unix ms — ops audit
+      lastCounter?: number;      // last accepted TOTP step (replay guard, RFC 6238 §5.2)
+    };
   }
 
   // Per-user notification opt-ins, keyed by the canonical UPPERCASE
