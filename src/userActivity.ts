@@ -14,11 +14,12 @@
 //   - Erasure: append-only / anti-erasure per Ley 25.326 audit-trail exemption
 //   - Ingest: synchronous REST-handler helper (WS ingest explicitly disallowed)
 //
-// 59 variants:
+// 60 variants:
 //   - 1.6.11 (Phase 1, 17 variants) — MVP wire-ins covering the hot paths
 //   - 1.6.12 (Phase 2, +32 variants) — full mutating admin-handler coverage
 //   - 1.6.13 (Phase 3, +8 UI-only variants) — FE companion (app#1642, api#1247)
 //   - 1.6.18 (+2 variants) — TOTP 2FA enroll/disable lifecycle (types#68, api#636)
+//   - 1.6.20 (+1 variant) — operator 2FA reset, target_user_id (api#1335)
 
 declare global {
 
@@ -59,10 +60,10 @@ declare global {
 		reason: string;
 	}
 
-	// TOTP 2FA lifecycle (1.6.18 — types#68, api#636). Self-service only
-	// today, so `user_id` is both actor and target. Step-up login success
-	// reuses `UserLoggedInEvent.method = 'totp'`; wrong-code attempts go to
-	// the LOGIN# login-history partition, not this feed.
+	// TOTP 2FA lifecycle (1.6.18 — types#68, api#636). Enroll/Disable are
+	// self-service, so `user_id` is both actor and target. Step-up login
+	// success reuses `UserLoggedInEvent.method = 'totp'`; wrong-code attempts
+	// go to the LOGIN# login-history partition, not this feed.
 
 	interface TwoFactorEnrolledEvent extends UserActivityEventBase {
 		event: 'Two-Factor Enrolled';
@@ -70,6 +71,15 @@ declare global {
 
 	interface TwoFactorDisabledEvent extends UserActivityEventBase {
 		event: 'Two-Factor Disabled';
+	}
+
+	// Operator account-recovery (1.6.20 — api#1335): a SUPERVISOR/MANAGER
+	// clears a locked-out user's TOTP. Unlike Enroll/Disable this is an
+	// operator-on-user action, so `target_user_id` is the reset user while
+	// `user_id`/`actor_*` identify the operator.
+	interface TwoFactorResetEvent extends UserActivityEventBase {
+		event: 'Two-Factor Reset';
+		target_user_id: string;
 	}
 
 	// Tenant config (3)
@@ -481,6 +491,7 @@ declare global {
 		// TOTP 2FA (1.6.18 — types#68)
 		| TwoFactorEnrolledEvent
 		| TwoFactorDisabledEvent
+		| TwoFactorResetEvent
 		| StorePaletteChangedEvent
 		| StoreSettingsUpdatedEvent
 		| PlanChangedEvent
