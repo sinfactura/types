@@ -40,6 +40,16 @@ declare global {
       enrolledAt?: number;       // unix ms
       lastUsedAt?: number;       // unix ms — ops audit
       lastCounter?: number;      // last accepted TOTP step (replay guard, RFC 6238 §5.2)
+      // api#1336 — single-use recovery codes. Only the bcrypt hash is stored
+      // (bcrypt embeds its own salt); `usedAt` set on consumption (soft-consume,
+      // keeps the slot index stable for the atomic single-use conditional write).
+      recoveryCodes?: { hash: string; usedAt?: number }[];
+      recoveryCodesGeneratedAt?: number; // unix ms — when the active set was minted
+      // api#1337 — 2FA brute-force lockout. `failedAttempts` = consecutive step-up
+      // failures since the last success; `lockedUntil` (unix ms) short-circuits the
+      // step-up while in the future. Internal only — never exposed to the client.
+      failedAttempts?: number;
+      lockedUntil?: number;
     };
   }
 

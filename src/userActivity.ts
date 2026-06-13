@@ -14,12 +14,13 @@
 //   - Erasure: append-only / anti-erasure per Ley 25.326 audit-trail exemption
 //   - Ingest: synchronous REST-handler helper (WS ingest explicitly disallowed)
 //
-// 60 variants:
+// 61 variants:
 //   - 1.6.11 (Phase 1, 17 variants) — MVP wire-ins covering the hot paths
 //   - 1.6.12 (Phase 2, +32 variants) — full mutating admin-handler coverage
 //   - 1.6.13 (Phase 3, +8 UI-only variants) — FE companion (app#1642, api#1247)
 //   - 1.6.18 (+2 variants) — TOTP 2FA enroll/disable lifecycle (types#68, api#636)
 //   - 1.6.20 (+1 variant) — operator 2FA reset, target_user_id (api#1335)
+//   - 1.6.21 (+1 variant) — TOTP recovery codes generated (api#1336); method += 'recovery'
 
 declare global {
 
@@ -42,7 +43,7 @@ declare global {
 
 	interface UserLoggedInEvent extends UserActivityEventBase {
 		event: 'User Logged In';
-		method: 'password' | 'totp' | 'refresh' | 'social';
+		method: 'password' | 'totp' | 'refresh' | 'social' | 'recovery';
 	}
 
 	interface UserLoggedOutEvent extends UserActivityEventBase {
@@ -80,6 +81,17 @@ declare global {
 	interface TwoFactorResetEvent extends UserActivityEventBase {
 		event: 'Two-Factor Reset';
 		target_user_id: string;
+	}
+
+	// Self-service recovery codes (1.6.21 — api#1336): the user mints a new set
+	// of single-use backup codes, at enrollment or via the regenerate endpoint.
+	// A recovery-code LOGIN is captured by `User Logged In` method:'recovery'
+	// (no bespoke "code used" variant), mirroring how a TOTP login reuses
+	// method:'totp'.
+	interface TwoFactorRecoveryCodesGeneratedEvent extends UserActivityEventBase {
+		event: 'Two-Factor Recovery Codes Generated';
+		count: number;
+		trigger: 'enrollment' | 'regenerate';
 	}
 
 	// Tenant config (3)
@@ -492,6 +504,7 @@ declare global {
 		| TwoFactorEnrolledEvent
 		| TwoFactorDisabledEvent
 		| TwoFactorResetEvent
+		| TwoFactorRecoveryCodesGeneratedEvent
 		| StorePaletteChangedEvent
 		| StoreSettingsUpdatedEvent
 		| PlanChangedEvent
