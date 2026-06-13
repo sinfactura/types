@@ -41,7 +41,7 @@ declare global {
 
 	interface UserLoggedInEvent extends UserActivityEventBase {
 		event: 'User Logged In';
-		method: 'password' | 'totp' | 'refresh';
+		method: 'password' | 'totp' | 'refresh' | 'social';
 	}
 
 	interface UserLoggedOutEvent extends UserActivityEventBase {
