@@ -129,6 +129,12 @@ declare global {
        * the operator's screens are framed in — distinct from the
        * currency of any individual money entity (Order / Invoice /
        * etc carry their own self-describing `currency` stamps).
+       *
+       * NOTE: the self-describing-stamp invariant is true for Order /
+       * Invoice but only ASPIRATIONAL for ACCOUNT — `Account.currency`
+       * is optional and ≈100% of historical rows are unstamped, so they
+       * fall back to THIS field for their denomination (tracked
+       * api#1333 / api#1352).
        */
       displayCurrency?: string;
       /**

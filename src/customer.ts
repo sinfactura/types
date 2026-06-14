@@ -47,7 +47,17 @@ declare global {
     salt?: string;
     search: string;
     updatedAt?: number;
-    // catalogId (api#942) — FK to PlatformCurrency.
+    /**
+     * catalogId (api#942) — FK to PlatformCurrency.
+     *
+     * DISPLAY / PRICING preference only: which currency this customer
+     * views and transacts in (load-bearing in storefront pricing + the
+     * DNI/CUIT checkout gate). It is NOT a ledger denomination and is
+     * pure passenger data server-side. MUST NOT be used to infer the
+     * denomination of unstamped `ACCOUNT` rows — doing so is the root
+     * cause of api#1333. Unstamped ledger rows fall back to
+     * `store.config.displayCurrency`, never to this field.
+     */
     currencyId?: string;
     deliveryAddress?: {
       fullName: string;
