@@ -59,6 +59,10 @@ src/
 └── index.ts        # Main export file
 ```
 
+### 💱 Currency taxonomy
+
+Two currency encodings exist: **catalogId** (canonical, lowercase — e.g. `ars`, `usd-oficial`) vs raw **ISO** (legacy uppercase, e.g. `ARS`). `CatalogId` (`currency.ts`) is the canonical union. Money entities are self-describing via their own `currency` catalogId stamp; an **unstamped `ACCOUNT` row falls back to `store.config.displayCurrency`, never to `customer.currencyId`** (root cause of api#1333). The full ledger-denomination + self-describing rule lives in api `docs/CURRENCY.md` / `docs/ENTITIES.md` §ACCOUNT and app `docs/adr/0013-currency-self-describing-entities.md`.
+
 ## 📝 Type Definition Standards
 
 ### Interface vs Type Alias
