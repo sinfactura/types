@@ -5,10 +5,6 @@ declare global {
     fiscalConditions: FiscalCondition[];
     ivaTypes: Method[];
     minWithDni: number;
-    notificationOptions: {
-      id: string;
-      name: string;
-    }[];
     stats: {
       store: number;
     };
