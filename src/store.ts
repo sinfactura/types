@@ -115,6 +115,7 @@ declare global {
     cuit: string;
     phone: string;
     email: string;
+    acknowledgedSharedCuit?: boolean; // api#1328 — recorded when registered past the shared-CUIT gate
     // CONFIG // NOT FEATURE FLAGS // FUNCTIONAL CONFIG
     config: {
       priceDecimals: 0 | 1 | 2 | 3;

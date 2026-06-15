@@ -59,6 +59,12 @@ declare global {
     // `pending_cae` when WSFEv1 network-failed, `rejected` on business
     // validation errors. See ADR-0012 for the CAEA states.
     fiscalStatus?: FiscalStatus;
+    // Service order integration (sinfactura/types#30). AFIP concept=2 service
+    // invoices carry the service period + payment due date. All Unix ms.
+    serviceStartDate?: number; // AFIP FchServDesde
+    serviceEndDate?: number; // AFIP FchServHasta
+    paymentDueDate?: number; // AFIP FchVtoPago
+    serviceOrderId?: string; // link to the originating ServiceOrder
   }
 
   interface InvoiceItem {

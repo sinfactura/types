@@ -15,6 +15,7 @@ declare global {
 		cuit: string;
 		fullName: string;
 		phone?: string;
+		acknowledgedSharedCuit?: boolean; // api#1328 — shared-CUIT consent gate
 	}
 
 	interface Recover {
