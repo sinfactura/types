@@ -491,7 +491,90 @@ declare global {
 	}
 
 	// ──────────────────────────────────────────────────────────────────────────
-	// Discriminated union — 57 variants
+	// Phase 4 (1.6.23 — api#1266) — +11 interaction-coverage variants. FE-emitted
+	// (UI-only) via the api#1247 ingest endpoint; `Action Denied` is ALSO written
+	// BE-side on a real 403 (the FE emits only its own pre-roundtrip
+	// maintenance/subscription/permission denials). Grooming: app#1653 /
+	// app/docs/research/AUDIT_INTERACTION_COVERAGE.md.
+	//
+	// PII guarantees: `Search Performed` carries `query_hash` only (raw text never
+	// leaves the client); `Two-Factor Recovery Codes Revealed` carries `code_count`
+	// only (never the codes); `Action Denied.attempted_action` is a stable verb id;
+	// every `*_id` is an opaque entity id — no name/email/CUIT/phone anywhere.
+	// ──────────────────────────────────────────────────────────────────────────
+
+	// Sensitive views (4)
+	interface PaymentViewedEvent extends UserActivityEventBase {
+		event: 'Payment Viewed';
+		payment_id: string;
+		source?: string;
+		linked_status?: 'linked' | 'unlinked';
+	}
+
+	interface InvoiceViewedEvent extends UserActivityEventBase {
+		event: 'Invoice Viewed';
+		invoice_id: string;
+		fiscal_status?: string;
+	}
+
+	interface CustomerDetailViewedEvent extends UserActivityEventBase {
+		event: 'Customer Detail Viewed';
+		customer_id: string;
+	}
+
+	interface SupplierAccountViewedEvent extends UserActivityEventBase {
+		event: 'Supplier Account Viewed';
+		supplier_id: string;
+	}
+
+	// Search (1) — scope-tagged; query HASHED, never raw (Ley 25.326)
+	interface SearchPerformedEvent extends UserActivityEventBase {
+		event: 'Search Performed';
+		scope: 'customers' | 'audit' | 'suppliers' | 'invoices' | 'payments';
+		query_hash?: string; // SHA-256 of the normalized query; omitted when empty/cleared
+		result_count?: number; // count only — never the result identities
+	}
+
+	// Denied (1) — forensic headline. BE writes the 403 row; FE writes its own
+	// pre-roundtrip denials (maintenance/subscription/permission short-circuits).
+	interface ActionDeniedEvent extends UserActivityEventBase {
+		event: 'Action Denied';
+		attempted_action: string; // stable verb id, e.g. 'order.status.advance'
+		resource_type: string; // 'order' | 'customer' | 'payment' | 'cash' | …
+		resource_id?: string; // present when the gate guards a specific entity
+		reason: 'permission' | 'subscription' | 'maintenance';
+	}
+
+	// 2FA / auth step-up (5)
+	interface TwoFactorChallengeShownEvent extends UserActivityEventBase {
+		event: 'Two-Factor Challenge Shown';
+		method: 'password' | 'social';
+		provider?: string;
+	}
+
+	interface TwoFactorCodeValidationFailedEvent extends UserActivityEventBase {
+		event: 'Two-Factor Code Validation Failed';
+		method: 'totp' | 'recovery';
+		attempt_number?: number;
+	}
+
+	interface TwoFactorEnrollmentStartedEvent extends UserActivityEventBase {
+		event: 'Two-Factor Enrollment Started';
+	}
+
+	interface TwoFactorRecoveryCodesRevealedEvent extends UserActivityEventBase {
+		event: 'Two-Factor Recovery Codes Revealed';
+		code_count: number; // count only — NEVER the codes
+	}
+
+	interface TwoFactorResetInitiatedEvent extends UserActivityEventBase {
+		event: 'Two-Factor Reset Initiated';
+		target_user_id: string;
+		initiator_role: string;
+	}
+
+	// ──────────────────────────────────────────────────────────────────────────
+	// Discriminated union — 68 variants
 	// ──────────────────────────────────────────────────────────────────────────
 
 	type UserActivityEvent =
@@ -559,7 +642,19 @@ declare global {
 		| CashDrawerUiClosedEvent
 		| ExportInitiatedEvent
 		| ImpersonationUiStartedEvent
-		| ImpersonationUiEndedEvent;
+		| ImpersonationUiEndedEvent
+		// Phase 4 (api#1266 — interaction coverage)
+		| PaymentViewedEvent
+		| InvoiceViewedEvent
+		| CustomerDetailViewedEvent
+		| SupplierAccountViewedEvent
+		| SearchPerformedEvent
+		| ActionDeniedEvent
+		| TwoFactorChallengeShownEvent
+		| TwoFactorCodeValidationFailedEvent
+		| TwoFactorEnrollmentStartedEvent
+		| TwoFactorRecoveryCodesRevealedEvent
+		| TwoFactorResetInitiatedEvent;
 
 }
 
@@ -582,6 +677,20 @@ export const UI_ONLY_USER_ACTIVITY_VARIANTS = [
 	'Export Initiated',
 	'Impersonation UI Started',
 	'Impersonation UI Ended',
+	// Phase 4 (api#1266) — FE emits each through the ingest gate. `Action Denied`
+	// is whitelisted for the FE-gate path (pre-roundtrip maintenance/subscription/
+	// permission denials); the real BE 403 row is written server-side, not POSTed.
+	'Payment Viewed',
+	'Invoice Viewed',
+	'Customer Detail Viewed',
+	'Supplier Account Viewed',
+	'Search Performed',
+	'Action Denied',
+	'Two-Factor Challenge Shown',
+	'Two-Factor Code Validation Failed',
+	'Two-Factor Enrollment Started',
+	'Two-Factor Recovery Codes Revealed',
+	'Two-Factor Reset Initiated',
 ] as const;
 
 export type UiOnlyUserActivityVariant = (typeof UI_ONLY_USER_ACTIVITY_VARIANTS)[number];
