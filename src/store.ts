@@ -5,10 +5,6 @@ declare global {
     fiscalConditions: FiscalCondition[];
     ivaTypes: Method[];
     minWithDni: number;
-    notificationOptions: {
-      id: string;
-      name: string;
-    }[];
     stats: {
       store: number;
     };
@@ -200,7 +196,6 @@ declare global {
     fiscalConditions: FiscalCondition[];
     ivaTypes: Method[];
     minWithDni: number;
-    notificationOptions?: Method[];
     maintenance?: MaintenanceInfo;
     legacyCurrencyIds?: Record<number, string>;
   }
