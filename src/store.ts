@@ -105,6 +105,9 @@ declare global {
   interface Store {
     storeId: string;
     createdAt: number;
+    // Tenant kind (sinfactura/app#1054). Absent / 'production' = real tenant;
+    // 'demo' = AI-seeded demo environment. Optional + backward-compatible.
+    type?: 'production' | 'demo';
     name: string;
     address: {
       street: string;
@@ -197,6 +200,8 @@ declare global {
   interface StoreIntegrations {
     afip?: Afip;
     mercadopago?: Mercadopago;
+    // Per-tenant WhatsApp Business connection (sinfactura/app#1072).
+    whatsapp?: WhatsAppConfig;
   }
 
   type FxAutoUpdateStrategy = "overwrite" | "overwrite-if-stale" | "notify-only";

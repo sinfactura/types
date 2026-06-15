@@ -104,6 +104,102 @@ declare global {
 		category: 'user_initiated' | string;
 	}
 
+	// ─────────────────────────────────────────────────────────────────
+	// WhatsApp Commerce (sinfactura/types#34, sinfactura/app#1072)
+	// Tenant-facing config, conversations, messaging, usage metering, and
+	// message templates. Distinct from the Meta webhook payload shapes
+	// above (Message / Status / etc.) — these are SINFACTURA-side entities.
+	// ─────────────────────────────────────────────────────────────────
+
+	/** Per-tenant WhatsApp Business connection + plan tier. */
+	interface WhatsAppConfig {
+		wabaId: string;
+		phoneNumberId: string;
+		/** Meta access token — encrypted at rest. */
+		accessToken: string;
+		verifiedName: string;
+		qualityRating: 'GREEN' | 'YELLOW' | 'RED';
+		status: 'connected' | 'disconnected' | 'suspended';
+		tier: 'free' | 'pro' | 'enterprise';
+		/** ISO timestamp. */
+		connectedAt: string;
+		/** ISO timestamp. */
+		disconnectedAt?: string;
+	}
+
+	/** A customer conversation thread. */
+	interface WhatsAppConversation {
+		conversationId: string;
+		storeId: string;
+		customerId: string;
+		customerPhone: string;
+		customerName: string;
+		lastMessage: WhatsAppChatMessage;
+		unreadCount: number;
+		status: 'active' | 'resolved';
+		/** userId of the assigned agent (Enterprise tier). */
+		assignedTo?: string;
+		/** ISO timestamp. */
+		createdAt: string;
+		/** ISO timestamp. */
+		updatedAt: string;
+	}
+
+	/** A single message within a conversation. */
+	interface WhatsAppChatMessage {
+		messageId: string;
+		conversationId: string;
+		direction: 'inbound' | 'outbound';
+		type: 'text' | 'template' | 'image' | 'document' | 'interactive';
+		content: string;
+		templateName?: string;
+		mediaUrl?: string;
+		status: 'sent' | 'delivered' | 'read' | 'failed';
+		/** ISO timestamp. */
+		timestamp: string;
+		/** userId for outbound messages. */
+		sentBy?: string;
+	}
+
+	/** Per-tenant, per-period message usage for metered billing (Model C). */
+	interface WhatsAppUsage {
+		storeId: string;
+		/** Billing period, YYYY-MM. */
+		billingPeriod: string;
+		messageCount: number;
+		allowance: number;
+		overage: number;
+		tier: 'free' | 'pro' | 'enterprise';
+	}
+
+	/** A reusable message template registered with Meta. */
+	interface WhatsAppTemplate {
+		templateId: string;
+		name: string;
+		category: 'marketing' | 'utility' | 'authentication';
+		language: string;
+		status: 'APPROVED' | 'PENDING' | 'REJECTED';
+		components: WhatsAppTemplateComponent[];
+		/** ISO timestamp. */
+		createdAt: string;
+		/** ISO timestamp. */
+		updatedAt: string;
+	}
+
+	interface WhatsAppTemplateComponent {
+		type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS';
+		format?: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT';
+		text?: string;
+		buttons?: WhatsAppTemplateButton[];
+	}
+
+	interface WhatsAppTemplateButton {
+		type: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER';
+		text: string;
+		url?: string;
+		phoneNumber?: string;
+	}
+
 }
 
 export {}; // NOSONAR

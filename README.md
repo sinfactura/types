@@ -74,7 +74,14 @@ This re-resolves the git ref to the latest commit on `dist` and pins it in the l
 
 > **Why explicit?** `yarn install` does NOT re-resolve git branch refs to their current HEAD — it reuses the cached resolution for reproducibility. Consumers that want auto-bump-on-pull can add a `post-merge` Husky hook that runs `yarn up sinfactura-types@github:sinfactura/types#dist` whenever `package.json`/`yarn.lock` changed in the merge.
 
-## Legacy: Publishing a New NPM Version
+## Publishing
+
+See [`PUBLISHING.md`](./PUBLISHING.md) for the full release workflow — when to
+bump the version, the `dist`-branch and npm channels, the PR checklist, and how
+to coordinate a cross-repo rollout. Per-release summaries live in
+[`CHANGELOG.md`](./CHANGELOG.md).
+
+### Legacy: Publishing a New NPM Version
 
 Kept for reference / external consumers. New SINFACTURA repos should use the git URL instead.
 
