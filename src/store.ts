@@ -163,8 +163,6 @@ declare global {
     // callback handler, removed by disconnect). KEYS_ONLY because a
     // follow-up Get fetches the full row including the access token.
     mercadopagoUserId?: string;
-    // api#942 — catalog references with per-tenant value + autoUpdate
-    // overrides. Was `Method[]` (free-text name + integer id).
     currencies: StoreCurrencySubscription[];
     cashInMethods: Method[];
     cashOutMethods: Method[];
@@ -190,17 +188,11 @@ declare global {
       users?: number;
     };
     integrations?: StoreIntegrations;
-    // api#941 — tenant-controlled FX auto-update bindings. When
-    // `enabled: true`, the platform's FX poller (propagate-fx worker)
-    // fans out to this store and applies each binding's strategy
-    // against the matching `currencies[i].value`. Bindings keyed by
-    // (catalogId, sourceId).
     fxAutoUpdate?: StoreFxAutoUpdate;
     appVersion: number;
     fiscalConditions: FiscalCondition[];
     ivaTypes: Method[];
     minWithDni: number;
-    notificationOptions?: Method[];
     maintenance?: MaintenanceInfo;
     legacyCurrencyIds?: Record<number, string>;
   }
@@ -210,25 +202,8 @@ declare global {
     mercadopago?: Mercadopago;
   }
 
-  // ─────────────────────────────────────────────────────────────────
-  // FX auto-update bindings (epic api#941)
-  // ─────────────────────────────────────────────────────────────────
-
-  // How a binding should react when the platform observes a fresh
-  // rate for the bound (isoCode, variant):
-  //   - 'overwrite'           — always rewrite store.currencies[i].value
-  //   - 'overwrite-if-stale'  — only rewrite if the binding's
-  //                             lastUpdatedAt is older than the source's
-  //                             configured maxStaleness
-  //   - 'notify-only'         — never touch currencies; just emit an
-  //                             audit entry + WS broadcast so the FE
-  //                             can surface a banner
   type FxAutoUpdateStrategy = "overwrite" | "overwrite-if-stale" | "notify-only";
 
-  // Single auto-update binding. Pairs a catalog row with the source
-  // and refresh policy the tenant wants. `lastUpdatedAt` and
-  // `lastValue` are stamped server-side by propagate-fx; FE writers
-  // omit them when creating/editing.
   interface FxAutoUpdateBinding {
     catalogId: string; // FK to PlatformCurrency
     sourceId: string; // PLATFORM/FX_SOURCES.sources[].id
@@ -237,8 +212,6 @@ declare global {
     lastValue?: number; // last value the worker observed
   }
 
-  // Top-level FX auto-update config on `Store`. `enabled: false`
-  // disables every binding without losing the configuration.
   interface StoreFxAutoUpdate {
     enabled: boolean;
     bindings: FxAutoUpdateBinding[]; // max 32 enforced by BE Zod
@@ -266,34 +239,17 @@ declare global {
     statementDescriptor?: string; // shows on customer's bank statement.
     notificationUrl?: string; // webhook URL registered with MP.
 
-    // POINT OF SALE (api#885) — in-person QR via MP Point devices
-    // (Smart 1/2 hardware terminals). Distinct from `staticQr` below
-    // — Point uses a connected device that displays per-transaction
-    // dynamic QRs; static QR is a printable image with no hardware.
     pos?: {
       defaultDeviceId?: string; // selected POS terminal id.
       defaultStoreMpId?: string; // MP's store_id for multi-branch merchants.
     };
 
-    // STATIC QR (api#879) — over-the-counter scan-to-pay. Cached MP
-    // POS row that owns the tenant's permanent QR image
-    // (`qr.image` / `qr.template_image`). Re-generation hits a fast
-    // path via `posId` lookup; recovery via `external_id` if the
-    // cached id is lost. The `external_id` is pinned by the BE to a
-    // deterministic `SF-${storeId}` so the linkage survives both
-    // backups and operator-driven POS edits in the MP dashboard.
     staticQr?: {
       posId: string; // MP-issued POS numeric id (stringified).
       externalPosId: string; // SINFACTURA-pinned external id (`SF-{storeId}`).
       createdAt: number; // unix ms when the POS was created.
     };
 
-    // DYNAMIC QR (api#884) — per-transaction amount-bound QR generated
-    // via MP's Order API (`PUT /instore/orders/qr/.../qrs`) on a sibling
-    // POS row pinned to `external_id: SF{storeId}DYN`, `fixed_amount: true`.
-    // Distinct from `staticQr` above — that POS is `fixed_amount: false`
-    // (variable-amount over-the-counter), this one is bound to single-use
-    // transactions with the amount embedded.
     dynamicQrPos?: {
       posId: string; // MP-issued POS numeric id (stringified).
       externalPosId: string; // SINFACTURA-pinned external id (`SF{storeId}DYN`).
