@@ -5,8 +5,9 @@
 // Stripe hook, propagate-fx). Exported as a real enum so `api`
 // (stacks/helpers/notificationType.ts) and `app`
 // (src/domain/notificationType.ts) can drop their hand-mirrored copies
-// in follow-ups. DOLARBNA / ERROR have no read path today — enum members
-// only.
+// in follow-ups. DOLARBNA / ERROR / AFIP_CERT_EXPIRY have no User-row
+// read path — enum members only (AFIP_CERT_EXPIRY = the cert-expiry
+// alert type, api#1382).
 export enum NotificationTypeEnum {
 	ORDER = 'ORDER',
 	MERCADOPAGO = 'MERCADOPAGO',
@@ -15,6 +16,7 @@ export enum NotificationTypeEnum {
 	DOLARINFORMAL = 'DOLARINFORMAL',
 	DOLARBNA = 'DOLARBNA',
 	ERROR = 'ERROR',
+	AFIP_CERT_EXPIRY = 'AFIP_CERT_EXPIRY',
 }
 
 declare global {
@@ -30,6 +32,9 @@ declare global {
 		customerId?: string;
 		read?: boolean;
 		description?: string;
+		// api#1382 — severity for typed notifications (e.g. AFIP_CERT_EXPIRY);
+		// drives the FE icon/colour. Optional: legacy notifications omit it.
+		severity?: 'info' | 'warning' | 'critical';
 		details?: string;
 		total?: number;
 		TableName?: string;
