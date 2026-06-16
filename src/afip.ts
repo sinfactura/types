@@ -79,6 +79,25 @@ declare global {
     errorConstancia?: AfipErrorConstancia;
     errorRegimenGeneral?: AfipErrorRegimenGeneral;
   }
+
+  /**
+   * Cached AFIP/ARCA platform-wide health snapshot (api#1213). One DDB row
+   * (PK 'AFIP_HEALTH', SK 'current') overwritten every ~5 min by the
+   * afipHealthPoller cron; served by anonymous GET /afip/health behind the
+   * public /estado page. Each *Server is 'OK' when healthy, else an AFIP-side
+   * status code. BE-internal name: AfipHealthSnapshot.
+   */
+  interface AfipHealth {
+    appServer: string;
+    authServer: string;
+    dbServer: string;
+    // Epoch ms of the last poll where all three servers returned 'OK';
+    // preserved across failed polls. Absent until the first all-green poll.
+    lastSuccessAt?: number;
+    // Epoch ms of this snapshot's write. Always present (0 in the UNKNOWN
+    // cold-start fallback before the poller has written a row).
+    fetchedAt: number;
+  }
 }
 
 export {}; // NOSONAR

@@ -310,11 +310,9 @@ declare global {
     // Derived read-only flags (api#1318): cert/key existence, projected on read — never the bytes.
     hasCert?: boolean;
     hasKey?: boolean;
-    // Derived cert expiry (api#1374), parsed on read from the cert PEM by the
-    // api's sanitizeStoreRow — never the bytes. afipCertExpiresInDays is
-    // transient (recomputed each read).
-    afipCertExpiresAt?: string;
-    afipCertExpiresInDays?: number;
+    // Cert expiry (api#1374): ms-epoch of the cert's notAfter, parsed on read
+    // from the stored PEM by the api's sanitizeStoreRow — never the bytes.
+    certExpiry?: number;
   }
 
   type StoreAttributeNames = keyof Store;

@@ -7,6 +7,21 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.6.25
+
+- **fix(store):** AFIP cert expiry is now `Afip.certExpiry?: number` (ms-epoch of
+  the cert's `notAfter`), matching the FE contract (app#1022) and the ms-epoch
+  timestamp convention. **Replaces** the 1.6.24 `afipCertExpiresAt` /
+  `afipCertExpiresInDays` (published but unconsumed — corrected before any
+  consumer adopted them). (api#1374)
+- **feat(account):** add `Account.paymentRefSource?: PaymentReceivedSource` /
+  `paymentRefId?` — provenance of link-derived credit rows (api#933 / PR#943,
+  app#1344).
+- **feat(afip):** add `AfipHealth` — cached ARCA platform-health snapshot served
+  by `GET /afip/health` (api#1213, app#1408).
+- **feat(user):** add `User.warnings?: StoreWarning[]` — CUIT_SHARED soft-warns
+  carried on the auth/register response (response-only, app#1664).
+
 ## 1.6.24
 
 - **feat(print):** add the agent-agnostic print-protocol wire types

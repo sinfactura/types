@@ -51,6 +51,11 @@ declare global {
       failedAttempts?: number;
       lockedUntil?: number;
     };
+    // CUIT_SHARED soft-warns folded into the auth/register success-response (and
+    // the FE session payload) so the register wizard surfaces them without a
+    // follow-up getStore. RESPONSE-ONLY — never persisted on the USER row, same
+    // as `accessToken`. (api#1276 / app#1664)
+    warnings?: StoreWarning[];
   }
 
   // Per-user notification opt-ins, keyed by the canonical UPPERCASE

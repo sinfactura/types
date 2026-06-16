@@ -39,6 +39,15 @@ declare global {
 		balance?: number;
 		userId: string;
 		deleted?: boolean;
+		/**
+		 * Provenance of a link-derived credit row (api#933 / PR#943, app#1344).
+		 * Set together ONLY when POST /payments/{source}/{paymentId}/link runs with
+		 * applyCredit:true and auto-creates this Account credit row. Manual PAGO
+		 * rows leave both undefined. The FE reads them to render the source chip
+		 * and dedup against the matching PaymentReceived projection row.
+		 */
+		paymentRefSource?: PaymentReceivedSource;
+		paymentRefId?: string;
 	}
 
 }
