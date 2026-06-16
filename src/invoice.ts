@@ -65,6 +65,15 @@ declare global {
     serviceEndDate?: number; // AFIP FchServHasta
     paymentDueDate?: number; // AFIP FchVtoPago
     serviceOrderId?: string; // link to the originating ServiceOrder
+    // ARCA contingency reconciliation (api#1314). When a FECAESolicitar submit
+    // dies mid-call and retry-on-query can't settle whether the voucher landed,
+    // the pending_cae row records the targeted voucher number + as-submitted date
+    // (yyyymmdd) so the drain reconciles (FECompConsultar) before re-submitting.
+    // NOT the row's own number — pending rows keep the invoiceNumber=0 sentinel.
+    attemptedCbteNro?: number;
+    attemptedCbteFch?: string;
+    // Mirror of Order.orderPrinted (api#643) — set when the invoice is printed.
+    invoicePrinted?: boolean;
   }
 
   interface InvoiceItem {

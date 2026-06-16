@@ -7,6 +7,18 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.6.24
+
+- **feat(print):** add the agent-agnostic print-protocol wire types
+  `PrintJobState`, `PrintContentType`, `PrintOptions`, `PrintJobTransition`
+  (`print.ts`) (types#79, api#1004 / api#1290).
+- **feat(cash):** add cash-drawer shift management — `CashShift`, `CashEvent` +
+  `CashShiftStatus` / `CashEventType` (`cash.ts`) (types#80, api#987).
+- **feat(store):** add derived AFIP cert expiry `Afip.afipCertExpiresAt` /
+  `afipCertExpiresInDays` (api#1374).
+- **feat(invoice):** add ARCA-contingency `Invoice.attemptedCbteNro` /
+  `attemptedCbteFch` + `invoicePrinted` (api#1314, api#643).
+
 ## 1.6.22
 
 - **feat(service):** add `ServiceOrder`, `WorkLog`, `PartUsed`,

@@ -18,6 +18,7 @@ export * from "./mercadopago";
 export * from "./notification";
 export * from "./order";
 export * from "./payment";
+export * from "./print";
 export * from "./product";
 export * from "./return";
 export * from "./serviceOrder";
