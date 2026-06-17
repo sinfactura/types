@@ -10,6 +10,7 @@ export * from "./categories";
 export * from "./currency";
 export * from "./customer";
 export * from "./demo";
+export * from "./impersonation";
 export * from "./imports";
 export * from "./invoice";
 export * from "./log";
