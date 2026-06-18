@@ -231,8 +231,9 @@ declare global {
 
 	/**
 	 * One audit row per SUPER_ADMIN-driven plan mutation. Returned by
-	 * `GET /sa/plans/{tier}/audit` (api#859). The same row shape is used
-	 * for the sibling `STORE` audit partition (api#827).
+	 * `GET /platform/billing/plans/{tier}/audit` (api#859). The store-subscription
+	 * audit (api#827) shares this storage shape but is read as
+	 * `SubscriptionAuditEntry`.
 	 *
 	 * `before` and `after` carry only the fields that changed (diff slice),
 	 * not the full row blob.
@@ -324,11 +325,13 @@ declare global {
 	/** A single usage entry as returned by GET /subscription. */
 	interface SubscriptionUsageEntry {
 		key: FeatureKey;
-		/** Period in YYYYMM format. */
-		period: string;
+		/** Period in YYYYMM format; `null` for lifetime caps (maxProducts/maxCustomers/maxUsers). */
+		period: string | null;
 		current: number;
-		limit: number;
-		remaining: number;
+		/** `null` for unlimited tiers (no cap). */
+		limit: number | null;
+		/** `null` when `limit` is unlimited/uncapped. */
+		remaining: number | null;
 	}
 
 	/**
@@ -338,6 +341,8 @@ declare global {
 	interface SubscriptionSyncPayload {
 		planTier: PlanTier;
 		status: SubscriptionStatus;
+		/** Billing currency snapshotted from the plan template; `null` on free/unbilled tiers (basico). */
+		currency: 'ARS' | 'USD' | null;
 		billingCycle: BillingCycle | null;
 		currentPeriodStart: number | null;
 		currentPeriodEnd: number | null;
@@ -348,6 +353,41 @@ declare global {
 		canceledAt: number | null;
 		entitlements: SubscriptionEntitlementEntry[];
 		usage: SubscriptionUsageEntry[];
+	}
+
+	// ───────────────────────────── Subscription admin override (api#827) ─────────────────────────────
+
+	/**
+	 * Request body for the MANAGER out-of-band override
+	 * `PUT /platform/stores/{storeId}/subscription` (api#827). No Stripe call —
+	 * a direct DynamoDB write + audit row. `trialEndsAt` is required when
+	 * `status === 'trialing'`; `reason` is the audit message (min 10 chars).
+	 */
+	interface SubscriptionAdminOverrideInput {
+		planTier: PlanTier;
+		status: SubscriptionStatus;
+		billingCycle: BillingCycle;
+		/** Courtesy-gift cutoff (ADR-0010), `YYYY-MM-DD`. Optional on any status. */
+		freeUntil?: string;
+		/** Trial end (Unix ms). Required when `status === 'trialing'`. */
+		trialEndsAt?: number;
+		reason: string;
+	}
+
+	/**
+	 * One audit row for a MANAGER out-of-band subscription change, as returned by
+	 * `GET /platform/stores/{storeId}/subscription/audit` (api#827). Written by
+	 * the override endpoint and the gift endpoint to the
+	 * `AUDIT#SUBSCRIPTION#{storeId}` partition. `before`/`after` carry the
+	 * subscription fields an operator can change.
+	 */
+	interface SubscriptionAuditEntry {
+		storeId: string;
+		timestamp: number;
+		actor: { userId: string; fullName: string };
+		before: Pick<Subscription, 'planTier' | 'status' | 'billingCycle' | 'freeUntil' | 'trialEndsAt'>;
+		after: Pick<Subscription, 'planTier' | 'status' | 'billingCycle' | 'freeUntil' | 'trialEndsAt'>;
+		reason: string;
 	}
 }
 

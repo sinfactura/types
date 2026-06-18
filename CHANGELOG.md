@@ -7,6 +7,18 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.6.28
+
+- **feat(subscription):** graduate the MANAGER store-subscription override types
+  (api#827) out of the api in-flight bridge — `SubscriptionAdminOverrideInput`
+  (the `PUT /platform/stores/{storeId}/subscription` body) and
+  `SubscriptionAuditEntry` (the `GET .../subscription/audit` read row).
+- **feat(subscription):** add `SubscriptionSyncPayload.currency`
+  (`'ARS' | 'USD' | null`) — already on the `GET /subscription` wire, now typed.
+- **fix(subscription):** widen `SubscriptionUsageEntry.period` / `limit` /
+  `remaining` to allow `null` (lifetime caps + unlimited tiers) — matches the
+  long-standing wire shape.
+
 ## 1.6.25
 
 - **fix(store):** AFIP cert expiry is now `Afip.certExpiry?: number` (ms-epoch of
