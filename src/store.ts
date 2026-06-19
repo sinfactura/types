@@ -202,6 +202,15 @@ declare global {
     mercadopago?: Mercadopago;
     // Per-tenant WhatsApp Business connection (sinfactura/app#1072).
     whatsapp?: WhatsAppConfig;
+    // Per-store SMS entitlement (api#1400). The smsmasivos account is shared
+    // platform-wide; this flag gates whether a store may consume it. Future
+    // SMS-pack metering (balance, packId, monthlyLimit) extends this blob.
+    sms?: SmsIntegration;
+  }
+
+  interface SmsIntegration {
+    /** When true, the store may send SMS through the shared platform account. */
+    enabled?: boolean;
   }
 
   type FxAutoUpdateStrategy = "overwrite" | "overwrite-if-stale" | "notify-only";
