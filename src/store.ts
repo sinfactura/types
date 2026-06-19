@@ -168,7 +168,7 @@ declare global {
     cashOutMethods: Method[];
     debitMethods: Method[];
     // CUSTOMERS
-    priceLists: Method[];
+    priceLists: PriceList[]; // was Method[] — PriceList ⊇ Method, so type-compatible (#1780)
     accountMethods: Method[];
     deliveryMethods: Method[];
     paymentMethods: Method[];

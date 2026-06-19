@@ -81,7 +81,15 @@ declare global {
     description: string;
     quantity: number;
     iva: number;
-    neto: number;
+    neto: number; // net base in the INVOICE HEADER currency (lines convert to it)
+    // Audit / re-sourcing (#1780 / types#86). NO per-line currency: one AFIP
+    // voucher = one MonId/MonCotiz; each line converts to the header currency at
+    // issuance (api#1416), with the per-line FX kept on the ORDER line (BasketItem).
+    unitPrice?: number; // frozen per-unit price (today only `neto` survives)
+    listId?: number;
+    appliedMinQty?: number;
+    promoApplied?: boolean;
+    basePrice?: number;
   }
 
   interface InvoiceWithCustomer extends Invoice {

@@ -88,6 +88,7 @@ declare global {
 		| 'maxUsers'
 		| 'maxCustomers'
 		| 'maxStores'
+		| 'priceListsMax' // NEW — numeric cap on price lists (#1780 / types#87)
 		// Facturación
 		| 'afipInvoicing'
 		| 'paymentIntegrations'
@@ -106,7 +107,8 @@ declare global {
 		| 'whatsappCommerce'
 		| 'aiFeatures'
 		| 'mobileApp'
-		| 'customDomain';
+		| 'customDomain'
+		| 'advancedPricing'; // NEW — boolean gate: absolute / per-list-currency / breaks / promos (#1780 / types#87)
 
 	/** Full feature matrix — every tier declares every feature. */
 	type FeatureMatrix = Record<PlanTier, Record<FeatureKey, Entitlement>>;

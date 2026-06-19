@@ -48,16 +48,28 @@ declare global {
 		ivaType: number;
 		categoryId: string;
 		brandId: string;
+		// READ-PROJECTION of "any slot has an active promo" — never authored. (#1780)
 		inOffer: boolean;
 		isNew: boolean;
 		isService: boolean;
 
 		// PRICES
 		cost: number;
-		price1: number;
-		price2: number;
-		price3: number;
-		price4: number;
+		// NEW canonical pricing (A-prime, #1780). Operators author ONLY this;
+		// the BE materializes price1..4 below from it on every write. See ADR-0014.
+		prices?: PriceSlot[];
+		// MATERIALIZED read-projection (the legacy shim, BE-derived from `prices[]`).
+		// priceN = the list's ordinal POSITION 1..4 (NOT listId). Stays a
+		// dimensionless percent over `cost`:
+		//   - kind:'percent'  → priceN = percent
+		//   - kind:'absolute', same currency as cost → priceN = round((amount/cost-1)*100)
+		//   - kind:'absolute', currency != Product.currency → priceN OMITTED (undefined);
+		//     legacy 4-percent readers can't represent it → consumers read `prices[]`.
+		// Optional because the cross-currency case omits them. (#1780)
+		price1?: number;
+		price2?: number;
+		price3?: number;
+		price4?: number;
 	}
 
 }
