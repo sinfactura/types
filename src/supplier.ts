@@ -7,6 +7,8 @@ declare global {
 		supplierId: string;
 		createdAt: number;
 		photoURL: string;
+		photoData?: string; // transient base64 image upload (matches Brand/Category/Store)
+		removePhotoURL?: string;
 		company: string;
 		cuit: string;
 		razonSocial: string;

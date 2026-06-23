@@ -88,6 +88,56 @@ declare global {
 		value: number;
 		source?: string; // 'ambito' | 'dolarapi' | 'bluelytics' | 'bcra' (api#941)
 	}
+
+	// ───────────────────────────────────────────────────────────────
+	// Platform FX-source registry (api#941 / api#1019)
+	// ───────────────────────────────────────────────────────────────
+
+	// Tenant-readable FX source — wire shape for GET /currencies?mode=fx-sources (api#941 / api#1019).
+	// Already enabled-filtered server-side, so `enabled` is NOT on the wire (only enabled sources are returned).
+	type FxProvider = "ambito" | "dolarapi" | "bluelytics" | "bcra";
+
+	interface PlatformFxSource {
+		/** Stable identifier — referenced by `Store.fxAutoUpdate.bindings[].sourceId`. */
+		id: string;
+		isoCode: string; // ISO 4217 (3 uppercase letters)
+		variant: CurrencyVariant;
+		provider: FxProvider;
+	}
+
+	// SUPER projection of an FX source — full persisted shape plus operational status
+	// fields and the server-derived `isStale`. Returned (per source) by
+	// GET /platform/fx-sources (api#1019 / api#1020 phase 3). Tenant `PlatformFxSource` is a strict subset.
+	interface PlatformFxSourceWithStatus extends PlatformFxSource {
+		enabled: boolean;
+		/** EventBridge cron expression (`minute hour day month weekday`). */
+		cron: string;
+		/** Optional override for the provider's source URL. */
+		sourceUrl?: string;
+		/** Unix ms of the last successful fetch. Undefined if never succeeded. */
+		lastSuccessAt?: number;
+		/** Unix ms of the last failed fetch. Undefined if no failures yet. */
+		lastFailureAt?: number;
+		/** Short reason for the most recent failure (truncated to 256 chars). */
+		lastFailureReason?: string;
+		/** Consecutive-failure streak; resets on first success. Drives failover (>=3) + alerts. */
+		consecutiveFailures?: number;
+		/** Sibling source id to attempt when `consecutiveFailures` crosses the failover threshold. */
+		fallbackSourceId?: string;
+		/** Server-derived: `now - lastSuccessAt > maxStaleness`. Added by the SUPER GET handler. */
+		isStale: boolean;
+	}
+
+	// Full PLATFORM/FX_SOURCES singleton — what GET /platform/fx-sources returns (api#941).
+	// `maxStaleness` is row-level: per-source override (keyed by source id) with a `default` fallback.
+	interface PlatformFxSourcesRow {
+		enabled: boolean;
+		sources: PlatformFxSourceWithStatus[];
+		maxStaleness: { default: number } & Record<string, number>;
+		updatedAt: number;
+		/** `true` once an explicit row is persisted; `false` when the handler is returning DEFAULT_FX_SOURCES. */
+		persisted?: boolean;
+	}
 }
 
 export {}; // NOSONAR

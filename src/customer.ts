@@ -41,6 +41,8 @@ declare global {
     paymentMethod: number;
     phone: string;
     photoURL: string;
+    photoData?: string; // transient base64 image upload (matches Brand/Category/Store)
+    removePhotoURL?: string;
     postalCode: string;
     /**
      * FK to PriceList.id (NOT a positional ordinal). Picks which PriceSlot /

@@ -98,6 +98,115 @@ declare global {
     externalPosId?: string;
     operatingMode: "PDV" | "STANDALONE";
   }
+
+  // ───────────────────────────────────────────────────────────────
+  // Super-ops forensic logs (api#970/#976) — operator OPERACIONES panels
+  // ───────────────────────────────────────────────────────────────
+
+  // MP webhook forensic-log result. Mirrors the BE `MpHookLogResult` union
+  // in `api/stacks/services/mercadopago.ts` (api#970).
+  type MpHookResult =
+    | 'config-missing'
+    | 'test-event'
+    | 'orphan'
+    | 'duplicate'
+    | 'not-approved'
+    | 'item-saved'
+    | 'error';
+
+  // Row shape from `MP_HOOK_LOG#{storeId}` (or `unresolved`). Field names match
+  // the BE `recordMpHookEvent` writer (api#970): `rawBodyB64` (not `rawBody`),
+  // `expectedPrefix` (not `computedExpectedPrefix`). `hookId` is the SK surfaced
+  // by the read/WS-broadcast DTO (`data: { hookId: Item.SK }`).
+  interface MpHookLogEntry {
+    hookId: string;
+    rawBodyB64?: string;
+    rawBodyLen?: number;
+    headers?: Record<string, string>;
+    path?: string;
+    resource?: string;
+    queryStringParameters?: Record<string, string> | null;
+    signatureValid?: boolean;
+    signatureV1Prefix?: string;
+    expectedPrefix?: string;
+    signatureReason?: string;
+    paymentId?: string;
+    userId?: string;
+    storeId?: string;
+    result: MpHookResult;
+    errorMessage?: string;
+    processingMs?: number;
+    createdAt: number;
+    ts?: number;
+    requestId?: string;
+    ttl?: number;
+  }
+
+  // Phase-2 IPN processing outcome (api#976), stamped on each MP_IPN_LOG row.
+  // Mirrors the BE `MpIpnOutcome` union AND `ProcessIpnPaymentResult['outcome']`
+  // in `api/stacks/lambdas/mercadopago/_ipnProcess.ts`. Optional on the row —
+  // Phase-1 (pre-#976) rows omit it.
+  type MpIpnOutcome =
+    | 'polled-online'
+    | 'no-online-tenants'
+    | 'no-online-mp-tenants'
+    | 'not-payment-topic'
+    | 'none'
+    | 'error';
+
+  // Row shape from `MP_IPN_LOG#unresolved`. Field names match the BE
+  // `recordMpIpnEvent` writer (api#976). `ipnId` is the SK surfaced by the
+  // read/WS-broadcast DTO (`data: { ipnId: Item.SK }`). The BE always writes
+  // `topic` (`topic || 'unknown'`) and `resourceId` (`resourceId || ''`), so
+  // both are required here (corrects the app-local optional drift).
+  interface MpIpnLogEntry {
+    ipnId: string;
+    topic: string;
+    resourceId: string;
+    rawBodyB64?: string;
+    rawBodyLen?: number;
+    headers?: Record<string, string>;
+    path?: string;
+    resource?: string;
+    queryStringParameters?: Record<string, string> | null;
+    processingMs?: number;
+    createdAt: number;
+    ttl?: number;
+    errorMessage?: string;
+    outcome?: MpIpnOutcome;
+    tenantsScanned?: number;
+    tenantsPolled?: number;
+    tenantsFailed?: number;
+  }
+
+  // MP money-movement classification. Mirrors `MoneyMovement['type']` in
+  // `api/stacks/lambdas/mpMovementsPoller/_pollTenant.ts` and the read-path
+  // Zod enum in `api/stacks/lambdas/platform/_mpMovementLog.ts` (api#976).
+  type MpMovementType = 'transfer_in' | 'qr_in' | 'transfer_out' | 'fee' | 'refund' | 'other';
+
+  // Row shape from `MP_MOVEMENT#{storeId}`. Field names match the BE
+  // `claimAndPersistMovement` writer (api#976): `email` (not `payerEmail`),
+  // `cuit` (not `payerCuit`); `operationId` is re-derived from the SK on read.
+  // `source` is the literal 'transfer' the writer always stamps. The BE does
+  // NOT persist `storeId` (it lives only in the PK) or `paymentId` on this row
+  // (those belong to the sibling PAYMENT partition), so neither is graduated.
+  interface MpMovementLogEntry {
+    operationId: string;
+    source: 'transfer';
+    amount: number;
+    currency: string;
+    type: MpMovementType;
+    date: number;
+    description: string;
+    sourceChannel?: string;
+    payerName?: string;
+    cuit?: string;
+    email?: string;
+    raw?: unknown;
+    createdAt: number;
+    processedAt: number;
+    ttl?: number;
+  }
 }
 
 export {}; // NOSONAR

@@ -11,6 +11,8 @@ declare global {
     password?: string;
     roles: string;
     photoURL: string;
+    photoData?: string; // transient base64 image upload (matches Brand/Category/Store)
+    removePhotoURL?: string;
     disabled: boolean;
     search: string;
     accessToken: string;

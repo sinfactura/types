@@ -138,12 +138,25 @@ declare global {
 		reason: string;
 	}
 
+	// Per-price-list resolved-base before/after delta carried by
+	// ProductPriceChangedEvent.changes (api#1419). Amounts are in the store's
+	// display currency. snake_case to match the event-property convention.
+	interface PriceListChange {
+		list_id: number;
+		from: number;
+		to: number;
+	}
+
 	interface ProductPriceChangedEvent extends UserActivityEventBase {
 		event: 'Product Price Changed';
 		product_id: string;
 		from_price: number;
 		to_price: number;
 		currency: string;
+		// Per-price-list resolved-base deltas for the A-prime prices[] slot model
+		// (api#1419). Optional + additive: the scalar from_price/to_price stay the
+		// headline (the first changed list); legacy/scalar emits omit this.
+		changes?: PriceListChange[];
 	}
 
 	// Customer lifecycle (2)
@@ -694,3 +707,28 @@ export const UI_ONLY_USER_ACTIVITY_VARIANTS = [
 ] as const;
 
 export type UiOnlyUserActivityVariant = (typeof UI_ONLY_USER_ACTIVITY_VARIANTS)[number];
+
+/**
+ * Valid per-entity timeline entity types for the user-activity audit feed.
+ * MUST stay in sync with the BE `VALID_ENTITY_TYPES` const in
+ * `sinfactura/api/stacks/lambdas/userActivity/_get.ts` (api#1258), which Zod-
+ * enums the `entityType` query param. The api should import this union to
+ * derive that const so the two can't drift (separate api follow-up).
+ */
+export type UserActivityEntityType =
+	| 'order'
+	| 'invoice'
+	| 'supplier_invoice'
+	| 'payment'
+	| 'account'
+	| 'customer'
+	| 'supplier'
+	| 'product'
+	| 'user'
+	| 'target_store'
+	| 'brand'
+	| 'category'
+	| 'cash'
+	| 'ticket'
+	| 'report'
+	| 'notification';
