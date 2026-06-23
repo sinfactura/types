@@ -55,21 +55,10 @@ declare global {
 
 		// PRICES
 		cost: number;
-		// NEW canonical pricing (A-prime, #1780). Operators author ONLY this;
-		// the BE materializes price1..4 below from it on every write. See ADR-0014.
+		// Canonical pricing (A-prime, #1780). Operators author ONLY this. The
+		// materialized price1..4 shim was removed end-of-epic; all consumers
+		// read `prices[]` directly. See ADR-0014.
 		prices?: PriceSlot[];
-		// MATERIALIZED read-projection (the legacy shim, BE-derived from `prices[]`).
-		// priceN = the list's ordinal POSITION 1..4 (NOT listId). Stays a
-		// dimensionless percent over `cost`:
-		//   - kind:'percent'  → priceN = percent
-		//   - kind:'absolute', same currency as cost → priceN = round((amount/cost-1)*100)
-		//   - kind:'absolute', currency != Product.currency → priceN OMITTED (undefined);
-		//     legacy 4-percent readers can't represent it → consumers read `prices[]`.
-		// Optional because the cross-currency case omits them. (#1780)
-		price1?: number;
-		price2?: number;
-		price3?: number;
-		price4?: number;
 	}
 
 }
