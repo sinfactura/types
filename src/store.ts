@@ -195,6 +195,20 @@ declare global {
     minWithDni: number;
     maintenance?: MaintenanceInfo;
     legacyCurrencyIds?: Record<number, string>;
+    // api#1382 — last cert-expiry alert fired for the current cert, so the daily cron
+    // doesn't re-alert within a band. Keyed to the cert's expiry ms so a renewed cert
+    // (new expiry) auto-resets.
+    afipCertAlert?: {
+      expiry: number;
+      band: 'expired' | '14' | '30' | '60';
+    };
+    // api#1401 — white-label transactional-email sender. `from` is the store's own
+    // envelope sender; `verified` is BE-set only after its SES identity is confirmed.
+    // Distinct from the existing `email` contact string.
+    emailSender?: {
+      from?: string;
+      verified?: boolean;
+    };
   }
 
   interface StoreIntegrations {
@@ -206,11 +220,27 @@ declare global {
     // platform-wide; this flag gates whether a store may consume it. Future
     // SMS-pack metering (balance, packId, monthlyLimit) extends this blob.
     sms?: SmsIntegration;
+    // Per-tenant Gmail OAuth send connection (app#1270) — gmail.send scope only.
+    gmail?: Gmail;
   }
 
   interface SmsIntegration {
     /** When true, the store may send SMS through the shared platform account. */
     enabled?: boolean;
+  }
+
+  interface Gmail {
+    connected?: boolean;
+    senderEmail?: string;
+    /** KMS-encrypted refresh token — never returned in API responses. */
+    refreshTokenEncrypted?: string;
+    scopes?: string[];
+    connectedAt?: number;
+    /** Lifecycle fields (api#1459 / #1460). */
+    status?: 'connected' | 'expired' | 'disconnected' | 'error' | 'never';
+    disconnectedAt?: number;
+    lastTokenRefreshAt?: number;
+    tokenRefreshFailures?: number;
   }
 
   type FxAutoUpdateStrategy = "overwrite" | "overwrite-if-stale" | "notify-only";
