@@ -71,6 +71,34 @@ declare global {
 	}
 
 	/**
+	 * WSCDC `ConstatarComprobante` request (api#1500) -- verifies a
+	 * third-party (supplier) voucher was genuinely authorized by ARCA before
+	 * it's booked/credited as IVA input. Fields per the ticket's tech spec.
+	 */
+	interface VoucherVerificationRequest {
+		cuit: string; // emitter's CUIT (the supplier, not this store)
+		pointOfSale: number; // PV
+		invoiceType: number; // CbteTipo
+		invoiceNumber: number; // CBTE_NUMERO
+		dated: number; // voucher date, yyyymmdd
+		total: number; // IMP_TOTAL
+	}
+
+	/**
+	 * WSCDC `ConstatarComprobante` result (api#1500). `result` mirrors the
+	 * A/O/R convention already used for `FECAESolicitar`'s own `Resultado`
+	 * and `FiscalAuditEvent` (Aceptado/Observado/Rechazado) -- every
+	 * verification call is also logged to that same audit table per the
+	 * ticket's AC (`FiscalAuditEvent.operation` includes `ConstatarComprobante`).
+	 */
+	interface VoucherVerificationResult {
+		result: 'A' | 'O' | 'R'; // Aceptado / Observado / Rechazado
+		reason?: string; // present when result === 'R'
+		observations?: InvoiceObservation[]; // present when result === 'O'
+		verifiedAt: string; // ISO timestamp
+	}
+
+	/**
 	 * `GET /reports?mode=supplier-invoices` per-date resume row (api#1550) --
 	 * compras-side mirror of the ventas `mode=invoices` resume shape. Unlike
 	 * ventas Invoice, SupplierInvoice has no CAE-authorization concept, so

@@ -54,7 +54,7 @@ declare global {
 		| 'invoice_created'
 		| 'credit_note_created';
 
-	/** One ARCA fiscal SOAP interaction (FECAESolicitar | FECompConsultar). Stored raw (CUIT unmasked) for 10y; masked at read. */
+	/** One ARCA fiscal SOAP interaction (FECAESolicitar | FECompConsultar | ConstatarComprobante). Stored raw (CUIT unmasked) for 10y; masked at read. */
 	interface FiscalAuditEvent {
 		/** Schema version for forward-compat (start at 1). */
 		schema_version: number;
@@ -64,8 +64,10 @@ declare global {
 		tenant_store_id: string;
 		/** Unix ms when the interaction completed. */
 		ts: number;
-		/** Which ARCA fiscal op. */
-		operation: 'FECAESolicitar' | 'FECompConsultar';
+		/** Which ARCA fiscal op. `ConstatarComprobante` added for WSCDC
+		 * third-party voucher verification (api#1500), which logs every check
+		 * to this same table per its AC. */
+		operation: 'FECAESolicitar' | 'FECompConsultar' | 'ConstatarComprobante';
 		/** Issuer CUIT (RAW — masked only at display). */
 		cuit: string;
 		/** AFIP environment the call hit. */

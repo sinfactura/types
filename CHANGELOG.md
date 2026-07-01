@@ -40,6 +40,16 @@ launch 2026-08-01) — types for every Phase 2 BE companion ticket filed on
 - **feat(userActivity):** graduate `IntegrationTokenRefreshedEvent` out of
   api's bridge — new `UserActivityEvent` union member, 69 variants total
   (types#91, api#1540).
+- **feat(supplier):** WSCDC third-party voucher verification (api#1500) —
+  `VoucherVerificationRequest`, `VoucherVerificationResult`. Not drafted in
+  the ticket itself; derived from its AC field list plus the A/O/R
+  (Aceptado/Observado/Rechazado) convention already shipped on
+  `FiscalAuditEvent`. `FiscalAuditEvent.operation` widened to include
+  `'ConstatarComprobante'` since verification calls log to the same table.
+- **fix(invoice):** `InvoiceObservation.message` → `.msg` — matches the
+  already-shipped `FiscalAuditEvent.observaciones`/`.errores` `{code, msg}`
+  convention instead of introducing a second naming scheme for the same ARCA
+  concept (caught before publish, no consumer impact).
 
 ## 1.6.35
 

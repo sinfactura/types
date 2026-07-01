@@ -154,10 +154,14 @@ declare global {
   /**
    * ARCA Obs.Code/Obs.Msg pair, parsed from FECAESolicitar's Observaciones[]
    * when Resultado='O' (approved-with-warnings). (api#1559)
+   *
+   * `code`/`msg` naming matches the already-shipped `FiscalAuditEvent.observaciones`
+   * / `.errores` shape (api#1498, audit.ts) rather than inventing a second
+   * convention for the same ARCA concept.
    */
   interface InvoiceObservation {
     code: number; // ARCA Obs.Code
-    message: string; // ARCA Obs.Msg
+    msg: string; // ARCA Obs.Msg
   }
 
   /**
