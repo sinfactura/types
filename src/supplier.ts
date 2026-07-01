@@ -70,6 +70,30 @@ declare global {
 		cbteClass?: 'A' | 'B' | 'C';
 	}
 
+	/**
+	 * `GET /reports?mode=supplier-invoices` per-date resume row (api#1550) --
+	 * compras-side mirror of the ventas `mode=invoices` resume shape. Unlike
+	 * ventas Invoice, SupplierInvoice has no CAE-authorization concept, so
+	 * every row in range counts (no fiscalStatus filter).
+	 */
+	interface SupplierInvoicesResumeRow {
+		date: number;
+		quantity: number;
+		neto10: number;
+		neto21: number;
+		neto27: number;
+		iva10: number;
+		iva21: number;
+		iva27: number;
+		noGravado: number;
+		exento: number;
+		total: number;
+	}
+
+	interface ReportSupplierInvoicesResponse {
+		resume: SupplierInvoicesResumeRow[];
+	}
+
 	interface SupplierAccount {
 		storeId: string;
 		userId: string;

@@ -22,6 +22,7 @@
 //   - 1.6.20 (+1 variant) — operator 2FA reset, target_user_id (api#1335)
 //   - 1.6.21 (+1 variant) — TOTP recovery codes generated (api#1336); method += 'recovery'
 //   - 1.6.34 (+field) — LiteralUpdatedEvent gains `scope`; new `LiteralScope` contract (api#1484)
+//   - (+1 variant) — IntegrationTokenRefreshedEvent (types#91, api#1540)
 
 declare global {
 
@@ -595,7 +596,21 @@ declare global {
 	}
 
 	// ──────────────────────────────────────────────────────────────────────────
-	// Discriminated union — 68 variants
+	// Phase 5 (+1 variant) — integration token refresh audit (types#91, api#1540)
+	// ──────────────────────────────────────────────────────────────────────────
+
+	interface IntegrationTokenRefreshedEvent extends UserActivityEventBase {
+		event: 'Integration Token Refreshed';
+		// Stripe deliberately excluded (api#1540) — no per-tenant OAuth connect
+		// flow / enumeration path exists today.
+		provider: 'mercadopago' | 'gmail';
+		outcome: 'refreshed' | 'disconnected' | 'skipped' | 'error';
+		trigger: 'operator-single' | 'operator-global';
+		detail?: string; // short machine code only — never a token/secret (Ley 25.326)
+	}
+
+	// ──────────────────────────────────────────────────────────────────────────
+	// Discriminated union — 69 variants
 	// ──────────────────────────────────────────────────────────────────────────
 
 	type UserActivityEvent =
@@ -675,7 +690,9 @@ declare global {
 		| TwoFactorCodeValidationFailedEvent
 		| TwoFactorEnrollmentStartedEvent
 		| TwoFactorRecoveryCodesRevealedEvent
-		| TwoFactorResetInitiatedEvent;
+		| TwoFactorResetInitiatedEvent
+		// Phase 5
+		| IntegrationTokenRefreshedEvent;
 
 }
 

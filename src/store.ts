@@ -357,6 +357,15 @@ declare global {
     // Derived read-only flags (api#1318): cert/key existence, projected on read — never the bytes.
     hasCert?: boolean;
     hasKey?: boolean;
+    // RG 5762/2025 Factura M elimination (api#1560). Per-punto-de-venta
+    // legend config -- NOT a per-invoice override; one sales point issues
+    // one legend type. Absent/undefined means the store never issued
+    // Factura M and this doesn't apply.
+    // 'retencion' (mandatory replacement path): keeps CbteTipo 51/52/53,
+    // relabeled "Factura A con leyenda OPERACIÓN SUJETA A RETENCIÓN".
+    // 'cbu_informada' (optional, no withholding): ordinary CbteTipo 1/2/3
+    // with the "PAGO EN CBU INFORMADA" legend + a declared CBU.
+    facturaMLegend?: 'retencion' | 'cbu_informada';
     // Cert expiry (api#1374): ms-epoch of the cert's notAfter, parsed on read
     // from the stored PEM by the api's sanitizeStoreRow — never the bytes.
     certExpiry?: number;

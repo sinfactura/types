@@ -7,6 +7,40 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.6.36
+
+ARCA/AFIP e-invoicing compliance pre-launch batch (app#1017 epic, ADR-0017,
+launch 2026-08-01) — types for every Phase 2 BE companion ticket filed on
+`api`, plus graduation of two more contracts out of api's in-flight bridge:
+
+- **feat(invoice):** CAEA contingency (api#1556) — `CAEAPeriod`,
+  `CAEARequestResult`, `CAEAInformResult`, `Invoice.caea?` / `caeaPeriod?`.
+- **feat(invoice):** WSFEXV1 export invoicing (api#1557) —
+  `ExportInvoiceFields`, `Invoice.export?`, `WsfexReferenceData`.
+- **feat(invoice):** WSFECRED FCE MiPyME credit invoices (api#1558) —
+  `FceStatus`, `FceFields`, `Invoice.fce?`, `FceThresholdConfig`.
+- **feat(invoice):** observaciones parsing (api#1559) — `InvoiceObservation`,
+  `Invoice.arcaObservations?: InvoiceObservation[]`. Deliberately a **new**
+  field rather than retyping the existing `Invoice.observations?: string` —
+  that field is free text and already consumed by the FE
+  (`FiscalStatusBanner`'s `errorMessage`), so changing its shape would be a
+  breaking change.
+- **feat(invoice):** structured rejection payload (api#1380) — `ArcaError`,
+  `Invoice.arcaError?`.
+- **feat(store):** `Afip.facturaMLegend?: 'retencion' | 'cbu_informada'` — RG
+  5762/2025 Factura M elimination, per-punto-de-venta legend config, not a
+  per-invoice override (api#1560).
+- **feat(order):** `Order.invoiceMethod` gains `docType?` / `docNumber?` —
+  explicit per-order ARCA receptor identity (CUIT/DNI), decoupled from the
+  legacy `condFiscal`-derived path (api#1368).
+- **feat(supplier):** graduate `SupplierInvoicesResumeRow` /
+  `ReportSupplierInvoicesResponse` out of api's bridge — `GET
+  /reports?mode=supplier-invoices` compras mirror of `mode=invoices`
+  (api#1550).
+- **feat(userActivity):** graduate `IntegrationTokenRefreshedEvent` out of
+  api's bridge — new `UserActivityEvent` union member, 69 variants total
+  (types#91, api#1540).
+
 ## 1.6.35
 
 Batch graduation of api's in-flight `@types/sinfactura-types` bridge — every

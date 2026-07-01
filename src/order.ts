@@ -25,6 +25,15 @@ declare global {
 			condFiscalName: string;
 			cuit: string;
 			razonSocial: string;
+			// Explicit per-order ARCA receptor identity (api#1368), decoupled
+			// from condFiscal. ARCA DocTipo codeset: 80 = CUIT, 96 = DNI,
+			// 99 = Consumidor Final -- a SEPARATE axis from condFiscal (they
+			// share the number 96 only by coincidence). When present, the
+			// AFIP invoice builder uses these directly for the receptor
+			// (DocTipo/DocNro) instead of deriving from condFiscal; when
+			// absent, falls back to today's condFiscal-derived behavior.
+			docType?: number;
+			docNumber?: string; // the CUIT (11-digit + checksum) / DNI (7-8 digit) value
 		};
 		cost: number;
 		total: number;
