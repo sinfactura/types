@@ -7,6 +7,29 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.6.35
+
+Batch graduation of api's in-flight `@types/sinfactura-types` bridge — every
+contract that had shipped in api but was still living in the local
+augmentation file:
+
+- **feat(user):** `User.login?: { failedAttempts?, lockedUntil?, lastFailedAt? }`
+  — per-account password brute-force counter (api#1505).
+- **feat(auth):** new `LoginErrorCode` union + `AccountLockedResponse` — wire
+  error codes for the password brute-force lockout flow (api#1505).
+- **feat(store):** `Gmail.accessTokenEncrypted?` / `accessTokenExpiresAt?` —
+  lazily-refreshed access-token cache for the Gmail send path (api#1457).
+- **feat(payment):** `PaymentReceived.reconciled?` / `reconcileReason?` —
+  same-day MP refund ledger reconciliation stamp (api#1464).
+- **feat(store):** `SmsIntegration.signature?` — per-store SMS firma appended
+  to outbound order SMS (api#1515).
+- **feat(invoice):** new `LibroIvaDigitalResponse` — `GET
+  /reports?mode=libro-iva-digital` wire shape (RG 4597, api#1501).
+- **feat(supplier):** `SupplierInvoice` gains `neto10?/neto21?/neto27?/iva27?/
+  noGravado?/exento?` (per-alícuota IVA discrimination for Libro IVA Digital
+  compras, api#1501) and `cbteClass?: 'A' | 'B' | 'C'` (real ARCA comprobante
+  class, api#1542).
+
 ## 1.6.34
 
 - **feat(userActivity):** `LiteralUpdatedEvent` gains a required `scope` field;

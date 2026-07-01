@@ -116,6 +116,20 @@ declare global {
   }
 
   type Neto = Record<string, { Id: number; BaseImp: number; Importe: number }>;
+
+  /**
+   * `GET /reports?mode=libro-iva-digital&date=YYYYMM[&book=ventas|compras|all]`
+   * response (api#1501, RG 4597). Returns the four CRLF-terminated
+   * fixed-width payloads; an empty string means an empty period or a book
+   * not requested. See docs/LIBRO_IVA_DIGITAL.md.
+   */
+  interface LibroIvaDigitalResponse {
+    period: string;
+    ventasCbte: string;
+    ventasAlicuotas: string;
+    comprasCbte: string;
+    comprasAlicuotas: string;
+  }
 }
 
 export {}; // NOSONAR

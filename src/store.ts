@@ -227,6 +227,9 @@ declare global {
   interface SmsIntegration {
     /** When true, the store may send SMS through the shared platform account. */
     enabled?: boolean;
+    // api#1515 — per-store SMS signature (firma) appended to outbound order SMS
+    // bodies. Unset means no firma is appended (graceful fallback).
+    signature?: string;
   }
 
   interface Gmail {
@@ -241,6 +244,11 @@ declare global {
     disconnectedAt?: number;
     lastTokenRefreshAt?: number;
     tokenRefreshFailures?: number;
+    // api#1457 — lazily-refreshed access-token cache for the Gmail send path,
+    // mirrors mercadopago.{accessToken,expiresAt}. KMS-encrypted; NEVER
+    // returned in any API response (redacted by `_status.ts`).
+    accessTokenEncrypted?: string;
+    accessTokenExpiresAt?: number;
   }
 
   type FxAutoUpdateStrategy = "overwrite" | "overwrite-if-stale" | "notify-only";

@@ -58,6 +58,10 @@ declare global {
     // follow-up getStore. RESPONSE-ONLY — never persisted on the USER row, same
     // as `accessToken`. (api#1276 / app#1664)
     warnings?: StoreWarning[];
+    // api#1505 — per-account password brute-force counter (mirrors
+    // totp.{failedAttempts,lockedUntil}). `lastFailedAt` anchors the sliding
+    // decay window so the captcha tier self-heals.
+    login?: { failedAttempts?: number; lockedUntil?: number; lastFailedAt?: number };
   }
 
   // Per-user notification opt-ins, keyed by the canonical UPPERCASE

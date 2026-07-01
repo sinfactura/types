@@ -58,6 +58,13 @@ declare global {
     accountId?: string;
     linkedAt?: number;
     linkSource?: "auto" | "manual";
+    // api#1464 — same-day refund ledger reconciliation, stamped on the
+    // `MP#{storeId}/{paymentId}` row when the auto-reversal path runs but
+    // cannot complete (older-than-today, no-ledger-credit, reversal-failed,
+    // etc.). `reconciled: false` signals the operator must reconcile
+    // manually (#915); cleared on a subsequent full reversal.
+    reconciled?: boolean;
+    reconcileReason?: string;
   }
 
   /**
