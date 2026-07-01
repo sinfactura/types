@@ -31,6 +31,14 @@ declare global {
 		retryAfterSeconds: number;
 	}
 
+	// api#640 — `POST /auth?mode=register` response when `waitlist: true` is
+	// sent. No accessToken/session: pre-launch waitlist submissions persist a
+	// lightweight row instead of creating a tenant.
+	interface WaitlistRegisterResponse {
+		waitlistId: string;
+		submittedAt: number;
+	}
+
 }
 
 export {}; // NOSONAR

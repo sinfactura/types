@@ -7,6 +7,14 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.6.37
+
+- **feat(auth):** graduate `WaitlistRegisterResponse` out of api's bridge —
+  `POST /auth?mode=register` response shape when `waitlist: true` is sent
+  (api#640). Pre-launch landing signups now persist to a lightweight
+  waitlist bucket instead of creating a full tenant; no `accessToken`/
+  session in the response.
+
 ## 1.6.36
 
 ARCA/AFIP e-invoicing compliance pre-launch batch (app#1017 epic, ADR-0017,
