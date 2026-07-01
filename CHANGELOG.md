@@ -7,6 +7,14 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.6.34
+
+- **feat(userActivity):** `LiteralUpdatedEvent` gains a required `scope` field;
+  new `LiteralScope` union (`'GLOBAL' | 'APP' | 'PLATFORM' | 'WEB' |
+  \`APP#${string}\` | \`WEB#${string}\``) models the multi-scope literals
+  taxonomy — per-surface defaults plus per-tenant overrides keyed off the
+  `LITERALS` row `SK` (api#1484).
+
 ## 1.6.28
 
 - **feat(subscription):** graduate the MANAGER store-subscription override types

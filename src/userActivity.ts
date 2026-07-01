@@ -21,6 +21,7 @@
 //   - 1.6.18 (+2 variants) — TOTP 2FA enroll/disable lifecycle (types#68, api#636)
 //   - 1.6.20 (+1 variant) — operator 2FA reset, target_user_id (api#1335)
 //   - 1.6.21 (+1 variant) — TOTP recovery codes generated (api#1336); method += 'recovery'
+//   - 1.6.34 (+field) — LiteralUpdatedEvent gains `scope`; new `LiteralScope` contract (api#1484)
 
 declare global {
 
@@ -412,8 +413,15 @@ declare global {
 		name: string;
 	}
 
+	// Multi-scope literals taxonomy (api#1484). The `SK` of a `LITERALS` row:
+	// per-surface defaults (`GLOBAL`/`APP`/`PLATFORM`/`WEB`) plus per-tenant
+	// overrides (`APP#${storeId}`/`WEB#${storeId}`). Shared by the GET surface→SK
+	// merge chain, the POST scope write-gate, and the audit event below.
+	type LiteralScope = 'GLOBAL' | 'APP' | 'PLATFORM' | 'WEB' | `APP#${string}` | `WEB#${string}`;
+
 	interface LiteralUpdatedEvent extends UserActivityEventBase {
 		event: 'Literal Updated';
+		scope: LiteralScope;
 		key: string;
 		before: string;
 		after: string;
