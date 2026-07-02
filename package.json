@@ -1,0 +1,43 @@
+{
+  "name": "sinfactura-types",
+  "version": "1.6.37",
+  "main": "dist/index.js",
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "tsc",
+    "login": "npm login",
+    "release": "npm version patch --no-git-tag-version && npm publish"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sinfactura/types"
+  },
+  "keywords": [],
+  "author": "Moises Samuel Maison Maison",
+  "license": "MIT",
+  "homepage": "https://sinfactura.com",
+  "files": [
+    "./dist"
+  ],
+  "release": {
+    "branches": [
+      "main"
+    ]
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
+  },
+  "packageManager": "yarn@4.6.0+sha512.5383cc12567a95f1d668fbe762dfe0075c595b4bfff433be478dbbe24e05251a8e8c3eb992a986667c1d53b6c3a9c85b8398c35a960587fbd9fa3a0915406728"
+}
