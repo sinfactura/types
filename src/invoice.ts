@@ -182,7 +182,7 @@ declare global {
   /** A single CAEA fortnightly period, requested and tracked per store. */
   interface CAEAPeriod {
     storeId: string;
-    period: string; // "202608#1" -- YYYYMM + fortnight order (1 = days 1-15, 2 = 16-end)
+    period: string; // "202608" -- YYYYMM only; the fortnight order (1 = days 1-15, 2 = 16-end) is a separate, non-typed DDB bookkeeping attribute alongside this row (see sinfactura/api docs/ENTITIES.md), not concatenated into `period`
     caea: string; // 14-digit ARCA-issued code
     validFrom: string; // ISO date
     validTo: string; // ISO date
