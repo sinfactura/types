@@ -209,6 +209,11 @@ declare global {
       from?: string;
       verified?: boolean;
     };
+    // api#1567 — pre-launch landing lead-capture marker. Set at registration
+    // when `waitlist: true` is sent on `POST /auth?mode=register`; cleared by
+    // the `POST /platform/operations { mode: 'convert-waitlist' }` operator
+    // endpoint (which also fires the deferred welcome email).
+    waitlist?: boolean;
   }
 
   interface StoreIntegrations {
@@ -366,6 +371,10 @@ declare global {
     // 'cbu_informada' (optional, no withholding): ordinary CbteTipo 1/2/3
     // with the "PAGO EN CBU INFORMADA" legend + a declared CBU.
     facturaMLegend?: 'retencion' | 'cbu_informada';
+    // api#1560 — the punto-de-venta's declared CBU (Clave Bancaria Uniforme,
+    // 22 digits), required when facturaMLegend === 'cbu_informada' (RG 5762
+    // Art. 5's "PAGO EN CBU INFORMADA" variant).
+    cbu?: string;
     // Cert expiry (api#1374): ms-epoch of the cert's notAfter, parsed on read
     // from the stored PEM by the api's sanitizeStoreRow — never the bytes.
     certExpiry?: number;

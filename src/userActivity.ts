@@ -23,6 +23,7 @@
 //   - 1.6.21 (+1 variant) — TOTP recovery codes generated (api#1336); method += 'recovery'
 //   - 1.6.34 (+field) — LiteralUpdatedEvent gains `scope`; new `LiteralScope` contract (api#1484)
 //   - (+1 variant) — IntegrationTokenRefreshedEvent (types#91, api#1540)
+//   - 1.6.39 (+1 variant) — WaitlistConvertedEvent (types#92, api#1567)
 
 declare global {
 
@@ -610,7 +611,19 @@ declare global {
 	}
 
 	// ──────────────────────────────────────────────────────────────────────────
-	// Discriminated union — 69 variants
+	// Phase 5 (+1 variant) — waitlist conversion audit (types#92, api#1567)
+	// ──────────────────────────────────────────────────────────────────────────
+
+	// MANAGER converts a pre-launch waitlist registration into a live tenant
+	// (`POST /platform/operations { mode: 'convert-waitlist' }`). The target
+	// tenant is the base `tenant_store_id`; the MANAGER actor is the base
+	// `user_id`/`actor_*` — no variant-specific fields beyond the discriminant.
+	interface WaitlistConvertedEvent extends UserActivityEventBase {
+		event: 'Waitlist Converted';
+	}
+
+	// ──────────────────────────────────────────────────────────────────────────
+	// Discriminated union — 70 variants
 	// ──────────────────────────────────────────────────────────────────────────
 
 	type UserActivityEvent =
@@ -692,7 +705,8 @@ declare global {
 		| TwoFactorRecoveryCodesRevealedEvent
 		| TwoFactorResetInitiatedEvent
 		// Phase 5
-		| IntegrationTokenRefreshedEvent;
+		| IntegrationTokenRefreshedEvent
+		| WaitlistConvertedEvent;
 
 }
 
