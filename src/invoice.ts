@@ -69,6 +69,19 @@ declare global {
     // (string) and is already consumed as FiscalStatusBanner's errorMessage
     // (app), so changing its type would be a breaking change.
     arcaObservations?: InvoiceObservation[];
+    // ARCA events (api#1559 follow-up, PR api#1571). AFIP's Events.Evt[] --
+    // the third message array alongside Observaciones.Obs[] (above) and
+    // Errors.Err[]: envelope-level, informational (deprecation notices,
+    // service advisories), independent of Resultado. Same {code, msg} shape,
+    // so InvoiceObservation is reused rather than minting a new type.
+    arcaEvents?: InvoiceObservation[];
+    // RG 5762/2025 Factura M elimination (api#1560). Frozen on the Invoice
+    // row AT ISSUANCE (not re-derived from the live punto-de-venta config at
+    // render time) so a historical PDF keeps the legend that actually applied
+    // when the CAE was requested, even if Afip.facturaMLegend/cbu change
+    // later. `cbu` is only ever set alongside facturaMLegend 'cbu_informada'.
+    facturaMLegend?: 'retencion' | 'cbu_informada';
+    cbu?: string;
     // ARCA CAEA contingency (api#1556). Set only when fiscalStatus is
     // 'authorized_caea' | 'caea_reported'.
     caea?: string; // 14-digit ARCA-issued CAEA code
