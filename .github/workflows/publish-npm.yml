@@ -1,0 +1,63 @@
+name: Publish to npm
+
+# Publishes to the npm registry on every push to main whose package.json
+# version isn't on the registry yet (i.e. the `chore(release): X.Y.Z` bump
+# commits — pushes without a bump are skipped by the guard, not failed).
+# Auth is npm Trusted Publishing (OIDC): no NPM_TOKEN secret to store or
+# rotate, and provenance is attached automatically. One-time counterpart
+# setup lives on npmjs.com — see PUBLISHING.md § npm.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # npm Trusted Publishing (OIDC)
+
+concurrency:
+  group: publish-npm
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      # Node 22 bundles npm 10; OIDC trusted publishing needs npm >= 11.5.1.
+      - name: Upgrade npm for OIDC support
+        run: npm install -g npm@latest
+
+      - name: Skip when this version is already published
+        id: guard
+        run: |
+          LOCAL="$(node -p "require('./package.json').version")"
+          PUBLISHED="$(npm view sinfactura-types version 2>/dev/null || echo none)"
+          echo "local=$LOCAL published=$PUBLISHED"
+          if [ "$LOCAL" = "$PUBLISHED" ]; then
+            echo "publish=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=yes" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Enable Corepack (uses Yarn from packageManager field)
+        if: steps.guard.outputs.publish == 'yes'
+        run: corepack enable
+
+      # prepublishOnly runs `tsc`, which needs the typescript devDependency.
+      - name: Install dependencies
+        if: steps.guard.outputs.publish == 'yes'
+        run: yarn install --immutable
+
+      - name: Publish
+        if: steps.guard.outputs.publish == 'yes'
+        run: npm publish

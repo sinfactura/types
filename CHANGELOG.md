@@ -7,6 +7,27 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.6.39
+
+- **feat(caea):** `Invoice.caeaDet` + `CaeaInformDet` — frozen
+  `FECAEADetRequest`-shaped snapshot captured at CAEA-stamp time and replayed
+  verbatim by the deferred `FECAEARegInformativo` step (api#1580).
+- **feat(waitlist):** graduate `Store.waitlist` + `WaitlistConvertedEvent`
+  (now a `UserActivityEvent` union member, 70 variants) out of api's bridge
+  (types#92, api#1567).
+- **feat(facturaM):** graduate `Afip.cbu` + issuance-frozen
+  `Invoice.facturaMLegend`/`Invoice.cbu` (RG 5762) out of api's bridge
+  (types#93, api#1560).
+- **feat(arca):** graduate `Invoice.arcaEvents` + `FiscalAuditEvent.eventos`
+  — AFIP `Events.Evt[]` passthrough, reusing the `InvoiceObservation`
+  `{code, msg}` shape (types#95, api#1559 follow-up).
+
+## 1.6.38
+
+- **feat(caea):** `CAEAPeriod.fchTopeInf` — ARCA's authoritative per-period
+  Inform deadline, captured verbatim from `FECAEASolicitar`/`FECAEAConsultar`
+  `ResultGet.FchTopeInf` (api#1580).
+
 ## 1.6.37
 
 - **feat(auth):** graduate `WaitlistRegisterResponse` out of api's bridge —

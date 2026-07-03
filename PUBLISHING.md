@@ -39,11 +39,30 @@ re-resolved by a plain `yarn install`):
 yarn up "sinfactura-types@github:sinfactura/types#dist"   # re-pins the lockfile
 ```
 
-### npm (legacy)
+### npm (live for `api` — automated)
 
-Kept for external / historical consumers. The `version` field in
-`package.json` still tracks releases for this channel and for human-readable
-changelogs.
+The `api` repo pins the npm registry version (e.g. `^1.6.39`), so npm is a
+**live** channel, not just historical. Publishing is automated: the
+[`publish-npm`](.github/workflows/publish-npm.yml) workflow runs on every
+push to `main` and publishes whenever `package.json`'s `version` isn't on the
+registry yet — i.e. exactly the `chore(release): X.Y.Z` bump commits; pushes
+without a bump are skipped, not failed. So the release flow is just:
+
+```bash
+npm version patch --no-git-tag-version   # or the `release` script's bump half
+git commit -am "chore(release): X.Y.Z" && git push   # CI publishes
+```
+
+Auth is **npm Trusted Publishing (OIDC)** — no token secret to store or
+rotate, provenance attached automatically. One-time setup on npmjs.com
+(package `sinfactura-types` → Settings → Publishing access / Trusted
+Publisher): add a **GitHub Actions** publisher with organization
+`sinfactura`, repository `types`, workflow filename `publish-npm.yml` (no
+environment). Recommended: set publishing access to "Require two-factor
+authentication or a trusted publisher" so local manual publishes still work
+with 2FA while CI publishes via OIDC.
+
+Manual publishes remain possible for special cases:
 
 ```bash
 # from a clean main, working tree clean:
