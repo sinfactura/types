@@ -7,6 +7,19 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.6.42
+
+- **feat(invoice+store):** WSFEX contract amendments from the api#1557
+  preflight manual read (v2.0.1 §2.1.3): `ExportInvoiceFields` gains required
+  `tipoExpo`/`cliente`/`domicilioCliente` + `cuitPaisCliente` (one-of with
+  `idImpositivo`, err 1580) + `fechaPago`; `canMisMonExt` becomes the wire
+  `'S' | 'N'` (was `boolean`; zero consumers existed); `monedaId`/`monedaCtz`
+  documented as wire projections of `Invoice.currency`/`currencyValue`.
+  `WsfexReferenceData` gains `unitsOfMeasure` (GetPARAM_UMed — `Pro_umed` is
+  required per item) + `currenciesWithQuote` (MON_CON_COTIZACION). `Afip`
+  gains `accessTicket_FEX` (WSAA 'wsfex' ticket) and `exportPointOfSale`
+  (dedicated FEEWS punto de venta, err 1510 — the api#1586 lesson applied).
+
 ## 1.6.41
 
 - **feat(store):** `Afip.caeaPointOfSale?: number` — the store's dedicated

@@ -271,25 +271,42 @@ declare global {
 
   // ARCA WSFEXV1 export invoicing (api#1557). RG 2758/2010 + RG 4401/2019.
 
-  /** Export-invoice-specific fields, present only when Invoice.invoiceType === 19 (Factura E). */
+  /** Export-invoice-specific fields, present only when Invoice.invoiceType is an
+   * export voucher (19 Factura E / 20 ND E / 21 NC E). Amended per the api#1557
+   * preflight read of the WSFEX manual (v2.0.1 §2.1.3). */
   interface ExportInvoiceFields {
+    /** Tipo_expo: 1=exportación definitiva de bienes, 2=servicios (RG 4401), 4=otros.
+     * REQUIRED on the wire — drives every Permiso rule (err 1720). */
+    tipoExpo: 1 | 2 | 4;
     dstCmp: number; // destination country code (WSFEXV1 GetPARAM_DST_pais table)
-    idImpositivo?: string; // buyer's foreign tax ID (optional -- not all destinations require one)
-    monedaId: string; // ISO-ish currency code (WSFEXV1 GetPARAM_MON table, e.g. "DOL", "PES")
-    monedaCtz: number; // exchange rate at time of authorization
+    cliente: string; // Cliente (C200, required) — buyer's name as printed on the voucher
+    domicilioCliente: string; // Domicilio_cliente (C300, required)
+    /** Cuit_pais_cliente (GetPARAM_DST_CUIT) — ONE OF this or idImpositivo is required (err 1580). */
+    cuitPaisCliente?: number;
+    idImpositivo?: string; // buyer's foreign tax ID — one-of with cuitPaisCliente (err 1580)
+    /** AFIP-wire projection of Invoice.currency (GetPARAM_MON code, e.g. "DOL") — MUST agree
+     * with the row's own currency stamp; never a second source of truth. */
+    monedaId: string;
+    /** AFIP-wire projection of Invoice.currencyValue (Moneda_Ctz) — MUST agree with the row. */
+    monedaCtz: number;
     incoterms?: string; // WSFEXV1 GetPARAM_Incoterms code (FOB, CIF, ...)
     incotermsDs?: string; // free-text incoterms detail, required by some destinations
-    permisoExistente?: 'S' | 'N'; // customs permit reference exists
+    /** 'S'/'N'; MUST be absent when Cbte_Tipo is 20/21, or 19 with tipoExpo 2/4 (err 1550). */
+    permisoExistente?: 'S' | 'N';
     permisoExistenteTipo?: string; // permit type, required when permisoExistente === 'S'
-    permisoExistenteNro?: string; // permit number, required when permisoExistente === 'S'
+    permisoExistenteNro?: string; // permit number (99999AAXXX999999A), required when permisoExistente === 'S'
     idiomaCbte: 1 | 2 | 3; // 1=Spanish, 2=English, 3=Portuguese
-    /** "Cancelación en Misma Moneda Extranjera" -- required only when settled in the same
-     * foreign currency the invoice was issued in (RG 5616/2024 FX-precision rule reaching
-     * voucher class E; added to the WSFEXV1 manual in v3.0.0, 2025-03-17). */
-    canMisMonExt?: boolean;
+    fechaPago?: string; // Fecha_pago (yyyymmdd) — service exports (RG 4401 payment-date rules)
+    /** "Cancelación en Misma Moneda Extranjera" — wire value 'S'/'N' (was boolean pre-1.6.42;
+     * zero consumers existed). Required when settled in the same foreign currency the invoice
+     * was issued in; Moneda_Ctz must then match BNA's prior-business-day quote (RG 5616/2024,
+     * WSFEX manual v3.0.0 2025-03-17; error codes 1602-1607). */
+    canMisMonExt?: 'S' | 'N';
   }
 
-  /** Reference data cached from WSFEXV1 `GetPARAM_*` operations, refreshed on a schedule. */
+  /** Reference data cached from WSFEXV1 `GetPARAM_*` operations, refreshed on a schedule.
+   * Persists as the platform-wide singleton PLATFORM / WSFEX_PARAMS (AFIP-global tables,
+   * not per-store) — api#1557. */
   interface WsfexReferenceData {
     currencies: { id: string; name: string }[]; // GetPARAM_MON
     countries: { id: number; name: string }[]; // GetPARAM_DST_pais
@@ -297,7 +314,11 @@ declare global {
     languages: { id: 1 | 2 | 3; name: string }[]; // GetPARAM_Idiomas
     voucherTypes: { id: number; name: string }[]; // GetPARAM_Cbte_Tipo
     exportTypes: { id: number; name: string }[]; // GetPARAM_Tipo_Expo
-    fetchedAt: string; // ISO timestamp -- drives cache invalidation
+    /** GetPARAM_UMed — Pro_umed is REQUIRED per line item; the Factura E form needs this catalog. */
+    unitsOfMeasure: { id: number; name: string }[];
+    /** GetPARAM_MON_CON_COTIZACION — currencies quotable for service exports (tipoExpo 2). */
+    currenciesWithQuote?: { id: string; name: string }[];
+    fetchedAt: string; // ISO timestamp — drives cache invalidation (string per original convention; AfipHealth uses epoch ms)
   }
 
   // ARCA WSFECRED FCE MiPyME credit invoices (api#1558). Ley 27.440 +

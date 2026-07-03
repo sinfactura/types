@@ -358,6 +358,8 @@ declare global {
     key?: string;
     accessTicket_EB?: string;
     accessTicket_RSF?: string;
+    // api#1557 — WSAA ticket for the 'wsfex' service (export invoicing); per-service, 12h TTL.
+    accessTicket_FEX?: string;
     // Derived read-only flags (api#1318): cert/key existence, projected on read — never the bytes.
     hasCert?: boolean;
     hasKey?: boolean;
@@ -382,6 +384,13 @@ declare global {
     // Unset ⇒ the invoice-time CAEA circuit breaker is skipped (degrade to
     // pending_cae) and zero-movement reporting is held.
     caeaPointOfSale?: number;
+    // api#1557 — the store's DEDICATED export punto de venta (WSFEX). ARCA
+    // only accepts PtoVtas registered under Sistema "Comprobantes de
+    // Exportación - Web Services" (FEEWS, err 1510) — always a DIFFERENT
+    // number than `pointOfSale`/`caeaPointOfSale`, with its own voucher
+    // sequence. Unset ⇒ export invoicing (Factura E) is unavailable for the
+    // store.
+    exportPointOfSale?: number;
     // Cert expiry (api#1374): ms-epoch of the cert's notAfter, parsed on read
     // from the stored PEM by the api's sanitizeStoreRow — never the bytes.
     certExpiry?: number;
