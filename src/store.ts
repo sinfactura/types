@@ -194,7 +194,6 @@ declare global {
     ivaTypes: Method[];
     minWithDni: number;
     maintenance?: MaintenanceInfo;
-    legacyCurrencyIds?: Record<number, string>;
     // api#1382 — last cert-expiry alert fired for the current cert, so the daily cron
     // doesn't re-alert within a band. Keyed to the cert's expiry ms so a renewed cert
     // (new expiry) auto-resets.

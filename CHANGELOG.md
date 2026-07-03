@@ -7,6 +7,16 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.6.40
+
+- **chore(store):** remove the dead `Store.legacyCurrencyIds` field — a
+  migration-era artifact of the api#942 currency-catalog rollout whose last
+  reader was dropped when the #942 read-path checklist closed (api PR #1031).
+  Nominally a removal (major per the table below), shipped as a patch because
+  it is provably consumer-free: zero references across api/app/web/landing,
+  verified 2026-07-03. Also the first release published by the new
+  `publish-npm` OIDC workflow end-to-end.
+
 ## 1.6.39
 
 - **feat(caea):** `Invoice.caeaDet` + `CaeaInformDet` — frozen
