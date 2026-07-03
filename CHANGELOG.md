@@ -7,6 +7,14 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.6.41
+
+- **feat(store):** `Afip.caeaPointOfSale?: number` — the store's dedicated
+  CAEA punto de venta (api#1586). RG 5782/2025 Art. 5 requires CAEA
+  comprobantes to be issued from "puntos de venta específicos" (ABM Sistema
+  "CAEA – Fact. Elect."), always a different number than the CAE
+  `pointOfSale`, with its own voucher sequence.
+
 ## 1.6.40
 
 - **chore(store):** remove the dead `Store.legacyCurrencyIds` field — a

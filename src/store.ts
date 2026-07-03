@@ -374,6 +374,14 @@ declare global {
     // 22 digits), required when facturaMLegend === 'cbu_informada' (RG 5762
     // Art. 5's "PAGO EN CBU INFORMADA" variant).
     cbu?: string;
+    // api#1586 — the store's DEDICATED CAEA punto de venta. RG 5782/2025
+    // Art. 5 mandates "puntos de venta específicos" for CAEA (the ARCA ABM
+    // binds each PtoVta number to one Sistema — "CAEA – Fact. Elect." is
+    // distinct from the CAE web-services type), so this is always a
+    // DIFFERENT number than `pointOfSale`, with its own voucher sequence.
+    // Unset ⇒ the invoice-time CAEA circuit breaker is skipped (degrade to
+    // pending_cae) and zero-movement reporting is held.
+    caeaPointOfSale?: number;
     // Cert expiry (api#1374): ms-epoch of the cert's notAfter, parsed on read
     // from the stored PEM by the api's sanitizeStoreRow — never the bytes.
     certExpiry?: number;
