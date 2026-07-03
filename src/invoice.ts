@@ -189,6 +189,13 @@ declare global {
     status: 'active' | 'used' | 'informed' | 'expired';
     invoiceCount: number;
     informedAt?: string; // ISO timestamp -- set once the ARCA inform step completes
+    // ARCA-supplied Inform deadline (api#1580), captured verbatim from
+    // FECAEASolicitar/FECAEAConsultar's ResultGet.FchTopeInf (AFIP wire
+    // yyyymmdd, converted to ISO yyyy-mm-dd like validFrom/validTo above) --
+    // the authoritative per-period cutoff to inform CAEA-stamped invoices via
+    // FECAEARegInformativo, NOT a hardcoded day-count assumption. Optional:
+    // absent on CAEAPeriod rows requested before this field was captured.
+    fchTopeInf?: string;
   }
 
   /** Result of requesting a new CAEA code for an upcoming period. */
