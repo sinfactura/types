@@ -141,17 +141,17 @@ export type ProductCreation = Omit<Product, 'id'>;
 # 2. Build to verify
 yarn build
 
-# 3. Bump version based on change type
-yarn version --patch    # Bug fixes
-yarn version --minor    # New features
-yarn version --major    # Breaking changes
+# 3. Bump version (plain npm — `yarn version --patch` does NOT work under
+#    Yarn Berry; project convention is patch for additive changes, see PUBLISHING.md)
+npm version patch --no-git-tag-version   # or the `release` script
 
-# 4. Publish to npm
-npm publish
+# 4. Update CHANGELOG.md, commit `chore(release): X.Y.Z`, push to main.
+#    CI PUBLISHES AUTOMATICALLY — the publish-npm workflow (npm Trusted
+#    Publishing/OIDC) fires on every main push and publishes whenever the
+#    version isn't on the registry yet. Never run `npm publish` locally
+#    (manual publish is a break-glass fallback only — see PUBLISHING.md).
 
-# 5. Update in consuming services
-cd ../web && yarn add sinfactura-types@latest
-cd ../app && yarn add sinfactura-types@latest
+# 5. Update in consuming services (api first — it owns this repo)
 cd ../api && yarn add sinfactura-types@latest
 ```
 
@@ -198,10 +198,10 @@ export interface NewDomainEntity {
 yarn build
 ```
 
-5. **Version and publish**
+5. **Version and release** (CI publishes on push — see PUBLISHING.md)
 ```bash
-yarn version --minor  # New feature
-npm publish
+npm version patch --no-git-tag-version   # additive = patch by project convention
+# update CHANGELOG.md, commit `chore(release): X.Y.Z`, push to main → CI publishes
 ```
 
 ## 🔗 Integration Patterns
