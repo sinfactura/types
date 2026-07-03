@@ -86,6 +86,8 @@ declare global {
 		/** Raw ARCA Errores[]/Observaciones[] passthrough (no flattening). */
 		errores?: { code: number; msg: string }[];
 		observaciones?: { code: number; msg: string }[];
+		/** Raw ARCA Events.Evt[] passthrough (api#1559 follow-up, PR api#1571) — same treatment as errores/observaciones. */
+		eventos?: { code: number; msg: string }[];
 		/** Wall-clock duration of the SOAP call in ms. */
 		durationMs: number;
 		/** Full request args + response body (raw), for the regulator record. */
