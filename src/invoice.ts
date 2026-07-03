@@ -73,6 +73,14 @@ declare global {
     // 'authorized_caea' | 'caea_reported'.
     caea?: string; // 14-digit ARCA-issued CAEA code
     caeaPeriod?: string; // "202608#1" -- links to CAEAPeriod.period
+    // Frozen FECAEADetRequest-shaped snapshot captured at CAEA-stamp time
+    // (api#1580). The plain Invoice row is LOSSY for Inform replay (only the
+    // 10.5%/21% alicuotas survive as neto10/21+iva10/21; MonId, ImpTotConc,
+    // FchServ*, CanMisMonExt, CondicionIVAReceptorId are all dropped), so the
+    // deferred FECAEARegInformativo step replays THIS snapshot verbatim
+    // instead of reconstructing. Absent on non-CAEA invoices and on rows
+    // stamped before the snapshot shipped (those need operator handling).
+    caeaDet?: CaeaInformDet;
     // ARCA WSFEXV1 export invoicing (api#1557). Present only when
     // invoiceType is an export voucher (19/20/21, Factura E).
     export?: ExportInvoiceFields;
@@ -210,6 +218,42 @@ declare global {
     invoiceCount: number;
     informedAt: string; // ISO timestamp
     errors?: ArcaError[];
+  }
+
+  /**
+   * Frozen `FECAEADetRequest`-shaped snapshot, persisted on `Invoice.caeaDet`
+   * at CAEA-stamp time and replayed verbatim by the deferred
+   * `FECAEARegInformativo` step (api#1580). PascalCase keys are AFIP wire
+   * vocabulary, stored exactly as the voucher body was built at stamp time.
+   * Array fields (`Iva`, `CbtesAsoc`, `Tributos`) stay FLAT here (the afip.ts
+   * SDK-wrapper flavor); the Inform sender re-nests them into the raw SOAP
+   * envelope shape (`Iva: { AlicIva: [...] }`, etc.) at call time.
+   */
+  interface CaeaInformDet {
+    Concepto: number; // 1 products, 2 services, 3 both
+    DocTipo: number; // buyer doc type (80 CUIT, 96 DNI, 99 unidentified)
+    DocNro: number;
+    CbteDesde: number; // == CbteHasta == the claimed voucher number
+    CbteHasta: number;
+    CbteFch: string; // yyyymmdd, as stamped
+    FchServDesde?: string; // present only when Concepto is 2 | 3
+    FchServHasta?: string;
+    FchVtoPago?: string;
+    ImpTotal: number;
+    ImpTotConc: number;
+    ImpNeto: number;
+    ImpOpEx: number;
+    ImpIVA: number;
+    ImpTrib: number;
+    MonId: string; // AFIP currency code ('PES' | 'DOL'), NOT the catalogId
+    MonCotiz: number;
+    CanMisMonExt?: number; // RG 5616 FX-precision field, foreign-currency vouchers only
+    CondicionIVAReceptorId?: number; // RG 5616 -- inherited by FECAEADetRequest via the patched FEDetRequest WSDL base
+    Iva?: { Id: number; BaseImp: number; Importe: number }[];
+    CbtesAsoc?: { Tipo: number; PtoVta: number; Nro: number; Cuit?: string; CbteFch?: string }[];
+    Tributos?: { Id: number; Desc?: string; BaseImp: number; Alic: number; Importe: number }[];
+    CAEA: string; // the 14-digit code the invoice was stamped with
+    CbteFchHsGen: string; // yyyymmddhhmiss, Buenos Aires local, from the row's createdAt
   }
 
   // ARCA WSFEXV1 export invoicing (api#1557). RG 2758/2010 + RG 4401/2019.
