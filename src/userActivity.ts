@@ -604,8 +604,9 @@ declare global {
 	interface IntegrationTokenRefreshedEvent extends UserActivityEventBase {
 		event: 'Integration Token Refreshed';
 		// Stripe deliberately excluded (api#1540) — no per-tenant OAuth connect
-		// flow / enumeration path exists today.
-		provider: 'mercadopago' | 'gmail';
+		// flow / enumeration path exists today. 'mercadolibre' added in
+		// types#94 (api#1572).
+		provider: 'mercadopago' | 'gmail' | 'mercadolibre';
 		outcome: 'refreshed' | 'disconnected' | 'skipped' | 'error';
 		trigger: 'operator-single' | 'operator-global';
 		detail?: string; // short machine code only — never a token/secret (Ley 25.326)

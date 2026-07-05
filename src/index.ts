@@ -15,6 +15,7 @@ export * from "./imports";
 export * from "./invoice";
 export * from "./log";
 export * from "./maintenance";
+export * from "./mercadolibre";
 export * from "./mercadopago";
 export * from "./notification";
 export * from "./order";

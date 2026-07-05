@@ -108,7 +108,8 @@ declare global {
 		| 'aiFeatures'
 		| 'mobileApp'
 		| 'customDomain'
-		| 'advancedPricing'; // NEW — boolean gate: absolute / per-list-currency / breaks / promos (#1780 / types#87)
+		| 'advancedPricing' // boolean gate: absolute / per-list-currency / breaks / promos (#1780 / types#87)
+		| 'marketplaceChannels'; // NEW — boolean gate: marketplace integrations (MercadoLibre first — app#797 / types#94); PLAN#{tier} rows PATCHed per the app#1935 ceremony
 
 	/** Full feature matrix — every tier declares every feature. */
 	type FeatureMatrix = Record<PlanTier, Record<FeatureKey, Entitlement>>;

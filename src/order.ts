@@ -73,6 +73,62 @@ declare global {
 		// `REMOVE linkedPayments.#pid` (atomic, race-safe) instead of array
 		// splice (api#981).
 		linkedPayments?: Record<string, LinkedPaymentEntry>;
+		// Sales-channel tag (app#797 / ADR-0018 Decision 1) — absent means the
+		// order originated in SINFACTURA itself. Channel-tagged orders flow
+		// through the SAME AFIP/stock/reporting pipelines, no parallel
+		// collection.
+		channel?: OrderChannel;
+		// Provider sub-record for `channel: 'meli'` orders (api#1574).
+		mercadolibre?: OrderMercadolibre;
+	}
+
+	type OrderChannel = 'meli';
+
+	// ML-side identity + ingest-stamped provider data for a channel-tagged
+	// order. Billing fields persist the RAW two-step billing-info v2 values
+	// (`invoice_type` no longer exists on the wire) — the Factura A/B
+	// mapping is the auto-invoice hook's job (api#1576). All PII.
+	interface OrderMercadolibre {
+		mlOrderId: string;
+		packId?: string; // group unit — fiscal_documents upload target.
+		buyerNickname?: string;
+		shipmentId?: string;
+		// e.g. 'fulfillment' (Full — stock mirror-only, never restock locally),
+		// 'cross_docking', 'self_service'.
+		logisticType?: string;
+		items?: OrderMercadolibreItem[];
+		// Marketplace fees stamped at ingest, self-describing per ADR-0013 —
+		// feeds order-detail net proceeds + margin analytics (app#1934).
+		fees?: {
+			saleFee?: number;
+			shippingCostSeller?: number;
+			currency: string; // catalogId
+			currencyValue?: number;
+			currencyValueAt?: number;
+		};
+		// Raw billing-info v2 fields (GET /orders/billing-info/MLA/{id}) —
+		// feeds the missing-CUIT-for-A discrepancy badge (app#1257).
+		billingInfo?: {
+			docType?: string; // identification.type — 'CUIT' | 'DNI' | 'CUIL' | ...
+			docNumber?: string;
+			custType?: 'CO' | 'BU'; // consumer | business
+			taxpayerType?: string;
+			iibbNumber?: string; // taxes.iibb_number
+		};
+	}
+
+	// Line-level ML identity + stock provenance (order_items[].stock[]),
+	// persisted for the multi-warehouse foundation + Full no-decrement rule.
+	interface OrderMercadolibreItem {
+		mlItemId: string;
+		variationId?: string;
+		userProductId?: string; // UP-variant identity (User Products migration).
+		sellerSku?: string;
+		quantity: number;
+		stock?: {
+			mlStoreId?: string; // ML store_id of the fulfilling location.
+			networkNodeId?: string; // multi-origin network node.
+		}[];
 	}
 
 	interface LinkedPaymentEntry {

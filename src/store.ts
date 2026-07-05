@@ -163,6 +163,13 @@ declare global {
     // callback handler, removed by disconnect). KEYS_ONLY because a
     // follow-up Get fetches the full row including the access token.
     mercadopagoUserId?: string;
+    // STORE row reverse-lookup by tenant ML seller user_id — hot path for
+    // the unsigned-webhook tenant resolution (api#1573). Sparse mirror of
+    // `integrations.mercadolibre.userId` (DDB GSIs can't index nested
+    // attributes): only STORE rows with an active ML OAuth connection
+    // carry it (set by the callback handler, removed atomically with the
+    // leaf by disconnect). Feeds the KEYS_ONLY `mercadolibreUserId-PK` GSI.
+    mercadolibreUserId?: string;
     currencies: StoreCurrencySubscription[];
     cashInMethods: Method[];
     cashOutMethods: Method[];
@@ -226,6 +233,8 @@ declare global {
     sms?: SmsIntegration;
     // Per-tenant Gmail OAuth send connection (app#1270) — gmail.send scope only.
     gmail?: Gmail;
+    // Per-tenant MercadoLibre seller connection (app#797 / api#1572).
+    mercadolibre?: Mercadolibre;
   }
 
   interface SmsIntegration {
@@ -322,6 +331,58 @@ declare global {
   }
 
   type MercadopagoConnectionStatus = "connected" | "expired" | "disconnected" | "error" | "never";
+
+  // `needs-reauth` is ML-specific (ADR-0018 Amendment B): single-use
+  // refresh-token rotation means a hard `invalid_grant` or a dangling
+  // refresh-attempt marker is terminal — the seller must reconnect.
+  type MercadolibreConnectionStatus =
+    | "connected"
+    | "expired"
+    | "disconnected"
+    | "error"
+    | "needs-reauth"
+    | "never";
+
+  interface Mercadolibre {
+    // OAUTH CONNECTION (api#1572) — set by /mercadolibre/oauth/callback.
+    userId?: string; // ML seller user_id; string for precision safety.
+    nickname?: string; // seller nickname — FE hub card display.
+    /** KMS-encrypted (`alias/ml-oauth-tokens`) — never returned in API responses. */
+    accessTokenEncrypted?: string;
+    /** KMS-encrypted. SINGLE-USE rotated by ML (last-only-valid) — never returned. */
+    refreshTokenEncrypted?: string;
+    expiresAt?: number; // unix ms when accessToken expires (`expires_in` read at runtime).
+    connectedAt?: number; // unix ms when OAuth flow completed.
+    tokenType?: string; // 'Bearer'.
+    scope?: string; // granted scopes — must include 'offline_access read write'.
+
+    // STATUS / OPS — written by refresh-on-use + disconnect.
+    status?: MercadolibreConnectionStatus;
+    disconnectedAt?: number; // unix ms; admin-triggered disconnect.
+    lastTokenRefreshAt?: number;
+    /** Transient (network/5xx) failures only — a hard `invalid_grant` is
+     * terminal on FIRST occurrence (→ `needs-reauth`), never counted. */
+    tokenRefreshFailures?: number;
+    /** Write-ahead refresh-attempt marker (ADR-0018 Amendment B): unix ms
+     * persisted BEFORE calling ML's token endpoint. A dangling marker found
+     * by the next lock-acquirer means the previous winner may have burned
+     * the single-use refresh token → go straight to `needs-reauth`. */
+    refreshAttemptAt?: number;
+
+    // PER-STORE CONFIG (api#1576 / api#1575) — admin-controlled from the
+    // Integrations hub Configuración tab.
+    /** Per-channel auto-invoice toggle — default OFF; enabling requires
+     * `defaultPosId` (dedicated PdV) + the Facturador-collision check. */
+    autoInvoice?: boolean;
+    defaultPosId?: number; // dedicated AFIP PdV for the ML channel.
+    // Outbound stock-sync knobs, applied in order: buffer → limit → pause
+    // (industry-convergent; persisted via diff-PATCH from app#1256).
+    syncPolicy?: {
+      stockBuffer?: number; // subtract from local stock before publishing.
+      stockLimit?: number; // hard cap on published stock.
+      paused?: boolean; // pause ALL outbound sync (inbound keeps flowing).
+    };
+  }
 
   interface Afip {
     production: boolean;

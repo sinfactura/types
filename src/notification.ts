@@ -17,6 +17,9 @@ export enum NotificationTypeEnum {
 	DOLARBNA = 'DOLARBNA',
 	ERROR = 'ERROR',
 	AFIP_CERT_EXPIRY = 'AFIP_CERT_EXPIRY',
+	// ML order-ingestion fanout (app#797 / api#1574) — User-row read path
+	// added by the orders_v2 worker.
+	MERCADOLIBRE = 'MERCADOLIBRE',
 }
 
 declare global {

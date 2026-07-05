@@ -59,6 +59,33 @@ declare global {
 		// materialized price1..4 shim was removed end-of-epic; all consumers
 		// read `prices[]` directly. See ADR-0014.
 		prices?: PriceSlot[];
+
+		// Per-channel listing links (app#797 / ADR-0018 Decision 1), keyed by
+		// channel id (`'meli'` today) so DELETE/SET are atomic map ops.
+		channels?: Record<string, ProductChannelMapping>;
+	}
+
+	type ProductChannelStatus =
+		| 'linked' // live listing bound to this product
+		| 'pending' // publish/link in flight
+		| 'paused' // listing paused on the channel
+		| 'rejected' // channel rejected the publish (Rechazadas) — see syncErrors
+		| 'unlinked'; // explicitly detached; kept for history
+
+	// One product↔listing link. For UP-migrated sellers the UP-variant is
+	// the unit (api#1575/#1577) — `externalId` alone can't express it.
+	interface ProductChannelMapping {
+		externalId?: string; // ML item id (e.g. 'MLA123...').
+		userProductId?: string; // UP-variant identity.
+		familyId?: string; // ML-assigned variant cluster.
+		variationId?: string; // legacy (non-UP) variation id.
+		status: ProductChannelStatus;
+		linkedAt?: number;
+		lastSyncedAt?: number;
+		// How the link was established: auto-match basis or manual.
+		basis?: MlMatchBasis | 'manual';
+		// Raw channel error causes (e.g. ML `cause[]`) for the rejected state.
+		syncErrors?: string[];
 	}
 
 }
