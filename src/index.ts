@@ -19,6 +19,7 @@ export * from "./mercadopago";
 export * from "./notification";
 export * from "./order";
 export * from "./payment";
+export * from "./platform";
 export * from "./pricing";
 export * from "./print";
 export * from "./product";

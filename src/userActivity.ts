@@ -24,6 +24,7 @@
 //   - 1.6.34 (+field) — LiteralUpdatedEvent gains `scope`; new `LiteralScope` contract (api#1484)
 //   - (+1 variant) — IntegrationTokenRefreshedEvent (types#91, api#1540)
 //   - 1.6.39 (+1 variant) — WaitlistConvertedEvent (types#92, api#1567)
+//   - 1.6.43 (+1 variant) — PlatformConfigUpdatedEvent (api#1108)
 
 declare global {
 
@@ -623,7 +624,23 @@ declare global {
 	}
 
 	// ──────────────────────────────────────────────────────────────────────────
-	// Discriminated union — 70 variants
+	// Phase 6 (+1 variant) — platform config/flag change audit (api#1108)
+	// ──────────────────────────────────────────────────────────────────────────
+
+	// MANAGER writes a platform-wide setting or feature flag
+	// (`POST /platform/globals`). `scope` is the consuming app the key targets
+	// (not the actor) — mirrors `LiteralUpdatedEvent.scope` (api#1484).
+	interface PlatformConfigUpdatedEvent extends UserActivityEventBase {
+		event: 'Platform Config Updated';
+		key: string;
+		kind: 'setting' | 'flag';
+		scope: 'app' | 'web' | 'landing' | 'storefront';
+		before: string | number | boolean;
+		after: string | number | boolean;
+	}
+
+	// ──────────────────────────────────────────────────────────────────────────
+	// Discriminated union — 71 variants
 	// ──────────────────────────────────────────────────────────────────────────
 
 	type UserActivityEvent =
@@ -706,7 +723,9 @@ declare global {
 		| TwoFactorResetInitiatedEvent
 		// Phase 5
 		| IntegrationTokenRefreshedEvent
-		| WaitlistConvertedEvent;
+		| WaitlistConvertedEvent
+		// Phase 6
+		| PlatformConfigUpdatedEvent;
 
 }
 
