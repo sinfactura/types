@@ -360,6 +360,10 @@ declare global {
     accessTicket_RSF?: string;
     // api#1557 — WSAA ticket for the 'wsfex' service (export invoicing); per-service, 12h TTL.
     accessTicket_FEX?: string;
+    // api#1558 — WSAA ticket for the 'wsfecred' service (FCE MiPyME buyer-side ops); per-service, 12h TTL.
+    accessTicket_FECRED?: string;
+    // api#1500 — WSAA ticket for the 'wscdc' service (third-party voucher constatación); per-service, 12h TTL.
+    accessTicket_CDC?: string;
     // Derived read-only flags (api#1318): cert/key existence, projected on read — never the bytes.
     hasCert?: boolean;
     hasKey?: boolean;

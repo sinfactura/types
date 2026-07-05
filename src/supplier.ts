@@ -82,6 +82,10 @@ declare global {
 		invoiceNumber: number; // CBTE_NUMERO
 		dated: number; // voucher date, yyyymmdd
 		total: number; // IMP_TOTAL
+		authorizationCode: string; // ARCA authorization code to verify -- CAE/CAEA/CAI (WSCDC CodAutorizacion)
+		authorizationMode?: 'CAE' | 'CAEA' | 'CAI'; // WSCDC CbteModo; server defaults to 'CAE' when absent
+		receptorDocType?: number; // receptor document type -- DocTipo codeset id (WSCDC DocTipoReceptor), required by ARCA for A-type comprobantes
+		receptorDocNumber?: string; // receptor document number (WSCDC DocNroReceptor)
 	}
 
 	/**
