@@ -7,6 +7,28 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.6.44
+
+- **feat(mercadolibre):** MercadoLibre contracts, one consolidated release
+  (types#94, app#797 Phase 1). `Mercadolibre` leaf in `StoreIntegrations`
+  (KMS-token lifecycle mirroring `Mercadopago`/`Gmail`, plus `needs-reauth`
+  status, ADR-0018 Amendment B write-ahead `refreshAttemptAt`, `autoInvoice`
+  / `defaultPosId` / `syncPolicy` buffer→limit→pause knobs) +
+  `Store.mercadolibreUserId` sparse-GSI scalar mirror. `Order.channel:
+  'meli'` + `OrderMercadolibre` sub-record (pack/shipment identity,
+  line-level UP-variant + stock provenance, ADR-0013 self-describing `fees`,
+  raw billing-info-v2 `billingInfo`). `Product.channels` map
+  (`ProductChannelMapping` with UP-variant identity + `rejected` state). New
+  `mercadolibre` module: OAuth wire shapes (`MlOauthTokenResponse`,
+  `MlOauthInitiateResponse`, `MlOauthCallbackResponse`, `MlOauthErrorCode`,
+  `MercadolibreStatus`), unsigned `MlWebhookEvent` envelope, mapping
+  workbench contract (`MlMatchSuggestion` + grade/basis unions),
+  `MercadolibreOrderWsPayload`. Widened: `NotificationTypeEnum.MERCADOLIBRE`,
+  `FeatureKey 'marketplaceChannels'`,
+  `IntegrationTokenRefreshedEvent.provider` += `'mercadolibre'`. Decision
+  recorded on types#94: ML settlements reuse `PaymentReceivedSource 'mp'` —
+  no enum change.
+
 ## 1.6.43
 
 - **feat(platform):** `PlatformConfigEntry` + `PlatformGlobalsPostBody` — the
