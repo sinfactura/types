@@ -7,6 +7,23 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.6.43
+
+- **feat(platform):** `PlatformConfigEntry` + `PlatformGlobalsPostBody` — the
+  platform-wide settings/feature-flag CRUD contract (single fixed
+  GLOBALS/PLATFORM scope, no per-tenant override), plus `PlatformConfigUpdatedEvent`
+  (`UserActivityEvent` union, now 71 variants) (api#1108). Graduated out of
+  api's bridge.
+- **feat(afip):** `Afip.accessTicket_FECRED` — WSAA ticket for the
+  `wsfecred` service (FCE MiPyME buyer-side ops), mirrors the published
+  `accessTicket_FEX` (api#1558). Graduated out of api's bridge.
+- **feat(afip):** `Afip.accessTicket_CDC` — WSAA ticket for the `wscdc`
+  service (third-party voucher constatación); `VoucherVerificationRequest`
+  gains `authorizationCode` (required), `authorizationMode`,
+  `receptorDocType`, `receptorDocNumber` — the fields WSCDC's
+  `ComprobanteConstatar` needs beyond the voucher coordinates already shipped
+  in 1.6.42 (api#1500). Graduated out of api's bridge.
+
 ## 1.6.42
 
 - **feat(invoice+store):** WSFEX contract amendments from the api#1557
