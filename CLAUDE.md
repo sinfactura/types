@@ -1,6 +1,8 @@
 # CLAUDE.md - Types (Shared TypeScript Interfaces)
 
-This file provides types-specific guidance for the shared TypeScript types package. For universal code standards, see the [root CLAUDE.md](../CLAUDE.md).
+This file provides types-specific guidance for the shared TypeScript types package. For universal code standards, see the shared [umbrella overview](../docs/architecture/UMBRELLA_OVERVIEW.md) (in the `sinfactura/docs` repo).
+
+**Shared docs** live in the sibling **`sinfactura/docs`** repo, **not here**: research corpus + the `/research` command → `../docs/research/`, ARCA/AFIP catalog → `../docs/regulatory/`, cross-repo architecture/initiatives → `../docs/architecture/` and `../docs/initiatives/`. It takes **direct commits to `main`** (no PR) — add new cross-cutting docs there. Code-coupled docs (how this package works) stay in their repo.
 
 ## 🎯 Package Overview
 
@@ -519,4 +521,4 @@ export interface NewInterface { }
 
 ---
 
-*For universal code standards and other shared conventions, refer to the [root CLAUDE.md](../CLAUDE.md).*
+*For universal code standards and other shared conventions, refer to the [umbrella overview](../docs/architecture/UMBRELLA_OVERVIEW.md) in the shared `sinfactura/docs` repo.*
