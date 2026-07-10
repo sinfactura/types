@@ -63,6 +63,35 @@ declare global {
 		// Per-channel listing links (app#797 / ADR-0018 Decision 1), keyed by
 		// channel id (`'meli'` today) so DELETE/SET are atomic map ops.
 		channels?: Record<string, ProductChannelMapping>;
+
+		// BARCODES (app#840/#841 model, shipped BE-first via api#1653). All
+		// optional/additive. `barcodePrimary` denormalizes the isPrimary
+		// entry's value for the `PK-barcodePrimary` lookup GSI + search.
+		barcodes?: ProductBarcode[];
+		barcodePrimary?: string;
+
+		// VARIANTS (api#1653 Part B, fields only — the ML family fan-out is a
+		// follow-up). Sibling Products sharing a variantGroupId form one
+		// catalog family; each row keeps its own stock/prices. Distinct from
+		// channels.mercadolibre.familyId (ML-ASSIGNED cluster, post-publish).
+		variantGroupId?: string;
+		// Differentiating attributes for family clustering (maps to ML
+		// PARENT_PK/CHILD_PK — e.g. { id: 'COLOR', value: 'Negro' }).
+		variantAttributes?: { id: string; value: string }[];
+
+		// Manufacturer model — feeds channel attributes (ML MODEL) (api#1653).
+		model?: string;
+	}
+
+	// One barcode on a product (app#841 design). `type` follows GS1 naming;
+	// 'internal' = store-generated EAN-13 in the 20-29 prefix range.
+	interface ProductBarcode {
+		value: string;
+		type: 'EAN13' | 'EAN8' | 'UPC' | 'GTIN14' | 'CODE128' | 'internal';
+		isPrimary?: boolean;
+		// Units per scan — a pack barcode can represent N sellable units.
+		packSize?: number;
+		source?: 'manual' | 'import' | 'generated';
 	}
 
 	type ProductChannelStatus =
