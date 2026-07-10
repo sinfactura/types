@@ -375,6 +375,11 @@ declare global {
      * `defaultPosId` (dedicated PdV) + the Facturador-collision check. */
     autoInvoice?: boolean;
     defaultPosId?: number; // dedicated AFIP PdV for the ML channel.
+    /** Epoch ms of the operator's attestation that ML's own Facturador is
+     * OFF for this account (api#1655) — required before `autoInvoice` can
+     * be enabled (no public ML API exposes Facturador state). Audit trail;
+     * absent = never attested. */
+    facturadorAttestedAt?: number;
     // Outbound stock-sync knobs, applied in order: buffer → limit → pause
     // (industry-convergent; persisted via diff-PATCH from app#1256).
     syncPolicy?: {
@@ -418,6 +423,12 @@ declare global {
   interface MercadolibrePatchInput {
     autoInvoice?: boolean;
     defaultPosId?: number | null;
+    /** WRITE-ONLY attestation flag (api#1655): `true` = the operator
+     * confirms ML's own Facturador is OFF for this account. The BE stamps
+     * `facturadorAttestedAt` (epoch ms) — the boolean itself is never
+     * persisted. Required (same request or previously stamped) when
+     * `autoInvoice` flips to `true`; otherwise 422. */
+    facturadorAttested?: boolean;
     syncPolicy?: MercadolibreSyncPolicyInput;
   }
 

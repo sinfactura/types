@@ -58,6 +58,10 @@ declare global {
     expiresAt?: number;
     autoInvoice?: boolean;
     defaultPosId?: number;
+    /** api#1655 — when the operator attested ML's own Facturador is OFF
+     * (epoch ms); absent = never attested. FE gates the autoInvoice toggle
+     * on this. */
+    facturadorAttestedAt?: number;
     syncPolicy?: Mercadolibre["syncPolicy"];
   }
 
