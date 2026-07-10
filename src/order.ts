@@ -123,6 +123,17 @@ declare global {
 			taxpayerType?: string;
 			iibbNumber?: string; // taxes.iibb_number
 		};
+		// Order-level health signals for Orders/Order-screen badges (app#1257 FE
+		// follow-up). Computed best-effort at sync/auto-invoice time; a flag is
+		// absent until evaluated. api#1654.
+		discrepancies?: {
+			priceMismatch?: boolean; // ML line unit_price ≠ SKU-linked Product price.
+			oversell?: boolean; // ordered qty > SKU-linked Product available stock.
+			missingCuit?: boolean; // billing info yields no valid CUIT for Factura A.
+		};
+		// fiscal_documents upload outcome (api#1654): 'pending' while in flight,
+		// 'uploaded' on success, 'failed' on error. Absent = no invoice issued yet.
+		fiscalDocumentStatus?: 'uploaded' | 'failed' | 'pending';
 	}
 
 	// Line-level ML identity + stock provenance (order_items[].stock[]),
