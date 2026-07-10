@@ -7,6 +7,16 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.6.47
+
+- **feat(mercadolibre):** `MlCategoryCandidate` + `MlCategoryAttributeSchema`
+  graduated from api main (types#100, api#1664 ↔ app#1933) — the publish
+  composer's override-arm read feeds: the confirm/override picker's
+  `domain_discovery/search` candidate list and the standalone
+  category-attribute-schema bundle for a FE-picked `categoryId`.
+  `PublishPrediction` gains `candidates: MlCategoryCandidate[]` (required —
+  api's handler always returns an array, possibly empty).
+
 ## 1.6.46
 
 - **feat(mercadolibre):** `MercadolibreSyncPolicyInput` / `MercadolibrePatchInput`
