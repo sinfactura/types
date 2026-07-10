@@ -176,9 +176,37 @@ declare global {
     gtinRequirement: GtinRequirementTag;
   }
 
+  // A single `domain_discovery/search` hit, mapped light (no
+  // attribute-schema reads) — the override picker's raw material
+  // (api#1664): the FE lets the seller pick any of these instead of the
+  // top-1 `MlCategoryPrediction` guess, then calls the category-attribute
+  // schema for the picked `categoryId` (graduated from api in types#100).
+  interface MlCategoryCandidate {
+    domainId?: string;
+    domainName: string;
+    categoryId: string;
+    categoryName: string;
+  }
+
   // `data` of GET /mercadolibre/products/publish?productId=X.
   interface PublishPrediction extends MlCategoryPrediction {
     isUpMigrated: boolean;
+    // ALL `domain_discovery/search` hits (ML's own probability order,
+    // top-1 included), mapped light — the confirm/override picker's
+    // candidate list (api#1664, graduated in types#100).
+    candidates: MlCategoryCandidate[];
+  }
+
+  // Standalone category-attribute-schema bundle for the publish composer's
+  // override arm (api#1664) — callable directly against any FE-picked
+  // `categoryId` (e.g. a `PublishPrediction.candidates` entry) without
+  // re-running domain_discovery (graduated from api in types#100).
+  interface MlCategoryAttributeSchema {
+    categoryId: string;
+    requiredAttributes: MlRequiredAttribute[];
+    gtinRequirement: GtinRequirementTag;
+    maxTitleLength?: number;
+    immediatePayment?: "required" | "optional";
   }
 
   // POST /mercadolibre/products/publish request body. The BE
