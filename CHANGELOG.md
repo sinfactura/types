@@ -7,6 +7,21 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.6.46
+
+- **feat(mercadolibre):** `MercadolibreSyncPolicyInput` / `MercadolibrePatchInput`
+  (api#1650) — write-oriented shapes for `PATCH /store`'s `mercadolibre` body.
+  `syncPolicy`'s knobs accept `null` to mean "clear it" (an `InputNumber`-style
+  control emits `null`, not `undefined`, on clear); the BE never persists
+  `null`, so the read-side `Mercadolibre['syncPolicy']` is unchanged. Prefer
+  `MercadolibrePatchInput` over `Partial<Mercadolibre>` for PATCH bodies.
+- **chore:** graduate 5 in-flight local-bridge augmentations from `api`'s
+  `@types/sinfactura-types/index.d.ts`, each already shipped and in live use —
+  `StoreConfigAdminOverrideInput` (api#1509 Part A), `OrderMercadolibre`
+  `.mlLastUpdated` (api#1574) + `.paid` (api#1576), `CAEAPeriod`
+  `.order`/`.phase` + `CAEAInformResult.pendingInvoices`/`.classification`
+  (api#1638), `ProductChannelMapping.regime`/`.stockMirrorOnly` (api#1649).
+
 ## 1.6.45
 
 - **feat(mercadolibre):** publish-composer wire shapes graduated from api main

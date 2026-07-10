@@ -384,6 +384,40 @@ declare global {
     };
   }
 
+  // ───────────────────────────── Mercadolibre PATCH write shape (api#1650) ─────────────────────────────
+
+  /**
+   * Wire/write shape for `mercadolibre.syncPolicy` accepted by `PATCH /store`
+   * (api#1650) — distinct from the read-side `Mercadolibre['syncPolicy']`
+   * above because each knob additionally accepts `null` to mean "clear it"
+   * (an `InputNumber`-style FE control emits `null`, not `undefined`, on
+   * clear). `null` is a WRITE-ONLY signal: the BE deep-merges it into the
+   * stored leaf and deletes the knob rather than ever persisting a DynamoDB
+   * `null` — so the read shape (`Mercadolibre['syncPolicy']`) never contains
+   * `null` and does not need to change.
+   */
+  interface MercadolibreSyncPolicyInput {
+    stockBuffer?: number | null;
+    stockLimit?: number | null;
+    paused?: boolean | null;
+  }
+
+  /**
+   * Full write shape for the `mercadolibre` key of `PATCH /store`'s body
+   * (`mercadolibrePatchSchema`, `stacks/lambdas/store/_patch.ts`). `autoInvoice`
+   * / `defaultPosId` are NOT nullable yet — clearing a previously-set
+   * `defaultPosId` is tracked separately (api#1656, not yet accepted by the
+   * BE); `syncPolicy` is the one sub-object with write-time null-clear
+   * semantics today (api#1650). Prefer this over `Partial<Mercadolibre>` for
+   * PATCH request bodies — the read-side interface can't express `syncPolicy`'s
+   * nullable knobs.
+   */
+  interface MercadolibrePatchInput {
+    autoInvoice?: boolean;
+    defaultPosId?: number;
+    syncPolicy?: MercadolibreSyncPolicyInput;
+  }
+
   interface Afip {
     production: boolean;
     // ADDRESS
@@ -493,6 +527,29 @@ declare global {
   interface StoreWarning {
     code: StoreWarningCode;
     stores: string[]; // other STO ids sharing the CUIT
+  }
+
+  // ───────────────────────────── Cross-tenant store-config admin override (api#1509) ─────────────────────────────
+
+  /**
+   * Request body for the MANAGER cross-tenant `PUT /platform/stores/{storeId}`
+   * config+ecommerce override (api#1509 Part A), mirroring the already-published
+   * `SubscriptionAdminOverrideInput` (api#827). Merge-never-clobber on the BE:
+   * nested `config`/`ecommerce` fields the payload omits are preserved.
+   * Deliberately excludes credential-bearing integration fields (AFIP/MP) --
+   * those stay owned by the tenant's own `PATCH /store` + OAuth flows.
+   */
+  interface StoreConfigAdminOverrideInput {
+    config?: {
+      priceDecimals?: 0 | 1 | 2 | 3;
+      stock?: boolean;
+      changePrice?: boolean;
+      displayCurrency?: string;
+      defaultProductCurrency?: string;
+      defaultAccountCurrency?: string;
+    };
+    ecommerce?: Ecommerce;
+    reason: string;
   }
 }
 

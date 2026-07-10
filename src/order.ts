@@ -96,6 +96,14 @@ declare global {
 		// e.g. 'fulfillment' (Full — stock mirror-only, never restock locally),
 		// 'cross_docking', 'self_service'.
 		logisticType?: string;
+		// ML's own `last_updated` (epoch ms) — the out-of-order-event guard for
+		// the orders_v2 conditional upsert, kept separate from `Order.updatedAt`
+		// so unrelated local writes (print/tag/delivery) never interfere with
+		// ML's own event clock (api#1574).
+		mlLastUpdated?: number;
+		// ML's own `order.status === 'paid'` — the auto-invoice hook's trigger
+		// signal, denormalized off `MeliOrderDetail` (api#1576).
+		paid?: boolean;
 		items?: OrderMercadolibreItem[];
 		// Marketplace fees stamped at ingest, self-describing per ADR-0013 —
 		// feeds order-detail net proceeds + margin analytics (app#1934).

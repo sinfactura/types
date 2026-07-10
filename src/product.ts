@@ -86,6 +86,14 @@ declare global {
 		basis?: MlMatchBasis | 'manual';
 		// Raw channel error causes (e.g. ML `cause[]`) for the rejected state.
 		syncErrors?: string[];
+		// UP-aware MercadoLibre stock regime (api#1635): classic single-SKU
+		// listing vs. coexistence with a legacy pub, vs. multi-origin/UP-managed
+		// — lets the FE render per-channel regime state without re-deriving it
+		// from raw ML fields (api#1649).
+		regime?: 'classic' | 'coexistence' | 'multi-origin';
+		// Whether outbound stock sync should mirror the channel's own count
+		// (e.g. Full fulfillment) rather than push local stock (api#1649).
+		stockMirrorOnly?: boolean;
 	}
 
 }

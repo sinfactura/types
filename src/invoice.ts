@@ -217,6 +217,15 @@ declare global {
     // FECAEARegInformativo, NOT a hardcoded day-count assumption. Optional:
     // absent on CAEAPeriod rows requested before this field was captured.
     fchTopeInf?: string;
+    // The fortnight half this period covers (1 = days 1-15, 2 = 16-end) --
+    // previously surfaced only via an ad hoc `CAEAPeriod & { order: 1 | 2 }`
+    // intersection; promoted here so `GET /caea`'s period-history response
+    // can carry it directly (api#1638). Optional: single-period reads like
+    // `getCurrentCaea`/`getCaeaForPeriod` don't need it.
+    order?: 1 | 2;
+    // Calendar-relative annotation `GET /caea` computes per row (never
+    // stored) -- optional for the same reason `order` is (api#1638).
+    phase?: 'upcoming' | 'active' | 'past';
   }
 
   /** Result of requesting a new CAEA code for an upcoming period. */
@@ -231,6 +240,12 @@ declare global {
     invoiceCount: number;
     informedAt: string; // ISO timestamp
     errors?: ArcaError[];
+    // Count of CAEA-stamped invoices still awaiting Inform for this period --
+    // mirrors the outcome `informCaeaPeriodForStore` already computes, so the
+    // on-demand admin Inform/no-movement trigger endpoint can surface the
+    // same shape the cron already produces (api#1638).
+    pendingInvoices: number;
+    classification?: 'inform' | 'recovered' | 'zero-movement' | 'drift';
   }
 
   /**
