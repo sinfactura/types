@@ -125,6 +125,97 @@ declare global {
     currency: string; // catalogId
     paidAt?: number; // unix ms
   }
+
+  // ───────────────────────────────────────────────────────────────
+  // Publish composer wire shapes (api#1577 ↔ app#1933 — the
+  // predict/submit contract; graduated from api in types#99)
+  // ───────────────────────────────────────────────────────────────
+
+  // The category's GTIN-attribute requirement, distilled from its
+  // tags: 'new_required' = required for condition:new items,
+  // 'conditional_required' = required unless an exemption applies.
+  type GtinRequirementTag =
+    | "not_required"
+    | "conditional_required"
+    | "new_required";
+
+  // ML's attribute shape, used BOTH on domain_discovery/search's
+  // prediction response and on POST /items' request body. `value_id`
+  // is a known catalog value; `value_name` alone is a custom value.
+  interface MlAttribute {
+    id: string;
+    name?: string;
+    value_id?: string;
+    value_name?: string;
+    attribute_group_id?: string;
+    attribute_group_name?: string;
+  }
+
+  // GET /categories/$ID/attributes distilled to per-attribute
+  // required-ness (required = any of required / conditional_required /
+  // new_required tags; raw `tags` kept alongside) — drives the
+  // composer's dynamic required-field renderer.
+  interface MlRequiredAttribute {
+    id: string;
+    name?: string;
+    required: boolean;
+    tags?: string[];
+  }
+
+  // Category prediction bundle inside the publish GET response.
+  interface MlCategoryPrediction {
+    domainName: string;
+    categoryId: string;
+    categoryName: string;
+    attributes: MlAttribute[];
+    requiredAttributes: MlRequiredAttribute[];
+    // Awareness only (all MLA condition:new categories read
+    // 'required') — never written onto the POST /items body.
+    immediatePayment?: "required" | "optional";
+    maxTitleLength?: number;
+    gtinRequirement: GtinRequirementTag;
+  }
+
+  // `data` of GET /mercadolibre/products/publish?productId=X.
+  interface PublishPrediction extends MlCategoryPrediction {
+    isUpMigrated: boolean;
+  }
+
+  // POST /mercadolibre/products/publish request body. The BE
+  // re-derives isUpMigrated / gtinRequirement / maxTitleLength
+  // server-side from `categoryId` — the predict step's answers are
+  // never trusted on submit.
+  interface MlPublishRequest {
+    productId: string;
+    categoryId: string;
+    attributes: MlAttribute[];
+    listingTypeId: string;
+    saleTerms?: Record<string, unknown>[];
+    pictures?: { url: string }[];
+    description?: string;
+  }
+
+  // `data` of the publish POST success response.
+  interface MlPublishResponse {
+    productId: string;
+    itemId: string;
+    userProductId?: string;
+    isUpMigrated: boolean;
+    status: "linked";
+  }
+
+  // One per-field error in the 422 ML_VALIDATION_FAILED envelope
+  // (`fieldErrors: MlFieldError[]`) — ML's `cause[]` mapped to the
+  // request-body path (leading `item.` stripped; no usable reference
+  // → 'general'). `type`: 'warning' is non-blocking (ML often
+  // auto-fills the field), 'error' blocks until corrected.
+  interface MlFieldError {
+    field: string;
+    code?: string;
+    message: string;
+    type?: "warning" | "error";
+    causeId?: number;
+  }
 }
 
 export {}; // NOSONAR
