@@ -34,8 +34,10 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       # Node 22 bundles npm 10; OIDC trusted publishing needs npm >= 11.5.1.
+      # Pinned to the 11.x line: npm@12.0.0 (2026-07-08) self-installs a
+      # broken tree on the runner (MODULE_NOT_FOUND: sigstore at publish).
       - name: Upgrade npm for OIDC support
-        run: npm install -g npm@latest
+        run: npm install -g npm@11
 
       - name: Skip when this version is already published
         id: guard
