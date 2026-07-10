@@ -404,17 +404,20 @@ declare global {
 
   /**
    * Full write shape for the `mercadolibre` key of `PATCH /store`'s body
-   * (`mercadolibrePatchSchema`, `stacks/lambdas/store/_patch.ts`). `autoInvoice`
-   * / `defaultPosId` are NOT nullable yet — clearing a previously-set
-   * `defaultPosId` is tracked separately (api#1656, not yet accepted by the
-   * BE); `syncPolicy` is the one sub-object with write-time null-clear
-   * semantics today (api#1650). Prefer this over `Partial<Mercadolibre>` for
-   * PATCH request bodies — the read-side interface can't express `syncPolicy`'s
-   * nullable knobs.
+   * (`mercadolibrePatchSchema`, `stacks/lambdas/store/_patch.ts`). `defaultPosId`
+   * additionally accepts `null` to clear a previously-set dedicated PdV
+   * (api#1656) — same WRITE-ONLY null-means-remove convention as
+   * `syncPolicy`'s knobs (api#1650): the BE deletes the field rather than
+   * ever persisting a DynamoDB `null`, so the read shape
+   * (`Mercadolibre['defaultPosId']`) stays `number | undefined` and does not
+   * need to change. `autoInvoice` is not nullable — it's a plain boolean
+   * toggle, never "unset." Prefer this over `Partial<Mercadolibre>` for
+   * PATCH request bodies — the read-side interface can't express these
+   * write-time null-clear semantics.
    */
   interface MercadolibrePatchInput {
     autoInvoice?: boolean;
-    defaultPosId?: number;
+    defaultPosId?: number | null;
     syncPolicy?: MercadolibreSyncPolicyInput;
   }
 
