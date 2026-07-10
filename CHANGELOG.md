@@ -7,6 +7,21 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.6.45
+
+- **feat(mercadolibre):** publish-composer wire shapes graduated from api main
+  (types#99 + types#98, api#1577 ↔ app#1933): `PublishPrediction` (+ its
+  `MlCategoryPrediction` base), `MlAttribute`, `MlRequiredAttribute`,
+  `GtinRequirementTag`, `MlPublishRequest` (POST body), `MlPublishResponse`
+  (POST success `data`), `MlFieldError` (the 422 `ML_VALIDATION_FAILED` →
+  `fieldErrors[]` payload). api#1664's override-arm read feeds (category
+  candidates + attributes-by-categoryId) graduate in a follow-up release when
+  that lands.
+- **fix(store):** `Afip.showInvoiceLogo` retyped `string` → `boolean`
+  (types#96) — it's a boolean toggle: FE binds a Switch and sends a boolean,
+  BE reads it truthy (`makeInvoicePdf`); the string typing was papered over in
+  app with an `as Afip` cast. Zero consumers read it as a string.
+
 ## 1.6.44
 
 - **feat(mercadolibre):** MercadoLibre contracts, one consolidated release
