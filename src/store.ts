@@ -399,7 +399,7 @@ declare global {
     pointOfSale?: number; // PTO_VTA
     activitiesStartedAt?: number; // INICIO_ACTIVIDADES
     invoiceNote?: string; // NOTA EN FACTURA
-    showInvoiceLogo?: string; // logo en factura
+    showInvoiceLogo?: boolean; // logo en factura — boolean toggle (types#96; was mistyped string)
     // catalogId (api#942) — FK to PlatformCurrency. The AFIP MonId
     // projection (`'PES' | 'DOL'`) is derived at invoice-write time from
     // `PlatformCurrency.afipCode` of the referenced catalog row. Was
