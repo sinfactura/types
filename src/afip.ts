@@ -80,6 +80,25 @@ declare global {
     errorRegimenGeneral?: AfipErrorRegimenGeneral;
   }
 
+  // api#1704 — normalized taxpayer identity resolved from Padrón A5
+  // (registerScopeFiveService.getTaxpayerDetails → CuitAfip) by
+  // resolvePadronIdentity; the wire shape of GET /afip?mode=padron. condFiscal
+  // maps to FISCAL_CONDITIONS (20 Monotributo | 30 RI | 32 Exento), unset when
+  // AFIP returns no fiscal regime; docType is always 80 (CUIT).
+  interface PadronIdentity {
+    cuit: string; // 11-digit, the looked-up CUIT
+    razonSocial: string; // legal name (JURIDICA) or "apellido nombre" (FISICA)
+    tipoPersona: "FISICA" | "JURIDICA";
+    estadoClave: string; // e.g. "ACTIVO" | "INACTIVO"
+    docType: number; // always 80 (CUIT)
+    condFiscal?: number; // 20 Mono | 30 RI | 32 Exento — unset when unresolved
+    condFiscalName?: string; // from FISCAL_CONDITIONS when condFiscal is set
+    address?: string;
+    city?: string;
+    province?: string;
+    postalCode?: string;
+  }
+
   /**
    * Cached AFIP/ARCA platform-wide health snapshot (api#1213). One DDB row
    * (PK 'AFIP_HEALTH', SK 'current') overwritten every ~5 min by the
