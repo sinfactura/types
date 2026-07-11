@@ -37,6 +37,10 @@ declare global {
   // screen (app#1253). `invalid_operator_user_id` is the ML
   // operator-sub-account state — the seller authorized with a
   // collaborator account; FE CTA: "reconectá con la cuenta principal".
+  // `ML_SELLER_ALREADY_LINKED` (api#1707) is the seller-uniqueness state —
+  // the exchange SUCCEEDED but that ML account is already linked to another
+  // store; distinct from OAUTH_EXCHANGE_FAILED (which means the exchange
+  // itself failed). FE CTA: "esta cuenta de ML ya está vinculada a otra tienda".
   type MlOauthErrorCode =
     | "OAUTH_USER_DENIED"
     | "OAUTH_STATE_MISMATCH"
@@ -44,7 +48,8 @@ declare global {
     | "ML_OAUTH_NOT_CONFIGURED"
     | "ML_REDIRECT_URI_MISMATCH"
     | "ML_OFFLINE_ACCESS_NOT_GRANTED"
-    | "ML_OPERATOR_SUB_ACCOUNT";
+    | "ML_OPERATOR_SUB_ACCOUNT"
+    | "ML_SELLER_ALREADY_LINKED";
 
   // FE-safe DTO returned by GET /mercadolibre/status (api#1572).
   // Strips tokens and any field that must never leave the BE. The FE
