@@ -68,6 +68,36 @@ declare global {
 		// every non-A purchase. Optional/forward-only — legacy rows without it
 		// fall back to A-class in the builder.
 		cbteClass?: 'A' | 'B' | 'C';
+
+		// api#1703 — WSCDC constatación inputs (forward-only; populated by manual
+		// entry now, by the app#723 AI extractor later — same fields).
+		voucherDate?: number; // yyyymmdd — voucher's REAL emission date (WSCDC CbteFch); distinct from `dated` (load date).
+		pointOfSale?: number; // WSCDC PtoVta
+		invoiceNumber?: number; // WSCDC CbteNro
+		authorizationCode?: string; // CAE/CAEA/CAI (WSCDC CodAutorizacion)
+		authorizationMode?: 'CAE' | 'CAEA' | 'CAI'; // WSCDC CbteModo (defaults 'CAE')
+		constatacion?: SupplierInvoiceConstatacion; // WSCDC result, written async by the supplier-constatar consumer
+	}
+
+	// api#1703 — generic per-invoice ARCA trust-check status, shared across
+	// WSCDC (this ticket) and APOC (api#1563) so the FE renders one uniform
+	// chip. Each check keeps its own payload (constatacion/apoc are separate
+	// top-level SupplierInvoice fields — collision-safe for concurrent writers).
+	type SupplierInvoiceCheckStatus =
+		| 'pending' // enqueued / in-flight
+		| 'passed' // WSCDC 'A' (verde)
+		| 'warning' // WSCDC 'O' — observado (ámbar)
+		| 'failed' // WSCDC 'R' — no encontrado / total no coincide (rojo)
+		| 'not_applicable' // CAE absent, type outside grid, or store has no AFIP cert (gris)
+		| 'error'; // WSCDC unreachable / transient auth failure (reintentar)
+
+	// api#1703 — WSCDC ComprobanteConstatar outcome persisted on the row.
+	interface SupplierInvoiceConstatacion {
+		status: SupplierInvoiceCheckStatus;
+		result?: 'A' | 'O' | 'R'; // ARCA Resultado (A→passed, O→warning, R→failed)
+		reason?: string; // present when failed
+		observations?: InvoiceObservation[]; // present when observado
+		verifiedAt?: string; // ISO — WSCDC FchProceso
 	}
 
 	/**
