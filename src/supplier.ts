@@ -133,6 +133,16 @@ declare global {
 	}
 
 	/**
+	 * WSCDC endpoint error-code vocabulary (api#1682) -- the 502 `error` values
+	 * of `POST /afip {mode:'wscdc'}` (mirrors the MlOauthErrorCode pattern).
+	 * Producer: api `stacks/lambdas/afip/helpers/wscdc.ts`
+	 * (`ConstatarComprobanteOutcome`). `WSCDC_NOT_CONFIGURED` = expected
+	 * pre-enablement state (FE: disabled panel + Sentry suppression); the other
+	 * two are genuine incidents that must surface.
+	 */
+	type WscdcErrorCode = 'WSCDC_NOT_CONFIGURED' | 'WSCDC_AUTH_FAILED' | 'WSCDC_COMPROBANTE_CONSTATAR_FAILED';
+
+	/**
 	 * `GET /reports?mode=supplier-invoices` per-date resume row (api#1550) --
 	 * compras-side mirror of the ventas `mode=invoices` resume shape. Unlike
 	 * ventas Invoice, SupplierInvoice has no CAE-authorization concept, so
