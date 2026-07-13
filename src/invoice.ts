@@ -179,6 +179,20 @@ declare global {
   }
 
   /**
+   * `GET /reports?mode=iva-simple-apertura&date=YYYYMM` response (api#1741,
+   * IVA Simple F.2051). `rows` is the CRLF-terminated, header-less apertura
+   * CSV (`;` separators, `,` decimals) for the accountant to import into
+   * Portal IVA; empty string = empty period. `count` = aggregated bucket
+   * rows, NOT source vouchers. Requires `Afip.actividades` configured —
+   * otherwise `400 ACTIVIDADES_NOT_CONFIGURED`.
+   */
+  interface IvaSimpleAperturaResponse {
+    period: string;
+    rows: string;
+    count: number;
+  }
+
+  /**
    * ARCA Obs.Code/Obs.Msg pair, parsed from FECAESolicitar's Observaciones[]
    * when Resultado='O' (approved-with-warnings). (api#1559)
    *
