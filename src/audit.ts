@@ -66,8 +66,11 @@ declare global {
 		ts: number;
 		/** Which ARCA fiscal op. `ConstatarComprobante` added for WSCDC
 		 * third-party voucher verification (api#1500), which logs every check
-		 * to this same table per its AC. */
-		operation: 'FECAESolicitar' | 'FECompConsultar' | 'ConstatarComprobante';
+		 * to this same table per its AC. `FEXAuthorize` (WSFEX export
+		 * issuance) was already accepted by the api's runtime Zod mirror —
+		 * added here to close the drift. `ConsultarApoc` added for the APOC
+		 * apocryphal-CUIT registry check (api#1563). */
+		operation: 'FECAESolicitar' | 'FECompConsultar' | 'FEXAuthorize' | 'ConstatarComprobante' | 'ConsultarApoc';
 		/** Issuer CUIT (RAW — masked only at display). */
 		cuit: string;
 		/** AFIP environment the call hit. */
@@ -93,6 +96,29 @@ declare global {
 		/** Full request args + response body (raw), for the regulator record. */
 		requestPayload: Record<string, unknown>;
 		responsePayload: Record<string, unknown>;
+	}
+
+	/** APOC (base e-Apoc, "facturas apócrifas") CUIT check request — api#1563.
+	 * Data source is ARCA's public registry snapshot imported daily into the
+	 * api's `APOC` DDB partition (no per-check ARCA call). */
+	interface ApocCheckRequest {
+		/** The counterparty CUIT being checked (the invoice issuer, not this store). */
+		cuit: string;
+	}
+
+	/** Result of an APOC registry check. Every check is logged to
+	 * FiscalAuditEvent with operation 'ConsultarApoc'. */
+	interface ApocCheckResult {
+		/** True if the CUIT appears in ARCA's APOC registry. */
+		flagged: boolean;
+		/** ISO date — when ARCA flagged this CUIT ("Fecha Condición Apócrifo"); present when flagged. */
+		fraudConditionDate?: string;
+		/** ISO date — when ARCA published the flag; present when flagged. */
+		publicationDate?: string;
+		/** ISO date — freshness of the imported registry snapshot (the file's "Generado" stamp). */
+		registrySnapshotAt: string;
+		/** ISO timestamp of this check. */
+		checkedAt: string;
 	}
 
 }
