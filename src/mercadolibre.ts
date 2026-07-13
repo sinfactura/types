@@ -62,6 +62,7 @@ declare global {
     connectedAt?: number;
     expiresAt?: number;
     autoInvoice?: boolean;
+    autoCreditNote?: boolean; // api#1684 — read side of the auto-NC toggle.
     defaultPosId?: number;
     /** api#1655 — when the operator attested ML's own Facturador is OFF
      * (epoch ms); absent = never attested. FE gates the autoInvoice toggle

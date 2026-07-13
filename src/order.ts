@@ -42,6 +42,17 @@ declare global {
 		tagPrinted?: boolean;
 		invoices?: Partial<Invoice>[];
 		returns?: Partial<Return>[];
+		// api#1684 — auto-credit-note status stamped once an NC is emitted (or
+		// attempted) against this ML order; FE renders "NC emitida" from this.
+		mercadolibreCreditNote?: {
+			creditNoteNumber?: number; // the emitted NC's ARCA CbteNro.
+			// Ms epoch of a successful emission — also the idempotency marker the
+			// emit-decision conditional-writes against (no double-NC per order).
+			emittedAt?: number;
+			status?: "emitted" | "skipped" | "failed";
+			reason?: string; // populated on skip/failure — guard reason or error code.
+			claimId?: string; // the ML claim that triggered the emission (audit).
+		};
 		disabled?: boolean;
 		items: Partial<BasketItem>[];
 		rating?: number;

@@ -374,6 +374,10 @@ declare global {
     /** Per-channel auto-invoice toggle — default OFF; enabling requires
      * `defaultPosId` (dedicated PdV) + the Facturador-collision check. */
     autoInvoice?: boolean;
+    /** Auto-emit a Nota de Crédito when a full-sale ML return is finalized
+     * (api#1684) — default OFF; requires `autoInvoice` and rides the same
+     * dedicated-PdV + Facturador-collision guards. */
+    autoCreditNote?: boolean;
     defaultPosId?: number; // dedicated AFIP PdV for the ML channel.
     /** Epoch ms of the operator's attestation that ML's own Facturador is
      * OFF for this account (api#1655) — required before `autoInvoice` can
