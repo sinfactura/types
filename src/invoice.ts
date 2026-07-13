@@ -27,14 +27,14 @@ declare global {
     address: string; // address and postalCode
     location: string; // city and province
     concept: number; // CONCEPTO 1 productos 2 servicios
+    // cuitType/cuit carry the #1368-RESOLVED receptor identity actually
+    // declared on the voucher (explicit docType/docNumber override, or the
+    // condFiscal-derived fallback) under these legacy column names —
+    // cuitType = ARCA DocTipo (80 CUIT / 86 CUIL / 96 DNI / 99 CF),
+    // cuit = DocNro as string ('0' for CF). api#1731 freezes an NC's
+    // identity to its original FAC's values by reading these two fields.
     cuitType: number; // CUIT_TIPO
     cuit: string; // CUIT CF?
-    // api#1368 — the receptor identity actually declared on the voucher
-    // (explicit docType/docNumber override, or the condFiscal-derived
-    // fallback). Persisted by the api since #1368; typed as of 1.6.56 —
-    // api#1731 freezes an NC's identity to its original FAC's values.
-    docTipo?: number; // ARCA DocTipo (80 CUIT / 86 CUIL / 96 DNI / 99 CF)
-    docNro?: number; // ARCA DocNro (0 for CF)
     // catalogId (api#942) — FK to PlatformCurrency. AFIP `'PES'/'DOL'`
     // projection happens at invoice-write time via `catalog.afipCode`.
     currency?: string;
