@@ -97,6 +97,10 @@ declare global {
     city?: string;
     province?: string;
     postalCode?: string;
+    /** Registered activity codes from the A5 response (api#1741 — feeds store
+     * actividades autofill). Present only on cache rows written at
+     * PADRON_CACHE_SCHEMA_VERSION >= 2; older rows re-fetch on read. */
+    actividades?: { id: number; description?: string }[];
   }
 
   /**

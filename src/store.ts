@@ -450,6 +450,19 @@ declare global {
     // NEW
     pointOfSale?: number; // PTO_VTA
     activitiesStartedAt?: number; // INICIO_ACTIVIDADES
+    /** Registered AFIP activity codes (6-digit nomenclador), api#1741 — drives the
+     * IVA Simple F.2051 apertura CSV export; autofillable from Padrón A5. */
+    actividades?: number[];
+    /** Provincial ISIB transparency config (Ley 27.743 art. 99 adhesions), api#1742.
+     * v1: CABA only (AGIP Res. 169/26 — prints the RATE, never an amount). `rate` is
+     * the store's own Ley Tarifaria percentage (e.g. 3.5 → "3,50%"); `regime: 'cm'`
+     * adds the Convenio Multilateral second line; `exempt` prints the exempt legend. */
+    iibbTransparency?: {
+      jurisdiction: 'caba';
+      regime: 'local' | 'cm';
+      rate: number;
+      exempt?: boolean;
+    };
     invoiceNote?: string; // NOTA EN FACTURA
     showInvoiceLogo?: boolean; // logo en factura — boolean toggle (types#96; was mistyped string)
     // catalogId (api#942) — FK to PlatformCurrency. The AFIP MonId
