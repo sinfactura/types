@@ -346,6 +346,14 @@ declare global {
   // Decreto 471/2018 + RG 4367/2018 (amended by RG 4919/2021, RG 5395/2023,
   // RG 5764/2025).
 
+  /** WSFECRED rejection-motivo catalog (`consultarTiposMotivosRechazo`), refreshed on a
+   * schedule. Persists as the platform-wide singleton PLATFORM / FCE_MOTIVOS (AFIP-global,
+   * not per-store) — api#1647; mirrors WsfexReferenceData. */
+  interface FceMotivosCatalog {
+    motivos: { codigo: number; descripcion?: string }[];
+    fetchedAt: string; // ISO timestamp — same convention as WsfexReferenceData
+  }
+
   type FceStatus = 'emitted' | 'accepted' | 'rejected' | 'ceded';
 
   /** FCE-specific fields, present only when Invoice.invoiceType is 201/202/203, 206/207/208, or 211/212/213. */
