@@ -52,6 +52,7 @@ declare global {
 			status?: "emitted" | "skipped" | "failed";
 			reason?: string; // populated on skip/failure — guard reason or error code.
 			claimId?: string; // the ML claim that triggered the emission (audit).
+			source?: 'auto' | 'manual'; // auto vs manual emission path (api#1723).
 		};
 		disabled?: boolean;
 		items: Partial<BasketItem>[];
