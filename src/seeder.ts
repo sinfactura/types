@@ -147,6 +147,17 @@ declare global {
 		completed: number;
 		total: number;
 		costUsd?: number;
+		/**
+		 * `true` once the drafts have actually been copied into the live partitions.
+		 *
+		 * `status: 'done'` alone CANNOT tell you this — it means "generation finished",
+		 * and it keeps saying that after the commit too. Without this flag the FE can't
+		 * tell a job that is READY to commit from one already committed, so the wizard
+		 * offers "Confirmar" a second time and the tenant earns a 409.
+		 *
+		 * Derived server-side from an internal marker; the timestamp itself never ships.
+		 */
+		committed?: boolean;
 		/** Preview cards streamed so far. EMPTY until the stage workers write `SEED_DRAFT#` rows (api#1080). */
 		samples?: SeedSampleCard[];
 	}
