@@ -25,6 +25,7 @@ export * from "./pricing";
 export * from "./print";
 export * from "./product";
 export * from "./return";
+export * from "./seeder";
 export * from "./serviceOrder";
 export * from "./serviceTemplate";
 export * from "./stock";

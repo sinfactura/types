@@ -524,6 +524,14 @@ declare global {
     // Cert expiry (api#1374): ms-epoch of the cert's notAfter, parsed on read
     // from the stored PEM by the api's sanitizeStoreRow — never the bytes.
     certExpiry?: number;
+    // api#1760 — manual-only "I've completed the ARCA relación" toggles.
+    // WSFECRED (FCE MiPyME) and WSCDC each need their own dedicated ARCA
+    // relación (+ MiPyME cert for FCE), distinct from just having `wsfe`
+    // enabled. No auto-detection: the tenant flips these on themselves once
+    // the relación is done. Absent/false = off; never mutated by any
+    // AFIP-calling handler.
+    fceEnabled?: boolean;
+    wscdcEnabled?: boolean;
   }
 
   type StoreAttributeNames = keyof Store;

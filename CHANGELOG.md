@@ -7,6 +7,18 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.6.63
+
+- **feat(seeder):** `SeedProfile`, `SeedJobHandle`, `SeederJob`, `SeedPhase` (7-value,
+  FE-frozen), `SeedProgressEvent`, `SeedSampleCard`, `SeedVertical`, `SeedScale`,
+  `SeedJobStartRequest`, `SeedAiTenantOpRequest` (types#103, app#1054, api#1073-#1082/
+  #1758/#1759) — the AI Tenant Seeder's wire/entity contracts. The event/profile/handle
+  shapes mirror the already-shipped FE code verbatim (FE shipped the scaffold before the
+  BE pipeline), not the original research blueprint.
+- **feat(store):** `Afip.fceEnabled` / `Afip.wscdcEnabled` (api#1760) — manual-only
+  toggles recording that a tenant has completed the WSFECRED/WSCDC ARCA relación; no
+  auto-detection.
+
 ## 1.6.47
 
 - **feat(mercadolibre):** `MlCategoryCandidate` + `MlCategoryAttributeSchema`
