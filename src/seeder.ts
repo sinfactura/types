@@ -16,14 +16,34 @@
 //     server-side (the SuperOp caller doesn't know the tenant's brands/categories/etc).
 
 declare global {
-	// Closed vertical enum. Matches the 4 verticals FE already ships (`VERTICAL_KEYS` in
-	// `constants.ts`) — narrower than both the epic body's stated 4
-	// (ferretería/gastronomía/textil/tecnología) and the research corpus's 8-vertical
-	// prompt pack (`ai-seeder/verticals.md` + `verticals-2.md`). Reconciling the final
-	// launch set is a pending product decision (app#1054 comment, 2026-07-14) — extend
-	// this union when decided (additive, non-breaking); FE's local `VERTICAL_KEYS` should
-	// import from here rather than redeclaring once resolved.
-	type SeedVertical = 'ferreteria' | 'kiosco' | 'libreria' | 'farmacia';
+	// Closed vertical enum — the 10-vertical launch set (product decision RESOLVED
+	// 2026-07-14, superseding the earlier "pending" note here). It is the UNION of two
+	// previously-disjoint sets: the 4 the FE shipped (`VERTICAL_KEYS` in `constants.ts` —
+	// ferreteria/kiosco/libreria/farmacia) and the 8 the research corpus wrote full prompt
+	// packs for (`ai-seeder/verticals.md` + `verticals-2.md`), which overlapped on only 2.
+	// `kiosco`/`libreria` have no research entry (packs authored in `verticals-3.md`); the
+	// other 6 were sitting fully-researched but unused.
+	//
+	// SERVICE verticals (servicio técnico, etc.) are deliberately NOT here — they'd seed a
+	// different SHAPE (isService products + ServiceTemplate + ServiceOrder + AFIP concept=2
+	// invoicing), and the Services feature itself is types-only today (app#758 open; no api
+	// routes, no FE screens). Deferred to a second round gated on that feature shipping.
+	//
+	// Extending stays additive/non-breaking. api's `RATES_BY_VERTICAL` is a
+	// `Record<SeedVertical, …>`, so the compiler forces its IVA tables to stay exhaustive
+	// with this union. FE's local `VERTICAL_KEYS` should import from here rather than
+	// redeclaring.
+	type SeedVertical =
+		| 'ferreteria'
+		| 'kiosco'
+		| 'libreria'
+		| 'farmacia'
+		| 'gastronomia'
+		| 'textil'
+		| 'tecnologia'
+		| 'panaderia'
+		| 'agropecuario'
+		| 'repuestos';
 
 	// SuperOp-only coarse sizing selector (app#1464's `scale` param). The wizard path
 	// skips this entirely and sends explicit `targetCounts` on `SeedProfile` instead.

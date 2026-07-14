@@ -7,6 +7,17 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.6.64
+
+- **feat(seeder):** `SeedVertical` widened 4 → 10 (api#1075, app#1054) — the launch set is
+  now the UNION of the 4 the FE shipped (`ferreteria`/`kiosco`/`libreria`/`farmacia`) and
+  the 8 the research corpus wrote full prompt packs for, which overlapped on only 2. Adds
+  `gastronomia`, `textil`, `tecnologia`, `panaderia`, `agropecuario`, `repuestos`.
+  Additive/non-breaking (a 4-value producer still assigns cleanly); api's
+  `Record<SeedVertical, …>` IVA tables are compiler-forced to stay exhaustive with it.
+  SERVICE verticals are deliberately excluded — different seed shape, and the Services
+  feature is types-only today (app#758).
+
 ## 1.6.63
 
 - **feat(seeder):** `SeedProfile`, `SeedJobHandle`, `SeederJob`, `SeedPhase` (7-value,
