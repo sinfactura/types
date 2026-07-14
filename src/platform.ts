@@ -11,6 +11,13 @@ export interface PlatformConfigEntry {
 	defaultValue: string | number | boolean;
 	scope: 'app' | 'web' | 'landing' | 'storefront';
 	description?: string;
+	// Inclusive bounds for a `valueType: 'number'` key (api#1078). Absent on
+	// unbounded/boolean/string keys. These are part of the WRITE contract, not a
+	// display hint: `POST /platform/globals` rejects an out-of-range value with a
+	// 400, so a client that ignores them lets an operator submit a value that
+	// cannot be saved. Render a bounded input and pre-empt the rejection.
+	min?: number;
+	max?: number;
 	updatedBy?: string;
 	updatedAt?: number;
 	// The value this key held immediately before its last write — an undo
