@@ -71,10 +71,46 @@ declare global {
 		locale: string;
 	}
 
+	// `POST /seeder/extract-profile` body — the free-text business description the LLM
+	// turns into a `SeedProfile` (api#1758, consuming the platform AI module api#1076).
+	// Mirrors the shipped FE Zod schema (`seederSchema.ts::businessDescriptionSchema`)
+	// field-for-field, INCLUDING its bounds: `rawText` 10–2000 chars, `location` ≤120.
+	//
+	// `vertical` is NULLABLE on purpose — the wizard lets the user skip the picker and
+	// have the model infer it from `rawText`. A non-null value is a HINT, not a
+	// constraint: the extractor may still return a different `SeedProfile.vertical` if
+	// the prose plainly contradicts it.
+	//
+	// Omitted from types#103 (the one shape of the frozen FE contract that never made it
+	// across); added by api#1758's preflight.
+	interface BusinessDescription {
+		vertical: SeedVertical | null;
+		rawText: string;
+		location?: string;
+	}
+
 	// `POST /seeder/run` body — mirrors the shipped FE `RunSeederArgs`
 	// (`app/src/app/services/seeder.ts`) exactly.
 	interface SeedJobStartRequest {
 		profile: SeedProfile;
+	}
+
+	// What a finished job actually produced. Carried on the terminal `seed_progress`
+	// frame (`phase: 'done'`) and returned by `POST /seeder/jobs/{id}/commit` as
+	// `committed`. Counts are ACTUALS — they can fall short of `SeedProfile.targetCounts`
+	// when a stage degrades (e.g. image failures stamp no-image and continue).
+	interface SeedSummary {
+		products: number;
+		customers: number;
+		orders: number;
+		invoices: number;
+	}
+
+	// `POST /seeder/jobs/{id}/commit` response — mirrors the shipped FE
+	// `commitSeedDraft` return (`{ committed: number }`). `committed` is the TOTAL row
+	// count copied from the `SEED_DRAFT#` namespace into the live partitions.
+	interface SeedCommitResult {
+		committed: number;
 	}
 
 	// `POST /platform/operations` `{ mode: 'seed-ai-tenant' }` body — mirrors app#1464's
@@ -131,10 +167,20 @@ declare global {
 		priceArs?: number;
 	}
 
-	// WSS payload — mirrors the shipped FE shape exactly
+	// WSS payload — mirrors the shipped FE shape
 	// (`seederSchema.ts::seedProgressEventSchema`). Delivered as
 	// `{ action: 'seed_progress', data: SeedProgressEvent }` over the existing
 	// `ws-message` pipeline (api#1082) — no direct ApiGatewayManagementApi calls.
+	//
+	// ⚠️ THIS IS THE SEEDER'S *ONLY* WS ACTION (resolved 2026-07-14, api#1079 preflight).
+	// There is no `seed.started` and no `seed_complete` — earlier AC on api#1079/#1081/
+	// #1082 named them, but no such wire type ever existed here and no FE handler ever
+	// listened for them. The job's whole lifecycle rides `phase`:
+	//   start    → `phase: 'planning'`, `completed: 0`
+	//   progress → `phase: 'generating' | 'streaming' | …` + `sample`
+	//   done     → `phase: 'done'`   + `summary`
+	//   failure  → `phase: 'error'`  + `error`
+	// This maps 1:1 onto the shipped FE reducer (`seederProgress.ts`) with zero new types.
 	interface SeedProgressEvent {
 		jobId: string;
 		phase: SeedPhase;
@@ -144,6 +190,11 @@ declare global {
 		etaMs?: number;
 		sample?: SeedSampleCard;
 		error?: string;
+		// Set on the TERMINAL `phase: 'done'` frame only. Additive and safe against the
+		// shipped FE: `seedProgressEventSchema` is a plain `z.object`, which STRIPS
+		// unknown keys rather than rejecting — so an old FE `safeParse`s this fine and
+		// simply ignores the field until app#1470 reads it.
+		summary?: SeedSummary;
 	}
 }
 
