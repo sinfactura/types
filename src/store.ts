@@ -426,6 +426,9 @@ declare global {
    */
   interface MercadolibrePatchInput {
     autoInvoice?: boolean;
+    /** Auto-emit a Nota de Crédito on a finalized full-sale ML return (api#1684).
+     *  BE-enforced: requires `autoInvoice` to be true (400 otherwise). */
+    autoCreditNote?: boolean;
     defaultPosId?: number | null;
     /** WRITE-ONLY attestation flag (api#1655): `true` = the operator
      * confirms ML's own Facturador is OFF for this account. The BE stamps
@@ -532,6 +535,22 @@ declare global {
     // AFIP-calling handler.
     fceEnabled?: boolean;
     wscdcEnabled?: boolean;
+  }
+
+  // ───────────────────────────── Afip PATCH write shape (api#1560/#1741/#1742) ─────────────────────────────
+
+  /**
+   * Write shape for the `afip` key of `PATCH /store`'s body. The wire accepts an
+   * explicit `null` for these clearable keys — `null` deletes the key, omitting it
+   * keeps the current value — but the read-side `Afip` interface can't express that
+   * WRITE-ONLY null-clear semantic. Same convention as `MercadolibrePatchInput`'s
+   * `defaultPosId`/`syncPolicy` null-knobs above.
+   */
+  interface AfipPatchInput {
+    facturaMLegend?: 'retencion' | 'cbu_informada' | null;
+    cbu?: string | null;
+    iibbTransparency?: Afip['iibbTransparency'] | null;
+    actividades?: number[] | null;
   }
 
   type StoreAttributeNames = keyof Store;
