@@ -132,6 +132,25 @@ declare global {
 		status: 'queued' | 'running' | 'done' | 'cancelled' | 'error';
 	}
 
+	// `GET /seeder/jobs/{jobId}` response — the RECONNECT-RESUME payload (api#1758,
+	// research §8.3). Deliberately RICHER than `SeedJobHandle`: a client whose socket
+	// drops mid-run has to restore the progress bar and the current phase, and a bare
+	// `{ jobId, createdAt, status }` cannot do that — it would snap the wizard back to
+	// 0% on every reconnect.
+	//
+	// Projected from the `SeederJob` DDB row, MINUS two things it must never carry:
+	//   - `profile`   — the tenant's own input; echoing it back is pointless and widens
+	//                   the PII surface of a response that gets cached client-side.
+	//   - `executionArn` — an internal infrastructure id. Never hand a tenant an ARN.
+	interface SeedJobState extends SeedJobHandle {
+		phase: SeedPhase;
+		completed: number;
+		total: number;
+		costUsd?: number;
+		/** Preview cards streamed so far. EMPTY until the stage workers write `SEED_DRAFT#` rows (api#1080). */
+		samples?: SeedSampleCard[];
+	}
+
 	// The `SEED_JOB` DDB row — BE-internal entity (not the wire shape FE consumes; see
 	// `SeedJobHandle` for that). Persisted by the shared start-job lib (api#1079/#1758),
 	// updated by the stage workers and read by the finalize/commit path + cost meter.
