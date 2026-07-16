@@ -108,6 +108,9 @@ declare global {
     // Tenant kind (sinfactura/app#1054). Absent / 'production' = real tenant;
     // 'demo' = AI-seeded demo environment. Optional + backward-compatible.
     type?: 'production' | 'demo';
+    // Epoch ms stamped by the seeder finalize worker when the demo flip
+    // completed (api#1081). Absent on never-seeded stores.
+    seededAt?: number;
     name: string;
     address: {
       street: string;

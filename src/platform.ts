@@ -37,3 +37,27 @@ export interface PlatformGlobalsPostBody {
 		}
 	>;
 }
+
+// Per-provider row of `GET /platform/integrations` (api#1535; managerToken).
+// The CloudWatch-derived fields (`syncSuccessRate24h`, `p95LatencyMs`,
+// `lastIncidentAt`) are ABSENT — not 0/false — for providers without a
+// backing Lambda, and `killSwitchEnabled` is absent for providers without a
+// kill switch wired (api#1538); keep them optional.
+export interface PlatformProviderHealth {
+	tenantsConnected: number;
+	/** 24h success ratio in [0, 1] (a fraction, NOT a percentage). */
+	syncSuccessRate24h?: number;
+	/** Integer milliseconds. */
+	p95LatencyMs?: number;
+	/** Shared platform DLQ depth — the same value is repeated on every provider row. */
+	dlqDepth: number;
+	/** Epoch ms of the most recent error datapoint in the 24h window. */
+	lastIncidentAt?: number;
+	refreshFailures24h: number;
+	killSwitchEnabled?: boolean;
+}
+
+// Aggregate keyed by provider id ('mercadopago' | 'mercadolibre' | 'stripe' |
+// 'afip' | 'whatsapp' | 'gmail' today) — deliberately kept open as `string`
+// so a new BE provider row degrades gracefully instead of failing the parse.
+export type PlatformIntegrationsAggregate = Record<string, PlatformProviderHealth>;

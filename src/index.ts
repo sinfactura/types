@@ -1,5 +1,6 @@
 export * from "./account";
 export * from "./afip";
+export * from "./ai";
 export * from "./api";
 export * from "./audit";
 export * from "./auth";

@@ -96,6 +96,20 @@ declare global {
 
 	type OrderChannel = 'meli';
 
+	// WRITE-side shape of the credit-note stamp above (api#1684 / api#1723) —
+	// what `stampCreditNoteStatus` persists onto `Order.mercadolibreCreditNote`.
+	// `source` is REQUIRED at emission time; on the READ projection it stays
+	// optional (pre-#1723 stamps lack it), which is why this is a separate
+	// named interface rather than the inline field type.
+	interface MercadolibreCreditNoteStamp {
+		creditNoteNumber?: number;
+		emittedAt?: number;
+		status?: 'emitted' | 'skipped' | 'failed';
+		reason?: string;
+		claimId?: string;
+		source: 'manual' | 'auto';
+	}
+
 	// ML-side identity + ingest-stamped provider data for a channel-tagged
 	// order. Billing fields persist the RAW two-step billing-info v2 values
 	// (`invoice_type` no longer exists on the wire) — the Factura A/B

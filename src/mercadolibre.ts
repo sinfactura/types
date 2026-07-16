@@ -33,6 +33,12 @@ declare global {
     connectedAt: number;
   }
 
+  // BE → FE response from POST /mercadolibre/oauth/disconnect (api#1572/api#1575).
+  interface MlOauthDisconnectResponse {
+    disconnected: true;
+    storeId: string;
+  }
+
   // Stable OAuth/connection error vocabulary surfaced to the FE connect
   // screen (app#1253). `invalid_operator_user_id` is the ML
   // operator-sub-account state — the seller authorized with a
