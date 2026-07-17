@@ -20,6 +20,14 @@ export enum NotificationTypeEnum {
 	// ML order-ingestion fanout (app#797 / api#1574) — User-row read path
 	// added by the orders_v2 worker.
 	MERCADOLIBRE = 'MERCADOLIBRE',
+	// Stock alerts (api#1806) — fired when a sale crosses a product's stock
+	// threshold. LOW_STOCK at stock <= `Product.minStock`; OUT_OF_STOCK at
+	// stock <= 0. Both have User-row opt-in read paths.
+	LOW_STOCK = 'LOW_STOCK',
+	OUT_OF_STOCK = 'OUT_OF_STOCK',
+	// Support ticket bell (api#1806) — fired on ticket create / status change.
+	// User-row opt-in read path.
+	SUPPORT = 'SUPPORT',
 }
 
 declare global {
@@ -31,6 +39,10 @@ declare global {
 		type: NotificationTypeEnum;
 		title: string;
 		orderId?: string;
+		// api#1806 — click-through targets for the typed alerts: `productId` for
+		// LOW_STOCK / OUT_OF_STOCK, `supportId` for SUPPORT.
+		productId?: string;
+		supportId?: string;
 		userId?: string;
 		customerId?: string;
 		read?: boolean;

@@ -18,6 +18,10 @@ declare global {
 			primary?: boolean;
 		}[];
 		stock: number;
+		// api#1806 — per-product low-stock threshold. A sale that crosses `stock`
+		// down to <= minStock fires a LOW_STOCK notification (unset => no
+		// LOW_STOCK; OUT_OF_STOCK at stock <= 0 fires regardless).
+		minStock?: number;
 		limit?: number;
 		incomes?: {
 			stockId: string;

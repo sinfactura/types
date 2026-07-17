@@ -7,6 +7,14 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.6.71
+
+- **feat(notification):** `NotificationTypeEnum` gains `LOW_STOCK`, `OUT_OF_STOCK` and
+  `SUPPORT` (api#1806) — stock-alert + support-ticket bell types, each with a User-row
+  `notifications.<KEY>` opt-in read path. `Product.minStock?` (low-stock threshold) and
+  `NotificationInterface.productId?`/`supportId?` (click-through targets) added alongside.
+  All additive/non-breaking.
+
 ## 1.6.64
 
 - **feat(seeder):** `SeedVertical` widened 4 → 10 (api#1075, app#1054) — the launch set is
