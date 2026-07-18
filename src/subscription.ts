@@ -16,8 +16,9 @@
  * - `FeatureKey` uses flat camelCase (not the dotted `reports.advanced` from the design kit).
  * - Monetary amounts are integers in minor units (ARS cents) to avoid float issues.
  * - Feature keys now match the BE wire format directly (renamed afip→afipInvoicing,
- *   cash→cashManagement, stripePayments→paymentIntegrations, reportsAdvanced→advancedReports
- *   as of 2026-04-26). New keys whatsappCommerce/aiFeatures/mobileApp/customDomain are
+ *   cash→cashManagement, reportsAdvanced→advancedReports as of 2026-04-26). The interim
+ *   paymentIntegrations key was split into domesticPayments + stripePayments (api#1823).
+ *   New keys whatsappCommerce/aiFeatures/mobileApp/customDomain are
  *   declared here even when their epics haven't shipped — the matrix can set
  *   enabled:false until they do.
  */
@@ -91,8 +92,10 @@ declare global {
 		| 'priceListsMax' // NEW — numeric cap on price lists (#1780 / types#87)
 		// Facturación
 		| 'afipInvoicing'
-		| 'paymentIntegrations'
 		| 'suppliers'
+		// Cobros — gated by capability class, not vendor brand (api#1823)
+		| 'domesticPayments' // MercadoPago · MODO · Ualá Bis (domestic ARS rail) — all tiers
+		| 'stripePayments' // Stripe (USD / international acquiring) — profesional+
 		// Operación
 		| 'cashManagement'
 		| 'multiStore'
