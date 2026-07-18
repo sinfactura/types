@@ -7,6 +7,14 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.6.74
+
+- **feat(support):** new `Support` ticket-header entity + `SupportMessage` thread type,
+  with `SupportTicketStatus` / `SupportTicketPriority` / `SupportMessageDirection` unions
+  (api#1816 thread model + api#1817 agent console). Grows the flat support row into a
+  header (`subject`, `category`, `priority`, `status`, `assignee?`, timestamps) plus an
+  ordered message thread. Additive/non-breaking.
+
 ## 1.6.71
 
 - **feat(notification):** `NotificationTypeEnum` gains `LOW_STOCK`, `OUT_OF_STOCK` and
