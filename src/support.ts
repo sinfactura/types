@@ -60,6 +60,27 @@ declare global {
 		// api#1806/ADR-0019 — links a "Reportar un problema" case to its Sentry event.
 		sentryEventId?: string;
 	}
+
+	// Real-time thread broadcast (api#1832). Emitted over WSS when a message is
+	// appended in EITHER direction, so an open thread/inbox updates without a
+	// refetch. Distinct from the header-row broadcast `dynamoUpdate` already
+	// emits (`action: 'support'`, the full header): this carries the NEW message
+	// plus the refreshed header. Delivered via the existing `wsPost*` fanout —
+	// tenant IN → platform agents; agent OUT → the tenant store.
+	interface SupportMessageWsEvent {
+		action: 'support-message';
+		data: {
+			// The tenant store the ticket belongs to (NOT the platform store), so an
+			// agent viewing the cross-tenant console routes the update correctly.
+			storeId: string;
+			supportId: string;
+			// The newly-appended thread message.
+			message: SupportMessage;
+			// The refreshed ticket header (denormalized summary — `messages` omitted),
+			// so the inbox row re-sorts/updates on the same event.
+			header: Support;
+		};
+	}
 }
 
 export {}; // NOSONAR
