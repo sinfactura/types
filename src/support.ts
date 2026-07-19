@@ -25,13 +25,23 @@ declare global {
 		status: SupportTicketStatus;
 		// Platform agent handling the case (userId / display name). api#1817.
 		assignee?: string;
+		// Tenant-side read state: `false` when the tenant has an unread agent (OUT)
+		// reply, `true` once the tenant opens the thread or posts. The agent
+		// "needs attention" signal is `status === 'pending'`, not this flag. api#1829.
 		read: boolean;
 		createdAt: number;
-		updatedAt?: number;
+		// Always set (== createdAt on create, bumped on every message/patch) — the
+		// last-activity key the inbox + "recent tickets" lists sort by. api#1829.
+		updatedAt: number;
 		// First OUT (agent) reply — drives launch SLA metrics later. api#1817.
 		firstResponseAt?: number;
 		closedAt?: number;
 		disabled?: boolean;
+		// Denormalized thread summary (api#1829) — maintained on every append so a
+		// list/inbox row renders without an N+1 fetch of the message partition.
+		lastMessageAt?: number;
+		lastMessagePreview?: string;
+		messageCount?: number;
 		// Populated only on single-case reads (GET /support/:id and the platform
 		// thread detail); omitted on list responses. Stored in a child partition,
 		// never on the header row.

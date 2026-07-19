@@ -43,6 +43,11 @@ declare global {
 		// LOW_STOCK / OUT_OF_STOCK, `supportId` for SUPPORT.
 		productId?: string;
 		supportId?: string;
+		// api#1829 — for AGENT-facing SUPPORT notifications only: the tenant store
+		// the ticket belongs to, so the bell deep-links cross-tenant to
+		// `/platform/support/{ticketStoreId}/{supportId}`. Absent on tenant-facing
+		// SUPPORT notifications (there the recipient store IS the ticket store).
+		ticketStoreId?: string;
 		userId?: string;
 		customerId?: string;
 		read?: boolean;

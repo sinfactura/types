@@ -7,6 +7,14 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.6.75
+
+- **feat(support):** helpdesk polish (api#1829) — `Support` gains a denormalized thread summary
+  (`lastMessageAt?`, `lastMessagePreview?`, `messageCount?`), `updatedAt` is now required
+  (always-set last-activity key), and `read` is now meaningful (tenant unread state).
+  `NotificationInterface.ticketStoreId?` added for agent-facing SUPPORT bell cross-tenant
+  deep-links. Additive/non-breaking.
+
 ## 1.6.74
 
 - **feat(support):** new `Support` ticket-header entity + `SupportMessage` thread type,
