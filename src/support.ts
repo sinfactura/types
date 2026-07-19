@@ -6,14 +6,44 @@
 // (cross-tenant agent console) share this one shape — released together.
 
 declare global {
-	// Lifecycle status. Legacy flat rows already used these three strings.
-	type SupportTicketStatus = 'pending' | 'resolved' | 'rejected';
+	// Lifecycle status. Legacy flat rows already used the first three strings.
+	// `waiting_on_customer` (api#1833): agent-set — the ball is in the tenant's
+	// court; the resolution SLA clock pauses while set, and a tenant reply
+	// auto-flips the ticket back to `pending`.
+	type SupportTicketStatus = 'pending' | 'waiting_on_customer' | 'resolved' | 'rejected';
 
 	// Agent-set triage priority (api#1817). Absent on legacy rows.
 	type SupportTicketPriority = 'low' | 'normal' | 'high' | 'urgent';
 
 	// IN = tenant → platform; OUT = platform agent → tenant.
 	type SupportMessageDirection = 'IN' | 'OUT';
+
+	// SLA health of an open ticket (api#1833). Recomputed by a scheduled sweep:
+	// `at_risk` once ≥80% of a timer's window has elapsed unmet, `breached` once
+	// a due time passes unmet. Live (can return to `ok` after a late first
+	// response); frozen at whatever it was when the ticket closes.
+	type SupportSlaStatus = 'ok' | 'at_risk' | 'breached';
+
+	// Per-priority SLA windows, in hours (api#1833).
+	interface SupportSlaTargets {
+		firstResponseHours: number;
+		resolutionHours: number;
+	}
+
+	// Operator-tunable SLA configuration (api#1833) — one target pair per
+	// priority. Read/written via GET/PUT /platform/support/config.
+	interface SupportSlaConfig {
+		targets: Record<SupportTicketPriority, SupportSlaTargets>;
+		updatedAt?: number;
+	}
+
+	// Point-in-time client context captured when the tenant opened the case
+	// (api#1840) — the app version / route the tenant was on, for the agent
+	// console's context panel. Store-derived context is read live instead.
+	interface SupportClientContext {
+		appVersion?: string;
+		route?: string;
+	}
 
 	// Ticket header — PK: SUPPORT#{storeId}, SK: SUPPORTxxxx (atomic counter).
 	interface Support {
@@ -36,6 +66,23 @@ declare global {
 		// First OUT (agent) reply — drives launch SLA metrics later. api#1817.
 		firstResponseAt?: number;
 		closedAt?: number;
+		// SLA deadlines (api#1833) — epoch ms, stamped at create from the
+		// priority's configured window, recomputed on priority change. Both are
+		// the CURRENT effective deadline: `resolutionDueAt` is extended by the
+		// accumulated pause time whenever a `waiting_on_customer` pause ends.
+		// `firstResponseDueAt` stays for audit after `firstResponseAt` is set.
+		firstResponseDueAt?: number;
+		resolutionDueAt?: number;
+		// SLA health — see SupportSlaStatus. Absent on pre-SLA rows until the
+		// sweep lazily stamps them.
+		slaStatus?: SupportSlaStatus;
+		// Pause bookkeeping (api#1833). `slaPausedAt` is present only while the
+		// ticket is `waiting_on_customer` (the open pause's start); `slaPausedMs`
+		// accumulates the total of all CLOSED pauses.
+		slaPausedAt?: number;
+		slaPausedMs?: number;
+		// Client context captured at create (api#1840); absent on older rows.
+		context?: SupportClientContext;
 		disabled?: boolean;
 		// Denormalized thread summary (api#1829) — maintained on every append so a
 		// list/inbox row renders without an N+1 fetch of the message partition.
