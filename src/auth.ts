@@ -9,6 +9,10 @@ declare global {
 		/** reCAPTCHA v3 token — required by the BE only after a
 		 * `CAPTCHA_REQUIRED` login rejection (api#1505); otherwise omit. */
 		captchaToken?: string;
+		/** Firebase App Check token — the mobile (body-transport) step-up,
+		 * required by the BE only after an `ATTESTATION_REQUIRED` login
+		 * rejection (api#1855); the native equivalent of `captchaToken`. */
+		appCheckToken?: string;
 	}
 
 	interface Social {
@@ -33,7 +37,15 @@ declare global {
 	}
 
 	// api#1505 — wire error codes for the password brute-force lockout flow.
-	type LoginErrorCode = 'WRONG_CREDENTIALS' | 'ACCOUNT_LOCKED' | 'ACCOUNT_DISABLED' | 'CAPTCHA_REQUIRED' | 'CAPTCHA_INVALID';
+	// api#1855 — ATTESTATION_* are the mobile (body-transport) captcha-tier equivalents of CAPTCHA_*.
+	type LoginErrorCode =
+		| 'WRONG_CREDENTIALS'
+		| 'ACCOUNT_LOCKED'
+		| 'ACCOUNT_DISABLED'
+		| 'CAPTCHA_REQUIRED'
+		| 'CAPTCHA_INVALID'
+		| 'ATTESTATION_REQUIRED'
+		| 'ATTESTATION_INVALID';
 
 	// `retryAfterSeconds` (seconds) mirrors the FE's existing 429 rate-limit convention.
 	interface AccountLockedResponse {
