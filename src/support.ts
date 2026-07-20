@@ -30,7 +30,8 @@ declare global {
 
 	// In-app records a support attachment can point at (entity_ref). Closed union
 	// so the FE maps each to a deep-link route; extend as new targets are added.
-	type SupportAttachmentEntityType = 'order' | 'invoice' | 'product' | 'customer';
+	// (api#1834 scope amendment.)
+	type SupportAttachmentEntityType = 'invoice' | 'order' | 'creditNote' | 'supportTicket';
 
 	interface SupportAttachmentBase {
 		// Server-minted UUID; for file kinds it's also the last S3 key segment.
@@ -58,11 +59,17 @@ declare global {
 		label?: string;
 	}
 
-	// A deep-link to an in-app record.
+	// A deep-link to an in-app record (api#1834 scope amendment). `entityStoreId`
+	// is the owning store — the cross-tenant guard rejects an attachment whose
+	// `entityStoreId` differs from the ticket's store (tenant: own storeId; agent:
+	// the ticket's target storeId), so an agent can't leak a cross-store reference
+	// into a tenant's thread. Not existence-validated at write time (sentryEventId
+	// trust level) — a stale reference surfaces at render, not on write.
 	interface SupportEntityRefAttachment extends SupportAttachmentBase {
 		kind: 'entity_ref';
 		entityType: SupportAttachmentEntityType;
 		entityId: string;
+		entityStoreId: string;
 		label?: string;
 	}
 
