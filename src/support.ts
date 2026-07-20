@@ -18,6 +18,70 @@ declare global {
 	// IN = tenant → platform; OUT = platform agent → tenant.
 	type SupportMessageDirection = 'IN' | 'OUT';
 
+	// api#1834 — an attachment on a thread message. Discriminated on `kind`:
+	//  • image / document — a file in the private support-attachments S3 area. The
+	//    persisted ref carries the bare object `key` (NEVER a public URL); read
+	//    paths mint a short-lived presigned GET into `downloadUrl` (ephemeral —
+	//    never written to DynamoDB).
+	//  • link — an external URL the sender pasted (stored verbatim, no S3/fetch).
+	//  • entity_ref — a pointer to an in-app record ("this is about order #123"),
+	//    which the FE deep-links. No S3.
+	type SupportAttachmentKind = 'image' | 'document' | 'link' | 'entity_ref';
+
+	// In-app records a support attachment can point at (entity_ref). Closed union
+	// so the FE maps each to a deep-link route; extend as new targets are added.
+	type SupportAttachmentEntityType = 'order' | 'invoice' | 'product' | 'customer';
+
+	interface SupportAttachmentBase {
+		// Server-minted UUID; for file kinds it's also the last S3 key segment.
+		attachmentId: string;
+		kind: SupportAttachmentKind;
+	}
+
+	// A file (image or document) stored in S3 under the support prefix. `key` is
+	// the bare object key; `downloadUrl` is present ONLY on read responses (a
+	// short-lived presigned GET) and is never persisted.
+	interface SupportFileAttachment extends SupportAttachmentBase {
+		kind: 'image' | 'document';
+		key: string;
+		filename: string;
+		contentType: string;
+		size: number;
+		downloadUrl?: string;
+	}
+
+	// An external URL the sender pasted. Unlike a file's ephemeral `downloadUrl`,
+	// this `url` IS persisted verbatim.
+	interface SupportLinkAttachment extends SupportAttachmentBase {
+		kind: 'link';
+		url: string;
+		label?: string;
+	}
+
+	// A deep-link to an in-app record.
+	interface SupportEntityRefAttachment extends SupportAttachmentBase {
+		kind: 'entity_ref';
+		entityType: SupportAttachmentEntityType;
+		entityId: string;
+		label?: string;
+	}
+
+	type SupportAttachment = SupportFileAttachment | SupportLinkAttachment | SupportEntityRefAttachment;
+
+	// Response of the presigned-upload mint endpoint (api#1834). The client POSTs
+	// the file directly to S3 with `upload.url` + `upload.fields` (an S3 POST
+	// policy pinning key, content-type and a max size), then references
+	// `{ attachmentId, key }` when it posts/replies to the message.
+	interface SupportAttachmentUploadTicket {
+		attachmentId: string;
+		key: string;
+		kind: 'image' | 'document';
+		upload: {
+			url: string;
+			fields: Record<string, string>;
+		};
+	}
+
 	// SLA health of an open ticket (api#1833). Recomputed by a scheduled sweep:
 	// `at_risk` once ≥80% of a timer's window has elapsed unmet, `breached` once
 	// a due time passes unmet. Live (can return to `ok` after a late first
@@ -106,6 +170,9 @@ declare global {
 		createdAt: number;
 		// api#1806/ADR-0019 — links a "Reportar un problema" case to its Sentry event.
 		sentryEventId?: string;
+		// api#1834 — files (image/document in S3), pasted links, and in-app entity
+		// refs attached to this message. Absent when the message carries none.
+		attachments?: SupportAttachment[];
 	}
 
 	// Real-time thread broadcast (api#1832). Emitted over WSS when a message is
