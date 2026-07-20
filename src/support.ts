@@ -51,6 +51,22 @@ declare global {
 		downloadUrl?: string;
 	}
 
+	/**
+	 * Inbound file attachment on support create/reply bodies — tenant
+	 * `POST /support` and agent `PATCH /platform/support/{storeId}/{supportId}`.
+	 * The file travels as base64 in the request body; the server uploads it to
+	 * storage and persists the resolved `SupportFileAttachment` (api#1853).
+	 */
+	interface SupportFileAttachmentUpload {
+		kind: Extract<SupportAttachmentKind, 'image' | 'document'>;
+		/** Display name only — never part of the storage key. */
+		filename: string;
+		/** Declared MIME type; must match the server allowlist AND the actual bytes. */
+		contentType: string;
+		/** Bare base64 (no `data:` URI prefix). Decoded max 4 MiB per file and 4 MiB aggregate per request. */
+		data: string;
+	}
+
 	// An external URL the sender pasted. Unlike a file's ephemeral `downloadUrl`,
 	// this `url` IS persisted verbatim.
 	interface SupportLinkAttachment extends SupportAttachmentBase {
@@ -74,20 +90,6 @@ declare global {
 	}
 
 	type SupportAttachment = SupportFileAttachment | SupportLinkAttachment | SupportEntityRefAttachment;
-
-	// Response of the presigned-upload mint endpoint (api#1834). The client POSTs
-	// the file directly to S3 with `upload.url` + `upload.fields` (an S3 POST
-	// policy pinning key, content-type and a max size), then references
-	// `{ attachmentId, key }` when it posts/replies to the message.
-	interface SupportAttachmentUploadTicket {
-		attachmentId: string;
-		key: string;
-		kind: 'image' | 'document';
-		upload: {
-			url: string;
-			fields: Record<string, string>;
-		};
-	}
 
 	// SLA health of an open ticket (api#1833). Recomputed by a scheduled sweep:
 	// `at_risk` once ≥80% of a timer's window has elapsed unmet, `breached` once
