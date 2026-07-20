@@ -155,6 +155,11 @@ declare global {
 		// Client context captured at create (api#1840); absent on older rows.
 		context?: SupportClientContext;
 		disabled?: boolean;
+		// api#1835 — GitHub issue back-link. Set once the ticket is filed as a GitHub
+		// issue from the agent console (POST /platform/support/{storeId}/{supportId}/convert);
+		// also the idempotency key for the convert action (a re-convert returns the existing issue).
+		githubIssueUrl?: string;
+		githubIssueNumber?: number;
 		// Denormalized thread summary (api#1829) — maintained on every append so a
 		// list/inbox row renders without an N+1 fetch of the message partition.
 		lastMessageAt?: number;

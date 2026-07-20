@@ -23,6 +23,10 @@ declare global {
     roleAfip?: boolean;
     // NOTIFICATIONS
     notifications?: UserNotifications;
+    // api#1844 — per-user audible-bell preference (client chime toggle). Default-on:
+    // absent === on, so no backfill. Distinct from the `notifications.<KEY>` per-type
+    // opt-in map above — this does NOT affect delivery, only whether the FE plays a sound.
+    notificationSound?: boolean;
     permissions?: UserPermissions;
     // EMAIL VERIFICATION (#773)
     // Grandfather clause: `emailVerified === undefined` means a legacy
