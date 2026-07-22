@@ -7,6 +7,11 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.6.83
+
+- **feat(basket):** `BasketMergeMeta` (`{ droppedSkus: string[]; mergedCount: number }`) — the
+  response envelope sibling to `data` on `POST /basket?mode=merge` (api#1209). Additive/non-breaking.
+
 ## 1.6.75
 
 - **feat(support):** helpdesk polish (api#1829) — `Support` gains a denormalized thread summary

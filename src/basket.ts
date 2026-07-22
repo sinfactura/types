@@ -42,6 +42,15 @@ declare global {
 		basePrice?: number; // pre-promo unit price
 	}
 
+	// Response envelope sibling to `data` on `POST /basket?mode=merge` (api#1209).
+	interface BasketMergeMeta {
+		// productIds from the request `items[]` that didn't resolve to a real
+		// product — never written to the basket.
+		droppedSkus: string[];
+		// Count of distinct incoming productIds that WERE successfully merged.
+		mergedCount: number;
+	}
+
 }
 
 export {}; // NOSONAR
