@@ -108,8 +108,6 @@ declare global {
     // Tenant kind. Absent / 'production' = real tenant; 'demo' = demo/showcase
     // store (guarded from real email/SMS/surveys). Optional + backward-compatible.
     type?: 'production' | 'demo';
-    // Epoch ms stamped when a store was flipped to demo. Absent on non-demo stores.
-    seededAt?: number;
     name: string;
     address: {
       street: string;

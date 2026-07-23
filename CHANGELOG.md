@@ -7,6 +7,12 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.7.1
+
+- **chore(store):** remove `Store.seededAt` — a write-only provenance timestamp the
+  removed seeder stamped; zero readers anywhere (demo-store behavior keys off
+  `Store.type='demo'` alone). Follows the seeder removal (api#1875). `Store.type` kept.
+
 ## 1.7.0
 
 - **chore(seeder):** remove `seeder.ts` and all AI Tenant Seeder wire/entity
