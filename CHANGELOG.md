@@ -7,6 +7,17 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.7.0
+
+- **chore(seeder):** remove `seeder.ts` and all AI Tenant Seeder wire/entity
+  contracts (`SeedJob`, `SeedProfile`, `SeedProgressEvent`, `SeederJob`,
+  `SeedSummary`, `SeedCommitResult`, `SeedAiTenantOpRequest`, `SeedVertical`,
+  `SeedScale`, `SeedPhase`, `SeedSampleCard`, `SeedJobHandle`, `SeedJobState`,
+  `BusinessDescription`). The seeder backend was removed (api#1875, ADR-0020).
+  Removal is breaking by the table, shipped as **minor** by owner decision — no
+  consumer imported these (FE removed in app#2219). `Store.type`/`seededAt` and
+  `DemoClaims` are RETAINED (the demo-store concept is kept).
+
 ## 1.6.85
 
 - **feat(store):** `Store.config.onboarding?` (`{ step: number; completed: boolean; skipped: boolean }`)

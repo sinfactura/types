@@ -105,11 +105,10 @@ declare global {
   interface Store {
     storeId: string;
     createdAt: number;
-    // Tenant kind (sinfactura/app#1054). Absent / 'production' = real tenant;
-    // 'demo' = AI-seeded demo environment. Optional + backward-compatible.
+    // Tenant kind. Absent / 'production' = real tenant; 'demo' = demo/showcase
+    // store (guarded from real email/SMS/surveys). Optional + backward-compatible.
     type?: 'production' | 'demo';
-    // Epoch ms stamped by the seeder finalize worker when the demo flip
-    // completed (api#1081). Absent on never-seeded stores.
+    // Epoch ms stamped when a store was flipped to demo. Absent on non-demo stores.
     seededAt?: number;
     name: string;
     address: {
