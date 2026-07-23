@@ -7,6 +7,12 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.6.84
+
+- **feat(store):** `Store.config.feedbackDefaults?` (`Record<string, { sound?: boolean; visual?: boolean }>`)
+  — store-level per-category × per-channel notification/feedback defaults the app layers per-device
+  overrides on top of (api#1740, app#2085 phase 2). Purely FE-read; open key set. Additive/non-breaking.
+
 ## 1.6.83
 
 - **feat(basket):** `BasketMergeMeta` (`{ droppedSkus: string[]; mergedCount: number }`) — the

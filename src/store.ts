@@ -152,6 +152,14 @@ declare global {
        * default — does NOT reinterpret existing Account rows.
        */
       defaultAccountCurrency?: string;
+      /**
+       * api#1740 — per-category × per-channel notification/feedback defaults.
+       * Store-level baseline the app layers per-device overrides on top of
+       * (app#2085); absent ⇒ the FE falls back to all-on. Purely FE-read — no
+       * BE behavior depends on these; `PATCH /store` validates shape only.
+       * Open key set (lowercase English category keys: `scan`, `payments`, …).
+       */
+      feedbackDefaults?: Record<string, { sound?: boolean; visual?: boolean }>;
     };
     features: FeatureFlags;
     ecommerce?: Ecommerce;
