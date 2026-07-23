@@ -7,6 +7,12 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.6.85
+
+- **feat(store):** `Store.config.onboarding?` (`{ step: number; completed: boolean; skipped: boolean }`)
+  — store-level guided-setup wizard progress persisted across sessions (api#1876, app#998, ADR-0020).
+  Purely FE-read; first-login is derived FE-side (no BE field). Additive/non-breaking.
+
 ## 1.6.84
 
 - **feat(store):** `Store.config.feedbackDefaults?` (`Record<string, { sound?: boolean; visual?: boolean }>`)

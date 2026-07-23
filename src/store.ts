@@ -160,6 +160,14 @@ declare global {
        * Open key set (lowercase English category keys: `scan`, `payments`, …).
        */
       feedbackDefaults?: Record<string, { sound?: boolean; visual?: boolean }>;
+      /**
+       * api#1876 — guided-setup onboarding progress (app#998, ADR-0020).
+       * Store-level wizard state persisted across sessions. Purely FE-read —
+       * no BE behavior depends on these; `PATCH /store` validates shape only.
+       * First-login is DERIVED FE-side (absent block, or neither `completed`
+       * nor `skipped` ⇒ show the wizard) — there is no BE first-login field.
+       */
+      onboarding?: { step: number; completed: boolean; skipped: boolean };
     };
     features: FeatureFlags;
     ecommerce?: Ecommerce;
