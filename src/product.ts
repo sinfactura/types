@@ -85,6 +85,16 @@ declare global {
 
 		// Manufacturer model — feeds channel attributes (ML MODEL) (api#1653).
 		model?: string;
+
+		// AI ENRICHMENT (api#1768). Optional/additive, operator-authored — set
+		// via the suggestion-only enrichment endpoint's write-through on accept.
+		// `attributes` is descriptive product metadata and is DISTINCT from
+		// `variantAttributes` above (which clusters variant families). `evidence`
+		// is a verbatim source-quote provenance for an attribute; it is
+		// operator-only and MUST be stripped from any customer-facing projection.
+		seoTitle?: string;
+		seoDescription?: string;
+		attributes?: { name: string; value: string; evidence?: string }[];
 	}
 
 	// One barcode on a product (app#841 design). `type` follows GS1 naming;

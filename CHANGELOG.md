@@ -7,6 +7,13 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.7.2
+
+- **feat(product):** add optional `Product.seoTitle` / `seoDescription` /
+  `attributes` (`{ name, value, evidence? }[]`) for AI product enrichment
+  (api#1768). Additive; `attributes` is distinct from `variantAttributes` and its
+  `evidence` provenance is operator-only (strip from customer projections).
+
 ## 1.7.1
 
 - **chore(store):** remove `Store.seededAt` — a write-only provenance timestamp the
