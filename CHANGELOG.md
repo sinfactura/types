@@ -7,6 +7,17 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.7.6
+
+- **feat(audit):** `ApocCheckResult` gains `stale: boolean` / `registryAgeDays: number`
+  (api#1903). `registrySnapshotAt` was previously advisory-only — a stale local
+  APOC registry answered `flagged: false` with no signal the answer might be
+  outdated. A legal-research spike (`sinfactura/docs/references/ARCA_REGULATIONS.md`
+  §15) found this consequential: the due-diligence defense courts recognize for
+  the underlying "facturas apócrifas" check hinges on whether a supplier was
+  listed at transaction time. Additive; the only consumer today (`api`'s
+  `POST /afip {mode:'apoc'}`) computes both fields on every response.
+
 ## 1.7.5
 
 - **feat(subscription):** `SubscriptionAdminOverrideInput.freeUntil` / `.trialEndsAt`
