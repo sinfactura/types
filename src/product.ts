@@ -137,6 +137,16 @@ declare global {
 		// Whether outbound stock sync should mirror the channel's own count
 		// (e.g. Full fulfillment) rather than push local stock (api#1649).
 		stockMirrorOnly?: boolean;
+		// Public listing URL (ML `GET /items/{id}`.permalink), persisted on link
+		// success and backfilled for pre-existing links (api#1895). A real
+		// Product field (unlike the three below), so it round-trips untouched.
+		permalink?: string;
+		// Read-time-only enrichment sourced from the ML_ITEM webhook cache
+		// (api#1895) — mirrors the regime/stockMirrorOnly precedent above.
+		// NEVER persisted on Product; merged onto the response the same way.
+		listingPrice?: number;
+		listingStock?: number;
+		mlStatus?: string;
 	}
 
 }

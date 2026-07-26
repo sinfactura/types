@@ -7,6 +7,15 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.7.8
+
+- **feat(product):** `ProductChannelMapping` gains `permalink` (persisted, ML's
+  public listing URL) and read-time-only `listingPrice` / `listingStock` /
+  `mlStatus` (api#1895 — listing detail: permalink + live price/stock/lifecycle
+  status). The latter three mirror the existing `regime`/`stockMirrorOnly`
+  precedent: sourced from the `ML_ITEM` webhook cache, merged onto the
+  response only, never persisted on `Product`. Additive.
+
 ## 1.7.7
 
 - **feat(userActivity):** new `MlChannelStatusChangedEvent` variant on `UserActivityEvent`
