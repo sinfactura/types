@@ -7,6 +7,17 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.7.7
+
+- **feat(userActivity):** new `MlChannelStatusChangedEvent` variant on `UserActivityEvent`
+  (api#1894). First audit-trail coverage for the marketplace-channel product-link
+  state machine — `{provider, product_id, ml_item_id, from_status, to_status}`
+  captures any operator-initiated `Product.channels[provider].status` transition.
+  Designed to be shared, not single-purpose: api#1894 (pause/reactivate) emits it
+  for `'linked'<->'paused'`, and api#1893 (unlink, in-flight) will reuse the same
+  variant with `to_status: 'unlinked'` rather than adding a second one-off event.
+  Additive.
+
 ## 1.7.6
 
 - **feat(audit):** `ApocCheckResult` gains `stale: boolean` / `registryAgeDays: number`

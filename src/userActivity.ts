@@ -25,6 +25,7 @@
 //   - (+1 variant) — IntegrationTokenRefreshedEvent (types#91, api#1540)
 //   - 1.6.39 (+1 variant) — WaitlistConvertedEvent (types#92, api#1567)
 //   - 1.6.43 (+1 variant) — PlatformConfigUpdatedEvent (api#1108)
+//   - (+1 variant) — MlChannelStatusChangedEvent (api#1894); shared by api#1893's unlink
 
 declare global {
 
@@ -641,7 +642,26 @@ declare global {
 	}
 
 	// ──────────────────────────────────────────────────────────────────────────
-	// Discriminated union — 71 variants
+	// Phase 7 (+1 variant) — first audit coverage for the marketplace-channel
+	// product-link state machine (api#1894 pause/reactivate; shared by api#1893's
+	// unlink, which reuses this same variant with to_status: 'unlinked' rather
+	// than adding a second one-off event).
+	// ──────────────────────────────────────────────────────────────────────────
+
+	// Any operator-initiated transition of `Product.channels[provider].status`.
+	// `provider` is future-proofed like `IntegrationTokenRefreshedEvent` even
+	// though 'mercadolibre' is the only channel with this state machine today.
+	interface MlChannelStatusChangedEvent extends UserActivityEventBase {
+		event: 'ML Channel Status Changed';
+		provider: 'mercadolibre';
+		product_id: string;
+		ml_item_id: string;
+		from_status: ProductChannelStatus;
+		to_status: ProductChannelStatus;
+	}
+
+	// ──────────────────────────────────────────────────────────────────────────
+	// Discriminated union — 72 variants
 	// ──────────────────────────────────────────────────────────────────────────
 
 	type UserActivityEvent =
@@ -726,7 +746,9 @@ declare global {
 		| IntegrationTokenRefreshedEvent
 		| WaitlistConvertedEvent
 		// Phase 6
-		| PlatformConfigUpdatedEvent;
+		| PlatformConfigUpdatedEvent
+		// Phase 7
+		| MlChannelStatusChangedEvent;
 
 }
 
