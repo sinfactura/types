@@ -7,6 +7,16 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.7.5
+
+- **feat(subscription):** `SubscriptionAdminOverrideInput.freeUntil` / `.trialEndsAt`
+  widened to `| null`. The MANAGER out-of-band subscription override
+  (`PUT /platform/stores/{storeId}/subscription`, api#827) previously had no way
+  to clear either field once set (api#1907) — `null` now explicitly REMOVEs the
+  attribute; omitting the key still leaves the existing value untouched.
+  Additive/backward-compatible: every existing consumer only ever read/wrote a
+  plain string/number.
+
 ## 1.7.3
 
 - **fix(store):** `Store.address` is now optional. A freshly-registered store

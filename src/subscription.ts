@@ -387,17 +387,21 @@ declare global {
 	/**
 	 * Request body for the MANAGER out-of-band override
 	 * `PUT /platform/stores/{storeId}/subscription` (api#827). No Stripe call —
-	 * a direct DynamoDB write + audit row. `trialEndsAt` is required when
-	 * `status === 'trialing'`; `reason` is the audit message (min 10 chars).
+	 * a direct DynamoDB write + audit row. `trialEndsAt` is required (non-null)
+	 * when `status === 'trialing'`; `reason` is the audit message (min 10 chars).
+	 *
+	 * `freeUntil` / `trialEndsAt` are three-state (api#1907): omit the key to
+	 * leave the existing value untouched, send `null` to clear it, send a value
+	 * to set it.
 	 */
 	interface SubscriptionAdminOverrideInput {
 		planTier: PlanTier;
 		status: SubscriptionStatus;
 		billingCycle: BillingCycle;
-		/** Courtesy-gift cutoff (ADR-0010), `YYYY-MM-DD`. Optional on any status. */
-		freeUntil?: string;
-		/** Trial end (Unix ms). Required when `status === 'trialing'`. */
-		trialEndsAt?: number;
+		/** Courtesy-gift cutoff (ADR-0010), `YYYY-MM-DD`. Optional on any status; `null` clears it. */
+		freeUntil?: string | null;
+		/** Trial end (Unix ms). Required (non-null) when `status === 'trialing'`; `null` clears it otherwise. */
+		trialEndsAt?: number | null;
 		reason: string;
 	}
 
