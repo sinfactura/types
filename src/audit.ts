@@ -117,6 +117,12 @@ declare global {
 		publicationDate?: string;
 		/** ISO date — freshness of the imported registry snapshot (the file's "Generado" stamp). */
 		registrySnapshotAt: string;
+		/** True when `registrySnapshotAt` is older than the staleness threshold — api#1903.
+		 * `flagged` is still computed from the local snapshot either way; this never suppresses
+		 * an answer, only marks it as based on a potentially outdated registry. */
+		stale: boolean;
+		/** Days between `registrySnapshotAt` and `checkedAt` — api#1903. */
+		registryAgeDays: number;
 		/** ISO timestamp of this check. */
 		checkedAt: string;
 	}
