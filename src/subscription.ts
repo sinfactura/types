@@ -361,6 +361,27 @@ declare global {
 		usage: SubscriptionUsageEntry[];
 	}
 
+	// ───────────────────────────── Store-row summary (api#1588) ─────────────────────────────
+
+	/**
+	 * Compact subscription summary attached to `Store.subscription` on
+	 * `GET /tenants` (list) and `GET /tenants?storeId=X` (single-store)
+	 * responses — the only subscription data SUPERVISOR can read (managerToken
+	 * still owns the full audit/override surface). No Stripe ids or amounts
+	 * (least-privilege). Absent entirely on a store with no SUBSCRIPTION row.
+	 */
+	interface StoreRowSubscriptionSummary {
+		planTier: PlanTier;
+		status: SubscriptionStatus;
+		/** `null` when the row has no billing cycle yet (pre-checkout). */
+		billingCycle: BillingCycle | null;
+		/** Courtesy-gift cutoff (ADR-0010). `YYYY-MM-DD`, matches `Subscription.freeUntil` — not epoch ms. */
+		freeUntil?: string;
+		/** Unix ms. Only meaningful while `status === 'trialing'`. */
+		trialEndsAt?: number;
+		currentPeriodEnd?: number;
+	}
+
 	// ───────────────────────────── Subscription admin override (api#827) ─────────────────────────────
 
 	/**

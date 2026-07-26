@@ -121,6 +121,9 @@ declare global {
     phone: string;
     email: string;
     acknowledgedSharedCuit?: boolean; // api#1328 — recorded when registered past the shared-CUIT gate
+    // SUPERVISOR-readable subscription summary (api#1588) — a response-time join,
+    // not a persisted Store attribute. Absent when the store has no SUBSCRIPTION row.
+    subscription?: StoreRowSubscriptionSummary;
     // CONFIG // NOT FEATURE FLAGS // FUNCTIONAL CONFIG
     config: {
       priceDecimals: 0 | 1 | 2 | 3;
