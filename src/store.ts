@@ -109,7 +109,9 @@ declare global {
     // store (guarded from real email/SMS/surveys). Optional + backward-compatible.
     type?: 'production' | 'demo';
     name: string;
-    address: {
+    // Optional: a freshly-registered store has no address until the operator
+    // fills one in via PATCH /store (api#1898). Readers guard with `?.`.
+    address?: {
       street: string;
       postalCode: string;
       city: string;

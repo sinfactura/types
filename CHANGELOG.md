@@ -7,6 +7,14 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.7.3
+
+- **fix(store):** `Store.address` is now optional. A freshly-registered store
+  has no address until the operator fills one in via `PATCH /store`; the BE
+  `POST /auth/register` no longer accepts `address`/`afip` (api#1898), so the
+  previously non-optional `address` field was an untrue contract. Readers
+  already guard with `?.` (verified) — relaxation is code-safe.
+
 ## 1.7.2
 
 - **feat(product):** add optional `Product.seoTitle` / `seoDescription` /
