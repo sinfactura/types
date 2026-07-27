@@ -7,6 +7,21 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.7.9
+
+- **feat(supplier):** `SupplierInvoiceConstatacion` gains `notApplicableReason`
+  (`SupplierInvoiceNotApplicableReason` = `'not_constatable' |
+  'wscdc_not_configured'`) — api#1937. `not_applicable` conflated a permanent
+  property of the *comprobante* (missing CAE/coordinates/`cuit`/`total`, or a
+  type outside the `CbteTipo` grid) with a transient property of the *tenant*
+  (WSCDC not enabled / ARCA relación not completed), so the FE re-derived the
+  difference by reimplementing the BE's `isVoucherConstatable` (app#2252) —
+  which would silently drift the day that rule changed. Distinct from the
+  existing `reason?: string`, which carries ARCA's own failure prose. Additive
+  and optional; rows written before api#1937 carry `not_applicable` with no
+  discriminator, so treat an absent value as unknown rather than as
+  `'not_constatable'`.
+
 ## 1.7.8
 
 - **feat(product):** `ProductChannelMapping` gains `permalink` (persisted, ML's

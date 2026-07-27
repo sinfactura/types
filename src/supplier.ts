@@ -91,11 +91,21 @@ declare global {
 		| 'not_applicable' // CAE absent, type outside grid, or store has no AFIP cert (gris)
 		| 'error'; // WSCDC unreachable / transient auth failure (reintentar)
 
+	// api#1937 — WHY a row is `not_applicable`. Without this the status conflated
+	// a permanent property of the comprobante with a transient property of the
+	// TENANT, and the FE re-derived the difference by reimplementing the BE's
+	// own eligibility rule (app#2252) — which silently drifts when that rule
+	// changes. Only ever meaningful alongside `status: 'not_applicable'`.
+	type SupplierInvoiceNotApplicableReason =
+		| 'not_constatable' // permanent(ish): missing CAE/coordinates/cuit/total, or type outside the CbteTipo grid. A property of THIS voucher — becomes stale only if the row is edited to completeness.
+		| 'wscdc_not_configured'; // transient: the STORE hasn't enabled WSCDC or hasn't completed the ARCA cert association. Nothing to do with this voucher; every such row becomes verifiable the moment the tenant finishes setup.
+
 	// api#1703 — WSCDC ComprobanteConstatar outcome persisted on the row.
 	interface SupplierInvoiceConstatacion {
 		status: SupplierInvoiceCheckStatus;
 		result?: 'A' | 'O' | 'R'; // ARCA Resultado (A→passed, O→warning, R→failed)
-		reason?: string; // present when failed
+		reason?: string; // present when failed — ARCA's own prose. NOT the not_applicable discriminator; see notApplicableReason.
+		notApplicableReason?: SupplierInvoiceNotApplicableReason; // api#1937 — present when status is 'not_applicable'
 		observations?: InvoiceObservation[]; // present when observado
 		verifiedAt?: string; // ISO — WSCDC FchProceso
 	}
