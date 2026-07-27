@@ -7,6 +7,20 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.7.10
+
+- **feat(supplier):** `SupplierInvoiceNotApplicableReason` gains
+  `'wscdc_not_authorized'` — api#1934/#1937. Splits "the tenant never switched
+  WSCDC on" (`wscdc_not_configured`, nobody asked ARCA) from "the tenant did
+  switch it on but ARCA refused the certificate for the `wscdc` service"
+  (`coe.notAuthorized`). The distinction is load-bearing on the API side: the
+  latter is a verdict ARCA actually produced, so the write path must not
+  re-enqueue it on every edit — treating both alike loops one WSAA login per
+  save for exactly the tenants api#1933/#1934 exist to stop calling ARCA for.
+  It also lets the FE say *"falta completar la relación en ARCA"* instead of
+  *"WSCDC no configurado"*. Additive; `verifiedAt` keeps its documented meaning
+  (WSCDC `FchProceso`) and is NOT set on this path.
+
 ## 1.7.9
 
 - **feat(supplier):** `SupplierInvoiceConstatacion` gains `notApplicableReason`

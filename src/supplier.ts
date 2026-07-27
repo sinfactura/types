@@ -98,7 +98,8 @@ declare global {
 	// changes. Only ever meaningful alongside `status: 'not_applicable'`.
 	type SupplierInvoiceNotApplicableReason =
 		| 'not_constatable' // permanent(ish): missing CAE/coordinates/cuit/total, or type outside the CbteTipo grid. A property of THIS voucher — becomes stale only if the row is edited to completeness.
-		| 'wscdc_not_configured'; // transient: the STORE hasn't enabled WSCDC or hasn't completed the ARCA cert association. Nothing to do with this voucher; every such row becomes verifiable the moment the tenant finishes setup.
+		| 'wscdc_not_configured' // transient: the tenant hasn't switched WSCDC on. Nobody ever asked ARCA about this row, so the write path re-evaluates it once the toggle flips.
+		| 'wscdc_not_authorized'; // the tenant HAS switched WSCDC on, but ARCA refused the certificate for the `wscdc` service (relación incomplete) — `coe.notAuthorized`. Distinct from the above because ARCA *was* contacted: this is the consumer's verdict, so the write path must not re-enqueue it on every edit (that loops one WSAA login per save). Clears when the relación completes and the CAE is re-submitted.
 
 	// api#1703 — WSCDC ComprobanteConstatar outcome persisted on the row.
 	interface SupplierInvoiceConstatacion {
