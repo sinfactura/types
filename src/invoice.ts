@@ -121,6 +121,14 @@ declare global {
     attemptedCbteFch?: string;
     // Mirror of Order.orderPrinted (api#643) — set when the invoice is printed.
     invoicePrinted?: boolean;
+    // DynamoDB TTL, Unix SECONDS (api#1559). A COST BOUNDARY on the hot tier —
+    // it carries no legal meaning and is NOT the fiscal retention term. The
+    // no-expiry S3 cold archive is the record of retention (api#1949): the duty
+    // runs to ~12 years from the operation and is not even a fixed term, since
+    // Ley 11.683 arts. 65/67 suspend and interrupt the prescription it derives
+    // from. Never surface this to a user as a retention/expiry date.
+    // Optional: forward-only, so rows written before api#1559 carry no ttl.
+    ttl?: number;
   }
 
   interface InvoiceItem {
