@@ -51,55 +51,21 @@ declare global {
     stats?: Record<string, string>;
   }
 
-  interface FeatureFlags {
-    navbar?: {
-      show?: boolean;
-    };
-    sidebar?: {
-      show?: boolean;
-      customerFinder?: {
-        show?: boolean;
-        showPicture?: boolean;
-        showEditButton?: boolean;
-        showStatsButton?: boolean;
-        showExitButton?: boolean;
-        showBalance?: boolean;
-        showPaymentButton?: boolean;
-      };
-      showHome?: boolean;
-      showCash?: boolean;
-      showOrders?: boolean;
-      showInvoices?: boolean;
-      showBaskets?: boolean;
-      showCustomers?: boolean;
-      showProducts?: boolean;
-      showReports?: boolean;
-      store?: {
-        show?: boolean;
-        showConfig?: boolean;
-        showCategories?: boolean;
-        showBrands?: boolean;
-        showProviders?: boolean;
-        showUsers?: boolean;
-        showIntegrations?: boolean;
-      };
-      showBalance?: boolean;
-    };
-    footer?: {
-      desktopNavigation?: {
-        show?: boolean;
-        showCopyright?: boolean;
-        showPrivacy?: boolean;
-        showAppVersion?: boolean;
-      };
-      mobileNavigation?: {
-        show?: boolean;
-        showOrders?: boolean;
-        showInvoices?: boolean;
-        showBasket?: boolean;
-        showFavorites?: boolean;
-      };
-    };
+  /**
+   * Platform globals forwarded to a tenant session on `GET /store` (api#1955).
+   *
+   * A read-time projection of the `GLOBALS`/`PLATFORM` row, never a stored
+   * attribute of the STORE row: the api decides per registered key whether it
+   * crosses this boundary (`forwardToTenants` in `globalsDefaults.ts`), so
+   * operator-only keys — the AI spend ceilings — are absent by construction.
+   * Every member is optional: a key the api has not registered, or has not
+   * marked forwardable, simply will not be here.
+   */
+  interface StoreGlobals {
+    /** ARCA/AFIP "Consumidor Final" DNI threshold, in pesos. */
+    minWithDni?: number;
+    /** Cmd-K usage telemetry collection (api#1007). */
+    commandPaletteTelemetry?: boolean;
   }
 
   interface Store {
@@ -171,7 +137,6 @@ declare global {
        */
       onboarding?: { step: number; completed: boolean; skipped: boolean };
     };
-    features: FeatureFlags;
     ecommerce?: Ecommerce;
     // HANDLE IMAGES
     photoURL: string;
@@ -220,7 +185,7 @@ declare global {
     appVersion: number;
     fiscalConditions: FiscalCondition[];
     ivaTypes: Method[];
-    minWithDni: number;
+    globals?: StoreGlobals;
     maintenance?: MaintenanceInfo;
     // api#1382 — last cert-expiry alert fired for the current cert, so the daily cron
     // doesn't re-alert within a band. Keyed to the cert's expiry ms so a renewed cert
