@@ -12,6 +12,28 @@ declare global {
     | 'rejected'
     | 'voided';
 
+  /**
+   * One discriminated IVA alicuota on an issued voucher (api#1961).
+   *
+   * `id` is AFIP's WSFE `Iva[].Id`, which is ALSO the Libro IVA Digital alicuota
+   * code once 4-padded — verified against ARCA's *Tablas del SISTEMA* section 1:
+   * 0003 = 0,00 % · 0004 = 10,50 % · 0005 = 21,00 % · 0006 = 27,00 % ·
+   * 0008 = 5,00 % · 0009 = 2,50 %. Those six are the whole valid domain; Ids 1
+   * and 2 (No Gravado / Exento) are Codigos de Operacion, not alicuotas, and
+   * WSFEv1 rejects them inside `Iva[]`.
+   *
+   * A bucket is meaningful when `baseImp !== 0`: a 0 %-rated line has
+   * `importe === 0` but is still a real, declarable alicuota.
+   */
+  interface InvoiceAlicuota {
+    /** AFIP WSFE `Iva[].Id` — one of 3, 4, 5, 6, 8, 9. */
+    id: number;
+    /** Neto gravado at this rate. */
+    baseImp: number;
+    /** IVA liquidado at this rate; `0` for the 0 % rate. */
+    importe: number;
+  }
+
   interface Invoice {
     storeId: string;
     invoiceId: string; // ID
@@ -54,6 +76,21 @@ declare global {
     neto21: number; // NETO21
     iva10: number;
     iva21: number;
+    /**
+     * api#1961 — the FULL per-alicuota IVA breakdown, one entry per declared rate.
+     *
+     * The `neto10`/`neto21`/`iva10`/`iva21` quartet above only ever captured AFIP
+     * Iva Ids 4 (10,5 %) and 5 (21 %). The catalog has SIX rates, so the other
+     * four (0 %, 2,5 %, 5 %, 27 %) were declared to ARCA yet dropped from the row,
+     * while `total` included every bucket — silently under-reporting the Libro IVA
+     * Digital, the RG 3685 export, the F.2051 apertura and the invoice PDF.
+     *
+     * Forward-only, no backfill: absent on every row issued before api#1961, and
+     * never set on the WSFEX export path. Consumers MUST fall back to the legacy
+     * quartet when it is absent rather than treating an empty result as "no IVA".
+     * The quartet is retained, not deprecated — still written on every new row.
+     */
+    alicuotas?: InvoiceAlicuota[];
     discount?: number;
     total: number; // IMP_TOTAL
 
