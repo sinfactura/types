@@ -439,6 +439,13 @@ declare global {
     effectiveFrom: string; // ISO date
     acceptanceWindowDays: number; // 21 as of Res. 219/2025 (through 2026-10-31); statutory fallback is 30
     acceptanceWindowValidThrough?: string; // ISO date -- when the exceptional window's own extension expires
+    /**
+     * api#1754 — epoch-ms last-write trace, set by the api on every threshold
+     * write and echoed on GET /config + the POST response (api PLATFORM_API.md
+     * section 20). OPTIONAL by design: a row written before the field carries
+     * none, so a reader must not treat its absence as "never updated".
+     */
+    updatedAt?: number;
   }
 }
 

@@ -121,6 +121,14 @@ declare global {
        */
       defaultAccountCurrency?: string;
       /**
+       * api#1768 / ADR-0004 section 5 — tenant opt-out from AI product
+       * enrichment. Absent is the (common) "tenant never touched the toggle"
+       * default and does NOT block; only an explicit `true` blocks. The api
+       * gate is fail-CLOSED on a read failure, but open on a missing field —
+       * do not conflate the two.
+       */
+      aiOptOut?: boolean;
+      /**
        * api#1740 — per-category × per-channel notification/feedback defaults.
        * Store-level baseline the app layers per-device overrides on top of
        * (app#2085); absent ⇒ the FE falls back to all-on. Purely FE-read — no
