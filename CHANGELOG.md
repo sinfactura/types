@@ -7,6 +7,18 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.8.5
+
+- **feat(print):** add `PrintAgentStatus` — the `GET /print?mode=agent-status`
+  response payload (api#612). Agent-LEVEL connectivity (`online`, `lastSeen`,
+  `agentVersion`, `queueDepth`), deliberately separate from the job-level
+  `PrintJobTransition` timeline: #612 answers "is the printer reachable now",
+  api#642 answers "was this job printed". Purely derived — there is no stored
+  entity behind it; the API computes `online` from the heartbeat fields the WSS
+  `heartbeat` action already writes onto the store's SOCKET row, treating a
+  heartbeat older than 3 intervals (180s) as offline. `lastSeen` is the wire
+  name for the stored `lastHeartbeatAt`. Additive.
+
 ## 1.7.10
 
 - **feat(supplier):** `SupplierInvoiceNotApplicableReason` gains

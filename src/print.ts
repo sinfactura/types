@@ -28,6 +28,33 @@ declare global {
     detail?: string;
     errorCode?: string;
   }
+
+  /**
+   * `GET /print?mode=agent-status` response payload (api#612).
+   *
+   * Agent-LEVEL connectivity — "is a Cloud Print agent reachable for this store
+   * right now" — as distinct from the job-level `PrintJobTransition` timeline
+   * above ("was this specific job printed"). Derived read-only from the
+   * heartbeat fields the WSS `heartbeat` action already writes onto the store's
+   * SOCKET connection row; there is no stored `PrintAgentStatus` entity.
+   */
+  interface PrintAgentStatus {
+    /**
+     * Derived, never stored: a printer connection exists for the store and its
+     * heartbeat is not stale. Independent of the SOCKET row's own 3h reaper
+     * TTL, which governs row cleanup rather than agent responsiveness.
+     */
+    online: boolean;
+    /**
+     * Freshest connection's `lastHeartbeatAt`, ms epoch. Absent when a printer
+     * is connected but has never reported (pre-heartbeat agent builds).
+     */
+    lastSeen?: number;
+    /** Absent unless the agent reported it on its last heartbeat. */
+    agentVersion?: string;
+    /** Jobs waiting in the agent's local queue, as of the last heartbeat. */
+    queueDepth?: number;
+  }
 }
 
 export {}; // NOSONAR
