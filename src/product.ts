@@ -17,6 +17,9 @@ declare global {
 			base64?: string;
 			primary?: boolean;
 		}[];
+		removePictures?: {
+			url: string;
+		}[];
 		stock: number;
 		// api#1806 — per-product low-stock threshold. A sale that crosses `stock`
 		// down to <= minStock fires a LOW_STOCK notification (unset => no

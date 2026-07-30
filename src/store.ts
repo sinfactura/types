@@ -149,7 +149,6 @@ declare global {
     // HANDLE IMAGES
     photoURL: string;
     photoData?: string;
-    newPhotoURL?: string;
     removePhotoURL?: string;
     // STORE row reverse-lookup by tenant MP user_id — hot path for the
     // per-tenant payment webhook. Sparse: only STORE rows with an
