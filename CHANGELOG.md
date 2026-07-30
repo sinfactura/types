@@ -19,6 +19,50 @@ Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
   heartbeat older than 3 intervals (180s) as offline. `lastSeen` is the wire
   name for the stored `lastHeartbeatAt`. Additive.
 
+## 1.8.4
+
+- **fix(store, product):** remove `Store.newPhotoURL`; add
+  `Product.removePictures?: { url: string }[]` — api#1985. **Removal:**
+  `newPhotoURL` was a legacy client-supplied upload destination with no
+  remaining producer. Consumers that merely *strip* it from a request body
+  (via a Zod schema or a `Record<string, unknown>` cast) are unaffected;
+  anything reading it off a typed `Store` must drop the reference.
+
+## 1.8.3
+
+- **fix(api):** `LastEvaluatedKey` widens from `Record<string, string>` to
+  `string | Record<string, string | number>`, and `truncated?: boolean` is
+  added. The old shape couldn't express either real cursor: an opaque cursor
+  string, or a key object for a GSI with a *numeric* sort key (`GET /invoices`'
+  `PK-dated` branch). `truncated` is deliberately distinct from
+  `LastEvaluatedKey` — an endpoint can be truncated with NO cursor to continue
+  from, so `truncated: true` does not mean "fetch the next page". Readers are
+  compatible; anything *constructing* a `LastEvaluatedKey` should widen.
+
+## 1.8.2
+
+- **feat(invoice, store):** graduate `FceThresholdConfig.updatedAt?: number`
+  and `Store.config.aiOptOut?: boolean`. Both optional by design — a row
+  written before the field exists simply omits it. Additive.
+
+## 1.8.1
+
+- **feat(invoice):** add `InvoiceAlicuota` (`{ id, baseImp, importe }`) and
+  `Invoice.alicuotas?: InvoiceAlicuota[]` — api#1961. Per-VAT-rate buckets; a
+  bucket is meaningful when `baseImp !== 0`, so a 0%-rated line still carries
+  one. Forward-only with no backfill: absent on every row issued before
+  api#1961, so treat missing as "not computed", not "no VAT". Additive.
+
+## 1.8.0
+
+- **feat(store):** add the `StoreGlobals` envelope and `Store.globals?:
+  StoreGlobals` — platform globals forwarded to a tenant session on
+  `GET /store` (api#1955). Only what `forwardToTenants` whitelists crosses the
+  boundary. **Removals:** the unused `FeatureFlags` interface (and
+  `Store.features`) is gone, and `minWithDni` moved off `Store` — where it was
+  required — onto `StoreGlobals.minWithDni?`, where it is optional. A consumer
+  reading `store.minWithDni` must move to `store.globals?.minWithDni`.
+
 ## 1.7.10
 
 - **feat(supplier):** `SupplierInvoiceNotApplicableReason` gains
