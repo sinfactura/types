@@ -143,6 +143,35 @@ declare global {
 		reason: string;
 	}
 
+	/** api#546 — an operator replaced an order's content under optimistic concurrency. */
+	interface OrderEditedEvent extends UserActivityEventBase {
+		event: 'Order Edited';
+		order_id: string;
+		/** Server-recomputed totals, in the order's own currency. */
+		old_total: number;
+		new_total: number;
+		/** Count of lines added / removed / quantity-or-price changed. */
+		lines_added: number;
+		lines_removed: number;
+		lines_modified: number;
+	}
+
+	/** api#547 — an operator processed a full or partial return. */
+	interface OrderReturnedEvent extends UserActivityEventBase {
+		event: 'Order Returned';
+		order_id: string;
+		return_id: string;
+		/** Credited amount — the discounted `Return.total`. */
+		total: number;
+		/** Number of original order lines involved. */
+		line_count: number;
+		reason: ReturnReason;
+		/** True when at least one line came back as `damaged` (no restock). */
+		has_damaged: boolean;
+		/** NC lifecycle at the moment the return committed. */
+		nc_status: ReturnCreditNoteStatus;
+	}
+
 	// Per-price-list resolved-base before/after delta carried by
 	// ProductPriceChangedEvent.changes (api#1419). Amounts are in the store's
 	// display currency. snake_case to match the event-property convention.
@@ -681,6 +710,8 @@ declare global {
 		| InvoiceCreatedEvent
 		| OrderCreatedEvent
 		| OrderCancelledEvent
+		| OrderEditedEvent
+		| OrderReturnedEvent
 		| ProductPriceChangedEvent
 		| CustomerCreatedEvent
 		| CustomerEditedEvent

@@ -1,41 +1,63 @@
 
 declare global {
 
-	interface OrderAudit {
+	/**
+	 * One entry of the generic order audit trail (api#548).
+	 *
+	 * ⚠️ **Reshaped in types#111.** The previous declaration invented its own
+	 * columns (`auditId`, `changes[]`, `itemChanges`, `oldTotal`, `newTotal`)
+	 * that did not match what the api's `writeAuditEntry`/`listAuditEntries`
+	 * actually persist and return — so a handler could not satisfy both. This is
+	 * now a faithful projection of the stored `AuditEntry`, which is the single
+	 * storage shape for every audited entity.
+	 *
+	 * Safe to reshape: nothing imported the old declaration (it was referenced
+	 * only inside this file), and the order audit read endpoint does not exist yet.
+	 *
+	 * Storage: `PK = AUDIT#ORDER#{storeId}#{orderId}`, `SK = {timestampMs}`
+	 * zero-padded to 13 chars, newest-first on read. `PK`/`SK` are stripped
+	 * before the row reaches the wire.
+	 */
+	interface OrderAuditEntry {
+		entity: 'ORDER';
+		/** The `orderId`. */
+		entityId: string;
 		storeId: string;
-		auditId: string;
-		orderId: string;
-		userId: string;
-		fullName?: string;
+		/** ms epoch; also the source of the sort key. */
+		timestamp: number;
+		actor: OrderAuditActor;
 		action: OrderAuditAction;
+		/**
+		 * Changed business fields only, before and after. Line-level detail
+		 * (added/removed/modified lines, keyed by original order-array index) and
+		 * totals live INSIDE these payloads rather than as extra top-level
+		 * columns, because the generic writer has no such columns.
+		 *
+		 * Must be sanitized: no `PK`/`SK`, no secrets, no unnecessary customer PII.
+		 */
+		before: Record<string, unknown>;
+		after: Record<string, unknown>;
+		/** Why the mutation happened. Required by the generic writer. */
+		reason: string;
 		createdAt: number;
-		dated: number;
-
-		changes?: OrderAuditChange[];
-
-		itemChanges?: {
-			added: Partial<BasketItem>[];
-			removed: Partial<BasketItem>[];
-			modified: Array<{
-				productId: string;
-				name?: string;
-				oldQuantity: number;
-				newQuantity: number;
-				oldPrice: number;
-				newPrice: number;
-			}>;
-		};
-
-		oldTotal?: number;
-		newTotal?: number;
-
-		returnId?: string;
 	}
 
-	interface OrderAuditChange {
-		field: string;
-		oldValue: unknown;
-		newValue: unknown;
+	/** Who performed an audited order mutation. `fullName` is denormalized at write time. */
+	interface OrderAuditActor {
+		userId: string;
+		fullName: string;
+	}
+
+	/**
+	 * `GET /orders?mode=audit&orderId=…` response payload (api#548).
+	 *
+	 * `cursor` is an opaque base64url encoding of the underlying
+	 * `LastEvaluatedKey`; raw DynamoDB keys are never exposed. Absent when there
+	 * is no further page. An order with no history is `items: []`, not a 404.
+	 */
+	interface OrderAuditPage {
+		items: OrderAuditEntry[];
+		cursor?: string;
 	}
 
 	type OrderAuditAction =
@@ -47,6 +69,8 @@ declare global {
 		| 'order_disabled'
 		| 'order_enabled'
 		| 'order_returned'
+		/** Customer (or operator) cancellation — distinct from `order_disabled` (api#591). */
+		| 'order_cancelled'
 		| 'discount_changed'
 		| 'payment_method_changed'
 		| 'delivery_method_changed'

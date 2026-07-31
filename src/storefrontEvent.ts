@@ -97,6 +97,27 @@ declare global {
 		items_count: number;
 	}
 
+	/**
+	 * Customer self-cancelled their own order from the storefront (api#591).
+	 *
+	 * Always carries `customer_id` — self-cancellation requires an authenticated
+	 * customerToken, so an anonymous variant is a contract violation. This is the
+	 * customer-facing counterpart to the operator's `Order Cancelled`
+	 * UserActivity event; the two are separate audit surfaces.
+	 */
+	interface OrderCancelledByCustomerEvent extends StorefrontEventBase {
+		event: 'Order Cancelled By Customer';
+		customer_id: string;
+		transaction_id: string;
+		/** Revenue reversed by the cancellation, in the order's own currency. */
+		revenue: number;
+		currency: string;
+		/** Optional bounded free text the customer supplied. */
+		reason?: string;
+		/** ms elapsed between order creation and cancellation — feeds window tuning. */
+		elapsed_ms: number;
+	}
+
 	interface CustomerLoggedInEvent extends StorefrontEventBase {
 		event: 'Customer Logged In';
 		method: 'email' | 'google' | 'facebook';
@@ -143,6 +164,7 @@ declare global {
 		| CheckoutStepCompletedEvent
 		| PaymentInfoEnteredEvent
 		| OrderCompletedEvent
+		| OrderCancelledByCustomerEvent
 		| CustomerLoggedInEvent
 		| CustomerSignedUpEvent
 		| CustomerLoggedOutEvent
