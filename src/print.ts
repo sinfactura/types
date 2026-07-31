@@ -57,9 +57,17 @@ declare global {
     /** Agent process uptime in seconds. */
     uptime?: number;
     /**
-     * Machine hostname (api#2005). Requires a cloudprint heartbeat change
-     * (sinfactura/print#180) — absent until then, so a UI still needs the
-     * `agentId`/`platform` fallback label.
+     * Machine hostname. **Live** — the agent sends it as of v2.1.6
+     * (sinfactura/print#180) and the api persists and exposes it as of api#2016.
+     *
+     * Still optional, and a UI still needs the `agentId` + `platform` fallback
+     * label: mixed fleets are real, so a pre-v2.1.6 agent reports none and the
+     * field is simply absent. Not a flag day.
+     *
+     * ⚠️ Mild PII — machine names routinely embed a person's (`MacBook-de-Juan`,
+     * `PC-MARIA`). The agent keeps it out of its own logs and the api redacts it
+     * by key in both the Powertools logger and Sentry. Don't log it, and never
+     * put it in a Sentry tag.
      */
     hostname?: string;
     /**

@@ -7,6 +7,15 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.2
+
+- **docs(print):** actually apply the `PrintAgentSummary.hostname` correction.
+  **1.10.1 shipped the changelog entry below without the code change** — a scripted
+  edit's anchor assumed tab indentation while `src/print.ts` uses four spaces, and
+  the assertion failure did not stop the chained version bump, commit and push. So
+  1.10.1's `dist` is byte-identical to 1.10.0. Nothing was broken by it; the
+  changelog simply described a fix that was not there. Corrected here.
+
 ## 1.10.1
 
 - **docs(print):** correct `PrintAgentSummary.hostname` — it said *"Requires a
