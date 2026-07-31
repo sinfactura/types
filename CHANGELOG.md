@@ -7,6 +7,32 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.9.1
+
+- **feat(report):** canonicalize the `GET /reports?mode=invoices` ventas summary
+  — `ReportInvoices`, `ReportInvoicesResume`, `ReportInvoicesAmounts`,
+  `ReportInvoicesVoucherRow` — for sinfactura/api#2011. Purely additive: the
+  shape existed only as a local duplicate in the app
+  (`src/app/services/reports.ts`), so nothing here changes for an existing
+  consumer.
+
+  The new `gross` / `credit` / `net` triple (per day, plus a `period` aggregate)
+  is what makes api#2011's fix legible: today the summary sums every deliverable
+  voucher with a positive sign, so a nota de crédito **inflates** reported sales
+  instead of reducing them. Every bucket amount is a POSITIVE magnitude —
+  netting lives in `net`, never as a sign on `credit` — matching the fiscal-file
+  convention where an NC row also stays positive and the `CbteTipo` carries the
+  sign. Notas de **débito** stay in `gross` on purpose: a débito increases what
+  is owed, and netting both families would move the total the wrong way.
+
+  Two drift fixes fall out of canonicalizing it. `resume[].date` is a **number**
+  (`YYYYMMDD`) — the app's copy typed it `string` while the API has always
+  returned `Invoice.dated` — the same class of bug as `ReportSales.date`. And
+  `invoices[]` is `ReportInvoicesVoucherRow`, not `Record<string, string>[]`:
+  five of its ten fields are numbers. The legacy `neto10`/`neto21`/`iva10`/
+  `iva21`/`neto`/`iva`/`total` columns are retained untouched for wire
+  compatibility and documented as the debit-and-credit mixture they are.
+
 ## 1.9.0
 
 Batched release of the five open contract issues: types#107, #109, #110, #111,
