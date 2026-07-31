@@ -7,6 +7,22 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.1
+
+- **docs(print):** correct `PrintAgentSummary.hostname` — it said *"Requires a
+  cloudprint heartbeat change (sinfactura/print#180) — absent until then"*, which
+  is now doubly stale: the agent ships it as of **v2.1.6**, and the api persists
+  and exposes it as of **api#2016**. The fallback advice survives (mixed fleets
+  are real, so it stays optional), but "absent until then" would have told the
+  next consumer the field is unreachable.
+
+  Also records that a hostname is **mild PII** — machine names routinely embed a
+  person's (`MacBook-de-Juan`, `PC-MARIA`). The agent keeps it out of its own
+  logs, and api#2016 redacts it by key in both the Powertools logger and Sentry.
+  Worth stating on the contract so a consumer doesn't log or tag it.
+
+  Doc-only, no shape change → patch.
+
 ## 1.10.0
 
 - **fix(socket):** flatten `SocketRegisterPrintersMessage` and add the
