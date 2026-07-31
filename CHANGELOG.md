@@ -7,6 +7,24 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.8.6
+
+- **feat(print):** add `PrintAgentSummary`; `PrintAgentStatus` gains
+  `agents: PrintAgentSummary[]` + `onlineCount: number` — api#612. The 1.8.5
+  shape answered only "is *any* printer reachable", which can drive a red/green
+  badge but not the operator fleet view sinfactura/app#1378 describes ("N
+  agentes conectados", a per-agent drawer). Every field was already on the
+  SOCKET row from the agent's 60s heartbeat and simply discarded. Per-agent
+  fields are all optional because a pre-heartbeat agent build holds a live
+  socket and receives jobs without ever reporting. ⚠️ `agents` is CONNECTED
+  agents, not INSTALLED ones — an agent never started, or whose socket row was
+  reaped by the 3h TTL, is invisible, so this cannot answer "are all my
+  configured agents running". `platform` is `process.platform`, NOT a hostname;
+  the agent sends no hostname and no per-printer statuses today, so the
+  per-printer pane of app#1378 still needs agent-side work. The two new fields
+  are required, which only affects a *producer* constructing the type (api
+  alone); readers are unaffected.
+
 ## 1.8.5
 
 - **feat(print):** add `PrintAgentStatus` — the `GET /print?mode=agent-status`
