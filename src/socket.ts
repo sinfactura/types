@@ -93,6 +93,12 @@ export const SOCKET_ACTIONS = [
 	'print-product',
 	'print-tag',
 	'print_job_failed',
+	// BE → agent: re-send your COMPLETE printer set (api#2006). Carries only
+	// `storeId`; the agent already knows what to report. Exists because
+	// `register_printers` fires just on connect and on local printer change, so
+	// an agent that connected before the registry shipped stays invisible to it
+	// until it happens to reconnect — days, for a machine that is never restarted.
+	'request_printers',
 
 	// Operations / operator surfaces.
 	'logs',
@@ -132,11 +138,11 @@ export interface SocketMessage<T = unknown> {
  * The first four mirror the zod discriminated union in
  * `api/stacks/wss/lambdas/socket/default.ts` and are live today.
  *
- * ⚠️ `register_printers` is published AHEAD of the backend (api#2005 /
- * api#2006 / sinfactura/print#156) so the agent, api, and app lanes can build
- * against one `.d.ts` instead of discovering a mismatch at integration. The
- * api's union does **not** accept it yet — sending it before api#2006 ships
- * fails validation. Check the api lane before wiring it in an agent build.
+ * `register_printers` is **live**: api#2006 shipped its handler and the `$default`
+ * union, deployed and verified against a real agent on 2026-08-01. It was
+ * published ahead of that backend so the agent, api and app lanes could build
+ * against one `.d.ts` — which is exactly how api#2017 caught the frame being
+ * declared nested while every sibling is flat, before an agent shipped against it.
  */
 export const CLIENT_SOCKET_ACTIONS = ['auth', 'logs', 'heartbeat', 'ack', 'register_printers'] as const;
 
@@ -144,7 +150,7 @@ export const CLIENT_SOCKET_ACTIONS = ['auth', 'logs', 'heartbeat', 'ack', 'regis
 export type ClientSocketAction = (typeof CLIENT_SOCKET_ACTIONS)[number];
 
 /** Client→server actions the backend accepts **today**. */
-export const LIVE_CLIENT_SOCKET_ACTIONS = ['auth', 'logs', 'heartbeat', 'ack'] as const;
+export const LIVE_CLIENT_SOCKET_ACTIONS = ['auth', 'logs', 'heartbeat', 'ack', 'register_printers'] as const;
 
 /** Authenticate the connection. Must be the first frame; see `AuthAckFrame`. */
 export interface SocketAuthMessage {
@@ -182,13 +188,30 @@ export interface SocketAckMessage {
 }
 
 /**
- * Agent → BE printer registry report (api#2005). `data` is the COMPLETE current
- * printer set for the agent, not a delta. Not accepted by the api until
- * api#2006 — see `CLIENT_SOCKET_ACTIONS`.
+ * Agent → BE printer registry report (api#2006). `printers` is the agent's
+ * COMPLETE current set, never a delta — the BE marks absent printers offline
+ * rather than deleting them, because deleting would orphan any `PrintRule`
+ * pointing at one.
+ *
+ * **FLAT, like every other client→server frame** (api#2017). 1.9.0–1.9.1
+ * declared this nested (`{ action, data }`) — the only nested client action —
+ * and that was wrong: the agent's sender builds `{ action, ...data }` by design,
+ * reserving nested payloads for server→client frames, and the api destructures
+ * `const { action, ...data }`. A union entry written to match the nested
+ * declaration would have rejected every real report with `400 Invalid message`
+ * and left the registry silently empty, presenting as an agent bug.
+ *
+ * `agentId` is deliberately **not declared**. The api derives it from the
+ * authenticated SOCKET row, because trusting a frame-supplied value would let
+ * one agent register printers under another's id. The open index signature still
+ * permits sending it, and the api treats it as advisory — falling back to it only
+ * when the connection has no `agentId` yet, since a report can arrive before the
+ * agent's first heartbeat.
  */
 export interface SocketRegisterPrintersMessage {
 	action: 'register_printers';
-	data: RegisterPrintersData;
+	printers: PrintPrinterReport[];
+	[key: string]: unknown;
 }
 
 /** Any client→server JSON frame. */

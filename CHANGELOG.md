@@ -7,6 +7,44 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.0
+
+- **fix(socket):** flatten `SocketRegisterPrintersMessage` and add the
+  `request_printers` server→client action, for sinfactura/api#2017.
+
+  **Minor, not patch:** `SocketRegisterPrintersMessage` is *reshaped*
+  (`data: RegisterPrintersData` → `printers: PrintPrinterReport[]`), which the
+  versioning table calls major. Shipped as minor because it cannot break anyone —
+  the symbol had **zero** importers across `api`, `app`, `web`, `storefront`,
+  `landing` and `cloudprint` (the only two api hits are prose in code comments).
+  Same call as 1.9.0's two zero-consumer reshapes.
+
+  It was the **only nested action** in the client→server union while `auth` /
+  `logs` / `heartbeat` / `ack` are all flat — in this package, in the api's live
+  `messageSchema`, and in the agent's sender, which builds `{ action, ...data }`
+  by design and reserves nested payloads for server→client frames. A union entry
+  written to match the nested declaration would have rejected **every** real
+  agent report with `400 Invalid message`, leaving the `PRINTER#` registry
+  silently empty — a failure that presents as an agent bug, in the repo with the
+  slowest fix cycle (tag → CDN → electron-updater). Publishing the contract ahead
+  of both lanes is what surfaced the mismatch before an agent shipped against it.
+
+  `agentId` is deliberately **not declared** on the frame: the api derives it from
+  the authenticated SOCKET row, because trusting a frame-supplied value lets one
+  agent register printers under another's id. The open index signature still
+  permits sending it, and the api treats it as advisory.
+
+- **feat(socket):** `request_printers` (BE → agent) joins `SOCKET_ACTIONS` (48 →
+  49). `register_printers` only fires on agent connect and on local printer
+  change, so an agent already connected when the registry shipped stays invisible
+  to it until it happens to reconnect — days for a machine that is never
+  restarted. This lets the backend ask. Verified in production against a live
+  agent, which ignored the unknown action without dropping its socket.
+
+- **chore(socket):** `register_printers` moves into `LIVE_CLIENT_SOCKET_ACTIONS`
+  — api#2006 shipped its handler and union entry, deployed and verified
+  2026-08-01. The "not accepted by the api yet" warning is removed as stale.
+
 ## 1.9.1
 
 - **feat(report):** canonicalize the `GET /reports?mode=invoices` ventas summary

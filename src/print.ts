@@ -188,7 +188,10 @@ declare global {
   type PrintPrinterReport = Omit<PrintPrinter, 'agentId' | 'active' | 'reportedAt' | 'online'>;
 
   /**
-   * agent → BE WSS payload: `{ action: 'register_printers', data: RegisterPrintersData }`.
+   * payload of the agent → BE `register_printers` WSS frame. ⚠️ That frame is
+ * **FLAT** — `{ action, printers }`, NOT `{ action, data }` (api#2017); this type
+ * describes the fields, not a nested envelope. `agentId` here is advisory: the api
+ * derives it from the authenticated SOCKET row and is not declared on the frame.
    */
   interface RegisterPrintersData {
     agentId: string;
