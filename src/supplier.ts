@@ -77,6 +77,17 @@ declare global {
 		authorizationCode?: string; // CAE/CAEA/CAI (WSCDC CodAutorizacion)
 		authorizationMode?: 'CAE' | 'CAEA' | 'CAI'; // WSCDC CbteModo (defaults 'CAE')
 		constatacion?: SupplierInvoiceConstatacion; // WSCDC result, written async by the supplier-constatar consumer
+
+		/**
+		 * DynamoDB TTL, Unix SECONDS (api#1947). Mirrors `Invoice.ttl`.
+		 *
+		 * ⚠️ A COST BOUNDARY on the hot tier — it carries no legal meaning and is NOT
+		 * the fiscal retention term. **Never surface this to a user as a retention or
+		 * expiry date.** The no-expiry S3 PDF is the record of retention.
+		 *
+		 * Optional: forward-only, so rows written before api#1947 carry no ttl.
+		 */
+		ttl?: number;
 	}
 
 	// api#1703 — generic per-invoice ARCA trust-check status, shared across
