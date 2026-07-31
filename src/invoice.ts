@@ -171,6 +171,16 @@ declare global {
      * Optional: forward-only, so rows written before api#1559 carry no ttl.
      */
     ttl?: number;
+
+    /**
+     * Expected payment due date, Unix ms (api#713 / types#110).
+     *
+     * Optional and forward-only. Unrelated to `ttl` above (a DDB cost boundary)
+     * and to `caeExpiration` (an ARCA authorization window) — this is a
+     * commercial payment term, and it is what the AR dunning chains schedule
+     * against. Inherited from the order or set independently at issuance.
+     */
+    dueDate?: number;
   }
 
   interface InvoiceItem {

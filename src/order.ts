@@ -19,6 +19,15 @@ declare global {
 		currencyValue?: number;
 		currencyValueAt?: number;
 		paymentMethod: number;
+		/**
+		 * Expected payment due date, Unix ms (api#713 / types#110).
+		 *
+		 * Optional and forward-only. Purely declarative in v1: nothing in the
+		 * platform computes it from payment terms (Net 15/30, per-customer
+		 * credit days) — that is a separate product decision. An Invoice issued
+		 * against this order may inherit it or set its own independently.
+		 */
+		dueDate?: number;
 		deliveryMethod: number;
 		invoiceMethod?: {
 			condFiscal: number;
@@ -41,7 +50,30 @@ declare global {
 		orderPrinted?: boolean;
 		tagPrinted?: boolean;
 		invoices?: Partial<Invoice>[];
-		returns?: Partial<Return>[];
+		/**
+		 * Bounded, embedded projections of this order's returns (api#547),
+		 * capped at 50. The canonical rows live under `RETURN#${storeId}`.
+		 *
+		 * ⚠️ Element type narrowed from `Partial<Return>` to `ReturnSummary` in
+		 * types#111. Safe: the returns feature is unbuilt, so nothing produced or
+		 * consumed this field at the time of the change.
+		 */
+		returns?: ReturnSummary[];
+
+		/**
+		 * Customer self-cancellation (api#591). Cancelled is a DISTINCT state
+		 * from `disabled` (operator soft-delete) — do not conflate them, and note
+		 * that `disabled` additionally stamps `readyAt`/`deliveredAt`/
+		 * `deliveredDate`, which cancellation must NOT do.
+		 *
+		 * All four are absent on a non-cancelled order.
+		 */
+		cancelledAt?: number;
+		/** Who cancelled: the customerId for a self-cancellation, else the userId. */
+		cancelledBy?: string;
+		cancellationSource?: OrderCancellationSource;
+		/** Bounded free text supplied by the canceller. */
+		cancellationReason?: string;
 		// api#1684 — auto-credit-note status stamped once an NC is emitted (or
 		// attempted) against this ML order; FE renders "NC emitida" from this.
 		mercadolibreCreditNote?: {
@@ -95,6 +127,13 @@ declare global {
 	}
 
 	type OrderChannel = 'meli';
+
+	/**
+	 * Who initiated a cancellation (api#591). `customer` is the storefront
+	 * self-service path; `operator` is reserved for a future back-office
+	 * cancellation that is still distinct from `disabled`.
+	 */
+	type OrderCancellationSource = 'customer' | 'operator';
 
 	// WRITE-side shape of the credit-note stamp above (api#1684 / api#1723) —
 	// what `stampCreditNoteStatus` persists onto `Order.mercadolibreCreditNote`.
