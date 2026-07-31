@@ -7,6 +7,83 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.9.0
+
+Batched release of the five open contract issues: types#107, #109, #110, #111,
+#112. **Minor, not the usual patch** — two symbols are reshaped rather than
+purely added (see the ⚠️ items). Both had zero consumers at the time of the
+change, verified by grep across every umbrella repo, so nothing can break; the
+minor is a signal to read this entry, not a migration warning.
+
+- **feat(socket):** new `src/socket.ts` exports the WS wire contract as
+  **runtime values** — `SOCKET_ACTIONS` (48 server→client actions) +
+  `SocketAction`, `CLIENT_SOCKET_ACTIONS` / `LIVE_CLIENT_SOCKET_ACTIONS`,
+  `SocketMessage`, the four client→server frames, `SocketAuthOkFrame` /
+  `SocketAuthFailFrame` + `SOCKET_AUTH_FAIL_REASONS`, `SOCKET_KEEPALIVE`, and
+  the `isSocketAction` / `isSocketKeepAlive` guards — types#107. This is the
+  package's **first non-ambient module**: everything else is
+  `declare global` + `export {}`, but action names are needed as *values* to
+  validate a frame and key an exhaustive switch. The action list is derived from
+  the api's real producers (`postData` blocks, `dynamoUpdate`'s auto-broadcast
+  `action` arg, payment/log call sites) — 48, not the 31 the issue estimated,
+  which was only the app's own `action === '…'` handler count. Audience is not
+  encoded: `print*` frames target the agent, some ops frames admins only, so a
+  client must ignore what it does not own. `register_printers` is published
+  **ahead of the backend** (api#2006) so the agent/api/app lanes share one
+  `.d.ts`; `LIVE_CLIENT_SOCKET_ACTIONS` is what the api accepts today.
+- **fix(build):** `src/index.ts` barrel now uses explicit `.js` specifiers. The
+  package is `"type": "module"`, so Node's ESM resolver governs `dist/index.js`
+  and does not do extensionless resolution — `dist/index.js` threw
+  `ERR_MODULE_NOT_FOUND` on import. Latent for the package's whole life because
+  ambient-only modules meant nothing ever loaded it at runtime; types#107's
+  values made it reachable. Bundler-based consumers (Vite/esbuild) were
+  unaffected and stay unaffected.
+- **feat(print):** printer registry + routing contract — `PrintPrinterState`,
+  `PrintPrinterCapabilities`, `PrintPrinter`, `PrintPrinterReport` (via `Omit`,
+  so an agent build structurally cannot claim the BE-owned `active` /
+  `reportedAt` / `online`), `RegisterPrintersData`, `PrintUseCase`, `PrintRule`,
+  `PrintJobRouting`; `PrintAgentSummary` gains `hostname?` + `printers?` —
+  types#112 / api#2005. Existing `PrintOptions` (api#1004) is reused, not
+  duplicated. ⚠️ The full print-job **dispatch payload is still not
+  canonical here** — the de-facto shape is cloudprint's own
+  `PrintJobPayloadSchema`, whose `documentType` vocabulary
+  (`invoice | shipping_tag | delivery_label`) does **not** match `PrintUseCase`;
+  `PrintJobRouting` carries only the one field #156 adds. Reconciling those two
+  vocabularies needs its own ticket.
+- **feat(orders):** epic api#607 contracts — types#111. `EditOrderRequest`,
+  `CreateReturnRequest`, `RetryReturnCreditNoteRequest`;
+  `ReturnItem.orderItemIndex`, `Return.requestId`, `Return.ncStatus`
+  (`ReturnCreditNoteStatus`) + `ncError`, `ReturnSummary`; `Order` gains
+  `cancelledAt` / `cancelledBy` / `cancellationSource`
+  (`OrderCancellationSource`) / `cancellationReason`; `StockIncome` gains
+  `returnId` / `orderId` / `orderItemIndex`; new `ReportSales`;
+  `OrderEditedEvent` + `OrderReturnedEvent` UserActivity variants and the
+  `OrderCancelledByCustomerEvent` storefront variant. Returns are keyed by
+  **order-array index, never `productId`** (one order can carry the same product
+  on several lines at different prices). Sellable return stock rides
+  `returnId`-tagged `INCOME#` rows rather than a new partition, so the existing
+  `Σ INCOME − Σ SALE` on-hand formula stays correct with no reader change —
+  hence the `StockIncome` attribution fields and no return-stock entity.
+- ⚠️ **feat(audit) reshape:** `OrderAudit` + `OrderAuditChange` are **replaced**
+  by `OrderAuditEntry` + `OrderAuditActor` + `OrderAuditPage`. The old shape
+  invented columns (`auditId`, `changes[]`, `itemChanges`, `oldTotal`,
+  `newTotal`) that did not match what the api's `writeAuditEntry` /
+  `listAuditEntries` actually persist and return, so a handler could not satisfy
+  both; line/total detail now lives inside the generic `before`/`after`
+  payloads. `OrderAuditAction` **keeps all 14 members** and adds only
+  `order_cancelled` — an earlier draft of api#548 listed 11 and would have
+  silently narrowed the union.
+- ⚠️ **feat(order) reshape:** `Order.returns` narrowed from
+  `Partial<Return>[]` to `ReturnSummary[]` (bounded, max 50 per order).
+- **feat(order, invoice):** `dueDate?: number` (Unix ms) on both — types#110 /
+  api#713. Declarative only; nothing computes it from payment terms yet.
+  Distinct from `Invoice.ttl` (a DDB cost boundary) and `caeExpiration` (an ARCA
+  window) — this is a commercial payment term and what AR dunning schedules on.
+- **feat(supplier):** `SupplierInvoice.ttl?: number` mirroring `Invoice.ttl` —
+  types#109 / api#1947. Forward-only; a cost boundary on the hot tier with **no
+  legal meaning**, never to be surfaced as a retention or expiry date. Lets api
+  drop its `as unknown as` cast and the local augmentation block.
+
 ## 1.8.6
 
 - **feat(print):** add `PrintAgentSummary`; `PrintAgentStatus` gains
