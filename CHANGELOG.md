@@ -7,6 +7,26 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.3
+
+- **feat(userActivity):** graduate the three `PRINT_RULE#` audit variants from
+  api#2007 (merged as api PR#2023) — `Print Rule Created`, `Print Rule Edited`,
+  `Print Rule Deleted`. Each carries `use_case` (typed as `PrintUseCase`, not a
+  bare string), `agent_id` and `printer_id`; `Edited` adds a symmetric
+  `fields_changed` (a key removed from the options payload is listed, not just
+  added/changed ones, and it may be empty when a write changed nothing).
+  Unblocks the app-side renderers — `CATEGORY_BY_EVENT` there is an exhaustive
+  `Record<UserActivityEvent['event'], …>`, so **this bump turns app's current
+  silent runtime crash on these events into a compile error** until it adds the
+  three entries (sinfactura/app#2300).
+  ⚠️ Deliberately NOT added: `printer` / `printer_agent` in
+  `UserActivityEntityType`. The api writes no `LINK#` rows for them, so
+  Path C (`?entityType=printer`) would 400 on a type the contract advertises.
+  That needs the api-side composite `(agentId, printerId)` id first — `printerId`
+  is unique only *within* an agent.
+- **docs(userActivity):** the union's variant count comment read `72` while the
+  union already held 78; corrected to 81. Recount rather than trust it.
+
 ## 1.10.2
 
 - **docs(print):** actually apply the `PrintAgentSummary.hostname` correction.

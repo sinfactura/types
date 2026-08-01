@@ -690,7 +690,50 @@ declare global {
 	}
 
 	// ──────────────────────────────────────────────────────────────────────────
-	// Discriminated union — 72 variants
+	// Phase 8 (+3 variants) — PRINT_RULE# useCase routing rules (api#2007).
+	// Every mutation of a store's `useCase → printer` routing map is audited;
+	// print#156 names "no record of who changed what, when" as a failure of the
+	// pre-#2007 agent-local model, so these are the record that replaces it.
+	// ──────────────────────────────────────────────────────────────────────────
+
+	// The addressable target of a rule is the (`agent_id`, `printer_id`) PAIR,
+	// never `printer_id` alone — `printerId` is unique only WITHIN an agent (two
+	// machines can both expose "Microsoft Print to PDF"). Consumers keying a
+	// per-printer view off `printer_id` by itself will merge distinct printers.
+	interface PrintRuleCreatedEvent extends UserActivityEventBase {
+		event: 'Print Rule Created';
+		use_case: PrintUseCase;
+		agent_id: string;
+		printer_id: string;
+	}
+
+	// `printer_id` is the NEW target after the edit. Re-pointing a use case at a
+	// different printer is an update, not a create — `printerId` is the route
+	// VALUE, not part of the rule's key.
+	interface PrintRuleEditedEvent extends UserActivityEventBase {
+		event: 'Print Rule Edited';
+		use_case: PrintUseCase;
+		agent_id: string;
+		printer_id: string;
+		// Dotted paths for option changes (`options.color`), bare names otherwise
+		// (`printerId`). Symmetric diff — a key REMOVED from the options payload
+		// is listed too, not just added/changed ones. May be empty when a write
+		// changed nothing.
+		fields_changed: string[];
+	}
+
+	// Carries the `printer_id` the rule HAD, captured by the handler's pre-read
+	// (the same read that makes a missing rule a 404 rather than a silent 200).
+	interface PrintRuleDeletedEvent extends UserActivityEventBase {
+		event: 'Print Rule Deleted';
+		use_case: PrintUseCase;
+		agent_id: string;
+		printer_id: string;
+	}
+
+	// ──────────────────────────────────────────────────────────────────────────
+	// Discriminated union — 81 variants (the count had drifted: it read 72 while
+	// the union already held 78, so don't trust it without recounting)
 	// ──────────────────────────────────────────────────────────────────────────
 
 	type UserActivityEvent =
@@ -779,7 +822,11 @@ declare global {
 		// Phase 6
 		| PlatformConfigUpdatedEvent
 		// Phase 7
-		| MlChannelStatusChangedEvent;
+		| MlChannelStatusChangedEvent
+		// Phase 8 (api#2007 — PRINT_RULE# routing rules)
+		| PrintRuleCreatedEvent
+		| PrintRuleEditedEvent
+		| PrintRuleDeletedEvent;
 
 }
 
