@@ -214,13 +214,50 @@ export interface SocketRegisterPrintersMessage {
 	[key: string]: unknown;
 }
 
+/**
+ * Agent → BE, migration of the agent's local `useCase → printer` config into
+ * `PRINT_RULE#${storeId}` (api#2010 / sinfactura/print#183, #156 phase 5).
+ *
+ * **A distinct action, not a field on `register_printers`** — deliberately, and
+ * the failure modes are why. An unknown ACTION fails the api's discriminated
+ * union with a visible `400`; an unknown FIELD passes the loose gate and is then
+ * silently stripped by the handler's schema, so an agent shipping ahead of the
+ * BE would migrate nothing and still look healthy. `register_printers` also
+ * recurs on every reconnect, and a one-shot payload has no business riding it.
+ *
+ * Sent after a successful `register_printers` — the registry must exist before a
+ * rule can point into it — and **on every connect** rather than once per
+ * install. The agent cannot observe delivery (its frame is handed to the
+ * renderer, which may drop it, and the socket does not serialise), so a local
+ * "already exported" flag would turn one lost race into a store that never
+ * migrates. Exactly-once is the BE's `PRINT_AGENT#` marker alone; a repeat costs
+ * one failed conditional write.
+ *
+ * `agentId` is deliberately **not declared**, and unlike
+ * `SocketRegisterPrintersMessage` the api will not accept an advisory one — it
+ * comes from the authenticated SOCKET row only. Writing routing rules has a
+ * wider blast radius than writing a registry row.
+ *
+ * ⚠️ An EMPTY frame (no `rules`, no `skipped`) is not sent, and the api no-ops on
+ * one: otherwise a fresh install consumes the once-only marker and completes
+ * migration having seeded nothing, so anything configured locally afterwards
+ * could never migrate.
+ */
+export interface SocketExportLocalRulesMessage {
+	action: 'export_local_rules';
+	rules: PrintLocalRuleExport[];
+	skipped?: PrintLocalRuleSkip[];
+	[key: string]: unknown;
+}
+
 /** Any client→server JSON frame. */
 export type ClientSocketMessage =
 	| SocketAuthMessage
 	| SocketLogsMessage
 	| SocketHeartbeatMessage
 	| SocketAckMessage
-	| SocketRegisterPrintersMessage;
+	| SocketRegisterPrintersMessage
+	| SocketExportLocalRulesMessage;
 
 /* -------------------------------------------------------------------------- */
 /*  Control frames                                                            */

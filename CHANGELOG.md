@@ -7,6 +7,27 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.4
+
+- **feat(print):** the phase-5 migration frame — `SocketExportLocalRulesMessage`
+  (added to `ClientSocketMessage`) plus `PrintLocalRuleExport` and
+  `PrintLocalRuleSkip`. Carries the agent's local `useCase → printer` config into
+  `PRINT_RULE#${storeId}` on connect (api#2010 + sinfactura/print#183, the two
+  halves of sinfactura/print#156 phase 5).
+  A **distinct action rather than a field on `register_printers`**: an unknown
+  action fails the api's discriminated union with a visible `400`, whereas an
+  unknown field passes the loose gate and is silently stripped — an agent
+  shipping ahead of the BE would otherwise migrate nothing and look healthy.
+  `skipped[]` is keyed by `useCase` (not by slot) so it shares units with
+  `rules[]` — one unresolvable `tags` slot is *two* unrouted use cases — while
+  still carrying `slot`, since that is what tells an operator which printer to
+  fix. `agentId` is deliberately undeclared and, unlike
+  `SocketRegisterPrintersMessage`, not accepted even as advisory: routing rules
+  have a wider blast radius than a registry row.
+  ⚠️ Consumers should not treat an absent `PRINT_AGENT#` marker as a failed
+  migration — an unconfigured agent sends no frame at all, and an empty frame is
+  a no-op by contract.
+
 ## 1.10.3
 
 - **feat(userActivity):** graduate the three `PRINT_RULE#` audit variants from

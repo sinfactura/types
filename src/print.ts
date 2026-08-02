@@ -250,6 +250,41 @@ declare global {
      */
     printerId?: string;
   }
+
+  /**
+   * One mapping in the agent's `export_local_rules` frame — the migration of
+   * agent-local routing into `PRINT_RULE#${storeId}` (api#2010 /
+   * sinfactura/print#183, #156 phase 5).
+   *
+   * The agent resolves its own slot setting to a `printerId`, by matching the
+   * stored OS printer name against its **current enumerated set**. The BE never
+   * matches on name: `PrintPrinter.name` is a display label, not unique across
+   * agents, and explicitly not a key.
+   */
+  interface PrintLocalRuleExport {
+    useCase: PrintUseCase;
+    printerId: string;
+  }
+
+  /**
+   * A local slot the agent could NOT resolve to a registered printer, reported
+   * rather than dropped — a store's mapping must never vanish silently.
+   *
+   * Keyed by `useCase` so it shares units with `PrintLocalRuleExport`: one
+   * unresolvable `tags` slot is TWO unrouted use cases (`tag` + `label`), so
+   * slot-keyed entries would make the seeded/skipped counts incomparable.
+   * `slot` is retained anyway, because an operator configures slots, not use
+   * cases, and it is what tells them which printer to fix.
+   */
+  interface PrintLocalRuleSkip {
+    useCase: PrintUseCase;
+    /** Agent-local slot name — `orders` | `invoices` | `tags`. */
+    slot: string;
+    /** The OS printer name the slot still points at. */
+    printerName: string;
+    /** Free text from the agent; recorded for support, never parsed. */
+    reason: string;
+  }
 }
 
 export {}; // NOSONAR
