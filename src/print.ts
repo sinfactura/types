@@ -285,6 +285,88 @@ declare global {
     /** Free text from the agent; recorded for support, never parsed. */
     reason: string;
   }
+
+  /**
+   * One row of `PRINT_JOB_STATE#${storeId}` (api#2013) — a per-job SUMMARY, one
+   * row per `jobId`, upserted alongside every `PRINT_JOB#${storeId}#${jobId}`
+   * timeline write. The timeline partition is per-JOB, so it cannot answer
+   * "list this store's print jobs" — this row exists so that listing can, via
+   * the `PK-updatedAt` GSI, with no server-side collapse.
+   *
+   * `state`/`source`/`useCase`/`agentId`/`printerId`/`orderId`/`invoiceId`/
+   * `detail`/`errorCode` reflect the LATEST transition only — this is a pointer,
+   * not a history. Read the per-job state timeline for the full ordered set.
+   */
+  interface PrintJobSummary {
+    jobId: string;
+    storeId: string;
+    state: PrintJobState;
+    source: 'be' | 'agent';
+    /**
+     * ms epoch of the FIRST transition — pinned via `if_not_exists`, never
+     * overwritten. Doubles as the `PK-updatedAt` GSI sort key, so the listing is
+     * newest-CREATED-first and pagination is stable.
+     *
+     * ⚠️ Despite the name this is NOT a last-updated stamp — the one place in
+     * the codebase where `updatedAt` means created. A MUTABLE sort key cannot be
+     * paginated: a job that transitioned between a caller's page 1 and page 2
+     * would move above the resume cursor and be returned on NEITHER page.
+     * Recency lives in `lastTransitionAt`. The GSI attribute name is fixed,
+     * which is why the field is not simply renamed.
+     */
+    updatedAt: number;
+    /** ms epoch of the FIRST transition — set once via `if_not_exists`, never overwritten. */
+    createdAt: number;
+    /** ms epoch of the LATEST transition. Plain assignment, moves every write — the recency value to display. */
+    lastTransitionAt: number;
+    useCase?: PrintUseCase;
+    agentId?: string;
+    printerId?: string;
+    orderId?: string;
+    invoiceId?: string;
+    detail?: string;
+    /**
+     * Machine-readable failure classification, when one is recognised. BE-side
+     * dispatch skips write `PRINTER_INACTIVE` / `AGENT_OFFLINE` (or both joined
+     * by `+`); an agent `ACK_FAILED` can classify to `PRINTER_PAUSED` /
+     * `NO_PRINTER_ASSIGNED` / `PRINTER_NOT_FOUND` (api#2028). Unrecognised agent
+     * text stays in `detail` only, so absence of a code does NOT mean success.
+     */
+    errorCode?: string;
+  }
+
+  /**
+   * `data` payload of the server → agent `printers_active` WSS frame (api#2028),
+   * envelope `{ action: 'printers_active', data: PrintersActiveData }` — nested,
+   * like every server→client frame (`SocketMessage<T>`), and the opposite of the
+   * FLAT client→server convention `RegisterPrintersData` documents above.
+   *
+   * Exists because the BE enforces `active` only when a `PrintRule` resolves. On
+   * an unrouted job the agent picks its own local default printer, which the BE
+   * cannot know — so the flag is pushed to the agent and its local fallback
+   * applies it. Two triggers emit the same frame: after a successful
+   * `register_printers` reconcile (repairs an agent that was offline when a
+   * toggle landed) and on the operator's toggle itself (low-latency path).
+   *
+   * `printers` is the RECEIVING agent's COMPLETE registered set, never a delta —
+   * same full-replacement contract as `register_printers`, so a dropped frame is
+   * repaired by the next one rather than left half-applied.
+   *
+   * Each entry is identity plus the one BE-owned field the agent must enforce —
+   * deliberately NOT `PrintPrinterReport`'s shape (no `name` / `capabilities` /
+   * `state`, which the agent already has from its own enumeration).
+   *
+   * ⚠️ Agent-side semantics this type cannot encode but a consumer MUST apply,
+   * both fail-OPEN by design: a `printerId` the agent knows locally but this
+   * frame omits ⇒ NOT paused; no frame received yet (fresh connect) ⇒ NOT
+   * paused. A dispatch decision must never block on the backend's view arriving.
+   */
+  interface PrintersActiveData {
+    storeId: string;
+    /** The receiving agent's own id — every frame is scoped to one agent. */
+    agentId: string;
+    printers: Pick<PrintPrinter, 'printerId' | 'active'>[];
+  }
 }
 
 export {}; // NOSONAR

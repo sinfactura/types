@@ -99,6 +99,20 @@ export const SOCKET_ACTIONS = [
 	// an agent that connected before the registry shipped stays invisible to it
 	// until it happens to reconnect — days, for a machine that is never restarted.
 	'request_printers',
+	// ⚠️ Despite sitting in this print block, `printers_changed` does NOT reach an
+	// agent. All three of its producers go through `wsPostStore`, which excludes
+	// printer connections (api#644) — it is the OPERATOR fleet panel's frame,
+	// telling an open panel that a printer was registered, toggled or went away.
+	// Grouped here only because the payload is print-shaped.
+	'printers_changed',
+	// BE → agent, fanned to every printer connection on the store: the store's
+	// routing rules changed, re-read them (api#2007/#2010).
+	'print_rules_changed',
+	// BE → agent, scoped to ONE agent's own connections: that agent's COMPLETE
+	// per-printer `active` set, so its local rule-less fallback can honour an
+	// operator's pause toggle (api#2028). Payload is `PrintersActiveData`.
+	// Full replacement, never a delta; both unknowns fail OPEN (see that type).
+	'printers_active',
 
 	// Operations / operator surfaces.
 	'logs',
@@ -143,14 +157,35 @@ export interface SocketMessage<T = unknown> {
  * published ahead of that backend so the agent, api and app lanes could build
  * against one `.d.ts` — which is exactly how api#2017 caught the frame being
  * declared nested while every sibling is flat, before an agent shipped against it.
+ *
+ * `export_local_rules` is **live** too: api#2010 shipped its `$default` union
+ * entry and handler (deployed 2026-08-03). Its frame interface
+ * (`SocketExportLocalRulesMessage`) and its `ClientSocketMessage` membership
+ * shipped in 1.10.x, but the action string was never added to these two arrays —
+ * so `isClientSocketAction`-style checks and exhaustive switches keyed off
+ * `ClientSocketAction` silently excluded a live action. Corrected in 1.10.5.
  */
-export const CLIENT_SOCKET_ACTIONS = ['auth', 'logs', 'heartbeat', 'ack', 'register_printers'] as const;
+export const CLIENT_SOCKET_ACTIONS = [
+	'auth',
+	'logs',
+	'heartbeat',
+	'ack',
+	'register_printers',
+	'export_local_rules',
+] as const;
 
 /** Union of every client→server action. */
 export type ClientSocketAction = (typeof CLIENT_SOCKET_ACTIONS)[number];
 
 /** Client→server actions the backend accepts **today**. */
-export const LIVE_CLIENT_SOCKET_ACTIONS = ['auth', 'logs', 'heartbeat', 'ack', 'register_printers'] as const;
+export const LIVE_CLIENT_SOCKET_ACTIONS = [
+	'auth',
+	'logs',
+	'heartbeat',
+	'ack',
+	'register_printers',
+	'export_local_rules',
+] as const;
 
 /** Authenticate the connection. Must be the first frame; see `AuthAckFrame`. */
 export interface SocketAuthMessage {

@@ -7,6 +7,35 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.5
+
+- **feat(print):** `PrintersActiveData` — the `data` payload of the new
+  server→agent `printers_active` frame (api#2028). The BE enforces a printer's
+  `active` pause flag only when a `PrintRule` resolves; on an unrouted job the
+  agent picks its own local default, which the BE cannot know. This frame pushes
+  the flag to the agent so its local fallback applies it too. **Full replacement,
+  never a delta**, scoped to ONE agent's own connections. ⚠️ Both unknowns fail
+  **open** and a consumer must implement them: a `printerId` the frame omits ⇒
+  not paused; no frame yet (fresh connect) ⇒ not paused — a dispatch decision
+  must never block on the backend's view arriving.
+- **feat(print):** `PrintJobSummary` — one row of `PRINT_JOB_STATE#${storeId}`
+  (api#2013), the per-job summary backing store-wide print-job listing. The
+  timeline partition is per-job and cannot answer "list this store's jobs".
+  ⚠️ `updatedAt` on this entity means **created**, not last-updated — it is the
+  `PK-updatedAt` GSI sort key, and a mutable sort key cannot be paginated (a job
+  transitioning between page 1 and page 2 would land on neither). Recency is
+  `lastTransitionAt`.
+- **fix(socket):** close four `SOCKET_ACTIONS` drifts — actions the api has been
+  broadcasting or accepting while the published union omitted them, so an
+  exhaustive switch keyed off `SocketAction` / `ClientSocketAction` silently
+  excluded live traffic. Server→client gains `printers_changed` and
+  `print_rules_changed` (both pre-existing) plus `printers_active`;
+  client→server gains `export_local_rules`, whose frame interface and
+  `ClientSocketMessage` membership shipped in 1.10.4 while the action string
+  itself never did. ⚠️ `printers_changed` is **not** an agent frame despite its
+  name and grouping — all its producers use `wsPostStore`, which excludes
+  printer connections (api#644); it is the operator fleet panel's frame.
+
 ## 1.10.4
 
 - **feat(print):** the phase-5 migration frame — `SocketExportLocalRulesMessage`
