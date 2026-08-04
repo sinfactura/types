@@ -7,6 +7,21 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.10
+
+- **feat(orders):** `returns` joins `SOCKET_ACTIONS` — the BE → store-user frame
+  fired when a return (devolución) commits (api#547). The return contracts
+  themselves shipped in 1.9.0 and were sharpened in 1.10.7, but the **action
+  string** never did, and it is wire shape exactly like the four drifts 1.10.5
+  closed: `WsPostData.action` is typed `string` in the api's own ambient
+  declarations, so an api emitting `'returns'` compiles, deploys and runs green
+  while the published union says the action does not exist. The app's returns UI
+  already listens for it. Silent in both directions, which is why it needs a
+  release rather than a local augmentation — a `readonly [...]` const array
+  cannot be extended from a consumer's `declare module` bridge. Audience is
+  `wsPostStore` (all store users); the payload is the committed `Return`, while
+  `Order.returns` carries the bounded `ReturnSummary[]` projection.
+
 ## 1.10.9
 
 - **feat(print):** `agent_status_changed` joins `SOCKET_ACTIONS` — the BE →

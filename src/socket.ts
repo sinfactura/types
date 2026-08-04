@@ -52,6 +52,13 @@ export const SOCKET_ACTIONS = [
 	'literals',
 	'orders',
 	'products',
+	// BE → all store users when a return (devolución) commits (api#547). Distinct
+	// from `orders` even though a return always advances the order's `updatedAt`:
+	// the frame carries the committed `Return`, and a client that only patched its
+	// order cache would miss the stock, account and credit-note effects that landed
+	// with it. Payload is the stored row; `Order.returns` carries the bounded
+	// `ReturnSummary[]` projection instead.
+	'returns',
 	'shifts',
 	'stores',
 	'suppliers',
