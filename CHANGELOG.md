@@ -7,6 +7,36 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.7
+
+- **feat(orders):** `OrderLockReason` — the machine-readable payload of
+  `409 ORDER_LOCKED` (api#546) / `409 ORDER_CANCELLATION_LOCKED` (api#591), and
+  the gate a return checks first (api#547). Previously each consumer invented its
+  own copy; api's shipped `assessLock` already had exactly these six members.
+  ⚠️ Its doc block records the trap that made this worth publishing: every member
+  is a **`> 0`** test, never a presence test — `POST /orders` stamps
+  `readyAt: 0` / `deliveredAt: 0` / `deliveredDate: 0` at creation, so an
+  `attribute_exists` check matches *every* order and inverts the lock.
+- **feat(orders):** `ReturnCreditNoteErrorCode` + `Return.ncErrorCode` — why a
+  return's credit note was refused, so a client can tell the one retryable cause
+  (`PARTIAL_NC_AFIP_DOWN`) from the terminal ones. `ncError` stays as prose.
+- **fix(orders):** `ReturnItem.orderItemIndex` and `Return.ncStatus` are now
+  **required**. Both were optional "for pre-api#547 rows" — no such rows exist or
+  can exist, because the returns feature is unbuilt and nothing has ever written
+  a `RETURN#` row. An optional `orderItemIndex` forced every reader to `??`-guard
+  the line's *identity*, which is the precise mechanism by which a
+  `productId`-keyed collapse (the bug the index exists to prevent) creeps back
+  in; an absent `ncStatus` was an unnamed fifth state. Zero producers today, so
+  no consumer can break.
+- **docs:** `ReturnCreditNoteStatus` now records that a return NC is always a
+  *partial* NC, and that the partial path has no offline contingency — an ARCA
+  outage must land on `rejected` + `PARTIAL_NC_AFIP_DOWN`, never `pending`
+  (api#1749: `POST /invoices` fails closed with a 502 instead of degrading to a
+  `pending_cae` row). A `pending` there would never settle.
+- **docs:** `Return.requestId` now states that the dedupe does **not** key off it
+  — api's `withIdempotency` reads the `Idempotency-Key` **header** only and is
+  opt-in — so a client must send the same UUID in both places.
+
 ## 1.10.6
 
 - **feat(print):** `Order.printedAt` / `Order.printJobId` and the `Invoice`

@@ -8,12 +8,21 @@ reshapes an exported type.
 
 Any repo that imports `sinfactura-types` must stay green against a new release:
 
-| Repo                                               | Channel              |
-| -------------------------------------------------- | -------------------- |
-| [`sinfactura/api`](https://github.com/sinfactura/api)         | git `dist` branch    |
-| [`sinfactura/app`](https://github.com/sinfactura/app)         | git `dist` branch    |
-| [`sinfactura/web`](https://github.com/sinfactura/web)         | git `dist` branch    |
-| [`sinfactura/landing`](https://github.com/sinfactura/landing) | git `dist` branch    |
+| Repo                                                          | Channel                    |
+| ------------------------------------------------------------- | -------------------------- |
+| [`sinfactura/api`](https://github.com/sinfactura/api)         | npm, **exact** pin         |
+| [`sinfactura/app`](https://github.com/sinfactura/app)         | npm, **exact** pin         |
+| [`sinfactura/storefront`](https://github.com/sinfactura/storefront) | npm, caret range — see ⚠️ |
+| [`sinfactura/mobile`](https://github.com/sinfactura/mobile)   | npm, **exact** pin         |
+| [`sinfactura/landing`](https://github.com/sinfactura/landing) | none — no dependency       |
+
+> ⚠️ **`storefront` is the one caret pin (`^1.8.2`), and that is a latent hazard.**
+> Yarn Berry holds it at exactly 1.8.2 in `yarn.lock`, so it has NOT silently
+> taken anything since — but the next `yarn up sinfactura-types` or lockfile
+> regeneration jumps it 1.8.2 → latest in one hop, crossing every reshape in
+> between (e.g. 1.9.0 narrowed `Order.returns` and renamed `OrderAudit`) with no
+> per-version gate. It survives today only because it touches none of those
+> fields. Move it to an exact pin when it next needs a bump.
 
 > **Ownership.** `api/` is the canonical author of schema-shaped contracts
 > (DynamoDB entities, REST/WSS wire shapes, event unions). `app`, `web`, and

@@ -148,6 +148,33 @@ declare global {
 	 */
 	type OrderCancellationSource = 'customer' | 'operator';
 
+	/**
+	 * Machine-readable reason an order is locked against a mutation — the
+	 * payload of `409 ORDER_LOCKED` (order edit, api#546) and
+	 * `409 ORDER_CANCELLATION_LOCKED` (customer self-cancellation, api#591),
+	 * and the gate a return checks before it starts (api#547).
+	 *
+	 * Clients map these to copy; they are never user-facing strings themselves.
+	 *
+	 * ⚠️ The predicate behind every member is a `> 0` test, NOT a presence test.
+	 * `POST /orders` stamps `readyAt: 0`, `deliveredAt: 0` and `deliveredDate: 0`
+	 * at creation, so EVERY order carries all three fields — an
+	 * `attribute_exists`/"is present" check matches every order ever created and
+	 * silently inverts the lock. The api's shipped implementation
+	 * (`assessLock`, api#591) is the reference.
+	 *
+	 * Evaluated in this order, first match wins:
+	 * - `ready` — `readyAt > 0`.
+	 * - `delivered` — `deliveredAt > 0` or `deliveredDate > 0`.
+	 * - `disabled` — `disabled === true` (soft-delete; NOT cancellation).
+	 * - `invoiced` — `invoices[]` holds a voucher that is not `rejected`/`voided`.
+	 *   A voucher with no `fiscalStatus` at all is legacy and counts as live.
+	 * - `payment-linked` — `linkedPayments` is non-empty. The platform never
+	 *   unlinks or refunds a provider payment on the operator's behalf.
+	 * - `cancelled` — `cancelledAt` is stamped (api#591).
+	 */
+	type OrderLockReason = 'ready' | 'delivered' | 'disabled' | 'invoiced' | 'payment-linked' | 'cancelled';
+
 	// WRITE-side shape of the credit-note stamp above (api#1684 / api#1723) —
 	// what `stampCreditNoteStatus` persists onto `Order.mercadolibreCreditNote`.
 	// `source` is REQUIRED at emission time; on the READ projection it stays
