@@ -49,6 +49,19 @@ declare global {
 		discount: number;
 		orderPrinted?: boolean;
 		tagPrinted?: boolean;
+		/**
+		 * Server-derived ms epoch (api#642), stamped by the WSS `ack` handler on an
+		 * `ACK_PRINTED` that correlates to this row's CURRENT `printJobId`.
+		 *
+		 * **Absent = not confirmed printed** — never seeded to `0`, unlike
+		 * `readyAt`/`deliveredAt`. Cleared on every reprint, so it only ever
+		 * describes the current `printJobId`. Distinct from `orderPrinted`, which is
+		 * stamped optimistically at dispatch and reads `true` even with no printer
+		 * connected. A tag/label print never sets this.
+		 */
+		printedAt?: number;
+		/** BE-minted pointer to the most recent print dispatch (api#642). Last-write-wins on reprint. */
+		printJobId?: string;
 		invoices?: Partial<Invoice>[];
 		/**
 		 * Bounded, embedded projections of this order's returns (api#547),

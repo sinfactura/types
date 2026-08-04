@@ -7,6 +7,18 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.6
+
+- **feat(print):** `Order.printedAt` / `Order.printJobId` and the `Invoice`
+  counterparts (api#642) — the **confirmed** print signal, alongside the existing
+  optimistic `orderPrinted` / `invoicePrinted` / `tagPrinted` booleans, which are
+  unchanged and stay. `printJobId` is stamped at dispatch; `printedAt` is a
+  server-derived ms epoch written only when the print agent acks that job.
+  ⚠️ **Absent = not confirmed printed — never seeded to `0`**, unlike the
+  `readyAt` / `deliveredAt` convention it otherwise resembles, and it is
+  **cleared on every reprint** so it only ever describes the current
+  `printJobId`. A tag/label print never sets either field on the order.
+
 ## 1.10.5
 
 - **feat(print):** `PrintersActiveData` — the `data` payload of the new

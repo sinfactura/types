@@ -159,6 +159,17 @@ declare global {
     // Mirror of Order.orderPrinted (api#643) — set when the invoice is printed.
     invoicePrinted?: boolean;
     /**
+     * Server-derived ms epoch (api#642), stamped by the WSS `ack` handler on an
+     * `ACK_PRINTED` that correlates to this row's CURRENT `printJobId`.
+     *
+     * **Absent = not confirmed printed** — never seeded to `0`. Cleared on every
+     * reprint, so it only ever describes the current `printJobId`. Distinct from
+     * `invoicePrinted`, which is stamped optimistically at dispatch.
+     */
+    printedAt?: number;
+    /** BE-minted pointer to the most recent print dispatch (api#642). Last-write-wins on reprint. */
+    printJobId?: string;
+    /**
      * DynamoDB TTL, Unix SECONDS (api#1559).
      *
      * ⚠️ A COST BOUNDARY on the hot tier — it carries no legal meaning and is NOT
