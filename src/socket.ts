@@ -105,6 +105,13 @@ export const SOCKET_ACTIONS = [
 	// telling an open panel that a printer was registered, toggled or went away.
 	// Grouped here only because the payload is print-shaped.
 	'printers_changed',
+	// BE → OPERATOR panel only, same `wsPostStore` exclusion as `printers_changed`
+	// above: one agent's fleet-health telemetry moved (api#2065). Today that means
+	// `queueDepth`, the one field on the fleet card that had no event-driven
+	// trigger and so read up to ~90s stale. Deliberately NOT folded into
+	// `printers_changed` — the app logs a Sentry breadcrumb naming that frame, and
+	// fusing the two triggers would make them un-debuggable apart.
+	'agent_status_changed',
 	// BE → agent, fanned to every printer connection on the store: the store's
 	// routing rules changed, re-read them (api#2007/#2010).
 	'print_rules_changed',

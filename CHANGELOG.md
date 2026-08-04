@@ -7,6 +7,23 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.9
+
+- **feat(print):** `agent_status_changed` joins `SOCKET_ACTIONS` — the BE →
+  operator-panel frame fired when a heartbeat **changed** an agent's `queueDepth`
+  (api#2065). `queueDepth` was the one field on the fleet card with no
+  event-driven trigger, so it read up to ~90s stale (the agent's 60s beat plus
+  the app's 30s poll). ⚠️ Payload-wise nothing moved — `queueDepth` was already
+  on the heartbeat schema — which is why the three-lane ticket first recorded
+  that no types change was needed. That is true of the **agent** lane
+  (sinfactura/print#237 re-sends a byte-identical frame more often, and
+  `heartbeat` is a `CLIENT_SOCKET_ACTIONS` member) but not of the api lane, which
+  mints a new **server→client** action. The action string is wire shape too: this
+  is the same drift class 1.10.5 closed four of at once, and it is silent,
+  because nothing in api validates an outbound action against this list.
+  Audience is `printers_changed`'s — `wsPostStore`, so operator panels only and
+  never an agent (api#644).
+
 ## 1.10.8
 
 - **feat(print):** `PrintRawFormat` + `PrintPrinter.rawFormats` — the
