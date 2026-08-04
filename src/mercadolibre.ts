@@ -143,110 +143,23 @@ declare global {
   }
 
   // ───────────────────────────────────────────────────────────────
-  // Publish composer wire shapes (api#1577 ↔ app#1933 — the
-  // predict/submit contract; graduated from api in types#99)
+  // Per-field validation errors — shared by every /items-family write
   // ───────────────────────────────────────────────────────────────
-
-  // The category's GTIN-attribute requirement, distilled from its
-  // tags: 'new_required' = required for condition:new items,
-  // 'conditional_required' = required unless an exemption applies.
-  type GtinRequirementTag =
-    | "not_required"
-    | "conditional_required"
-    | "new_required";
-
-  // ML's attribute shape, used BOTH on domain_discovery/search's
-  // prediction response and on POST /items' request body. `value_id`
-  // is a known catalog value; `value_name` alone is a custom value.
-  interface MlAttribute {
-    id: string;
-    name?: string;
-    value_id?: string;
-    value_name?: string;
-    attribute_group_id?: string;
-    attribute_group_name?: string;
-  }
-
-  // GET /categories/$ID/attributes distilled to per-attribute
-  // required-ness (required = any of required / conditional_required /
-  // new_required tags; raw `tags` kept alongside) — drives the
-  // composer's dynamic required-field renderer.
-  interface MlRequiredAttribute {
-    id: string;
-    name?: string;
-    required: boolean;
-    tags?: string[];
-  }
-
-  // Category prediction bundle inside the publish GET response.
-  interface MlCategoryPrediction {
-    domainName: string;
-    categoryId: string;
-    categoryName: string;
-    attributes: MlAttribute[];
-    requiredAttributes: MlRequiredAttribute[];
-    // Awareness only (all MLA condition:new categories read
-    // 'required') — never written onto the POST /items body.
-    immediatePayment?: "required" | "optional";
-    maxTitleLength?: number;
-    gtinRequirement: GtinRequirementTag;
-  }
-
-  // A single `domain_discovery/search` hit, mapped light (no
-  // attribute-schema reads) — the override picker's raw material
-  // (api#1664): the FE lets the seller pick any of these instead of the
-  // top-1 `MlCategoryPrediction` guess, then calls the category-attribute
-  // schema for the picked `categoryId` (graduated from api in types#100).
-  interface MlCategoryCandidate {
-    domainId?: string;
-    domainName: string;
-    categoryId: string;
-    categoryName: string;
-  }
-
-  // `data` of GET /mercadolibre/products/publish?productId=X.
-  interface PublishPrediction extends MlCategoryPrediction {
-    isUpMigrated: boolean;
-    // ALL `domain_discovery/search` hits (ML's own probability order,
-    // top-1 included), mapped light — the confirm/override picker's
-    // candidate list (api#1664, graduated in types#100).
-    candidates: MlCategoryCandidate[];
-  }
-
-  // Standalone category-attribute-schema bundle for the publish composer's
-  // override arm (api#1664) — callable directly against any FE-picked
-  // `categoryId` (e.g. a `PublishPrediction.candidates` entry) without
-  // re-running domain_discovery (graduated from api in types#100).
-  interface MlCategoryAttributeSchema {
-    categoryId: string;
-    requiredAttributes: MlRequiredAttribute[];
-    gtinRequirement: GtinRequirementTag;
-    maxTitleLength?: number;
-    immediatePayment?: "required" | "optional";
-  }
-
-  // POST /mercadolibre/products/publish request body. The BE
-  // re-derives isUpMigrated / gtinRequirement / maxTitleLength
-  // server-side from `categoryId` — the predict step's answers are
-  // never trusted on submit.
-  interface MlPublishRequest {
-    productId: string;
-    categoryId: string;
-    attributes: MlAttribute[];
-    listingTypeId: string;
-    saleTerms?: Record<string, unknown>[];
-    pictures?: { url: string }[];
-    description?: string;
-  }
-
-  // `data` of the publish POST success response.
-  interface MlPublishResponse {
-    productId: string;
-    itemId: string;
-    userProductId?: string;
-    isUpMigrated: boolean;
-    status: "linked";
-  }
+  //
+  // The publish-composer shapes that used to sit here (types#99/#100:
+  // GtinRequirementTag, MlAttribute, MlRequiredAttribute,
+  // MlCategoryPrediction, MlCategoryCandidate, PublishPrediction,
+  // MlCategoryAttributeSchema, MlPublishRequest, MlPublishResponse)
+  // were removed in 1.10.8 — SINFACTURA dropped the create-a-new-listing
+  // flow (app#797 / app#2310 / types#113).
+  //
+  // `MlFieldError` deliberately SURVIVED that removal. It shipped in the
+  // same comment block, but it is not composer-only: api's
+  // `mapMlErrorCause` is "shared by every /items-family write" —
+  // including `setListingStatus` (api#1894/#1989), a manage-EXISTING
+  // flow — and app's `getMlFieldErrors` narrows the 422 payload off
+  // this ambient global with no local declaration, so deleting it here
+  // breaks app's typecheck the moment it bumps its pin.
 
   // One per-field error in the 422 ML_VALIDATION_FAILED envelope
   // (`fieldErrors: MlFieldError[]`) — ML's `cause[]` mapped to the

@@ -7,6 +7,47 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.8
+
+- **feat(print):** `PrintRawFormat` + `PrintPrinter.rawFormats` — the
+  operator-declared raw control languages a device understands, and the guard
+  that stops a ZPL stream reaching a laser printer (types#114; blocks api#2058,
+  print#61). ⚠️ Its doc block records the inversion that makes it worth a
+  separate field: **absent or empty means REFUSE**, the opposite of
+  `PrintPrinterCapabilities`, where absence means "not reported, accept
+  everything". That default is right where guessing wrong wastes one job; here
+  guessing wrong prints a ream of garbage and needs someone to walk to the
+  machine. BE-owned like `active`, so it is added to `PrintPrinterReport`'s
+  `Omit` — an agent build structurally cannot set it, and a re-registration
+  cannot silently re-enable raw on the wrong device.
+- **feat(print):** `agent_command` server→agent action, the `AGENT_COMMANDS`
+  vocabulary, `isAgentCommand`, `DESTRUCTIVE_AGENT_COMMANDS`, `AgentCommandData`,
+  and the `agent_command_result` reply frame (types#115, lane 1 of print#224).
+  Commands are **kebab-case, verbatim from the agent's own `DiagnosticActionId`**
+  (print#223, v2.2.2) rather than this file's usual snake_case: `sinfactura/print`
+  does not depend on this package, so renaming would push a mapping table onto the
+  agent where drift is invisible from both ends. `view-logs` and `test_print` are
+  deliberately excluded — see the doc block. `commandId` is required, because the
+  wss `$default` route has no route response and delivery must be repeatable.
+  ⚠️ `agent_command_result` is in `CLIENT_SOCKET_ACTIONS` but **not** in
+  `LIVE_CLIENT_SOCKET_ACTIONS`: no handler exists yet, so the api rejects it
+  `400`. That gap is the point of having two arrays.
+- **chore(mercadolibre):** removed the nine publish-composer-only shapes
+  (`GtinRequirementTag`, `MlAttribute`, `MlRequiredAttribute`,
+  `MlCategoryPrediction`, `MlCategoryCandidate`, `PublishPrediction`,
+  `MlCategoryAttributeSchema`, `MlPublishRequest`, `MlPublishResponse`) —
+  SINFACTURA dropped the create-a-new-listing flow (types#113, app#797,
+  app#2310 closed). Zero references anywhere outside this package, verified
+  across `api`, `app`, `storefront` and `cloudprint`.
+  ⚠️ **`MlFieldError` was NOT removed**, against the issue's provisional read. It
+  shipped in the same comment block, but it is not composer-only: api's
+  `mapMlErrorCause` is shared by every `/items`-family write including
+  `setListingStatus` (a manage-existing flow, api#1894/#1989), and app's
+  `getMlFieldErrors` narrows the 422 `ML_VALIDATION_FAILED` payload off this
+  ambient global with no local declaration — deleting it breaks app's typecheck
+  the moment it bumps its pin. Patch bump despite the removals, per the repo's
+  standing convention.
+
 ## 1.10.7
 
 - **feat(orders):** `OrderLockReason` — the machine-readable payload of

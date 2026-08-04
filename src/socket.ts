@@ -113,6 +113,18 @@ export const SOCKET_ACTIONS = [
 	// operator's pause toggle (api#2028). Payload is `PrintersActiveData`.
 	// Full replacement, never a delta; both unknowns fail OPEN (see that type).
 	'printers_active',
+	// BE → agent, scoped to ONE agent's own connections (like `printers_active`,
+	// never fanned to the store): run a local diagnostic/recovery action
+	// (print#224). Payload is `AgentCommandData`.
+	//
+	// ⚠️ NOT understood by any released agent. The agent routes inbound frames
+	// through a closed control-frame switch (`request_printers`,
+	// `printers_active`) and then a 4-member print-job enum; anything else lands
+	// in its "Unhandled frame" warn and is never executed or acknowledged. As of
+	// v2.2.2 that includes this action — print#224's agent lane must add the case
+	// before a producer can rely on it. Publishing it here first is deliberate, so
+	// all three lanes build against one `.d.ts`.
+	'agent_command',
 
 	// Operations / operator surfaces.
 	'logs',
@@ -143,6 +155,117 @@ export interface SocketMessage<T = unknown> {
 }
 
 /* -------------------------------------------------------------------------- */
+/*  Agent diagnostic commands (print#224)                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The remote-triggerable diagnostic actions, in the agent's OWN spelling.
+ *
+ * **Kebab-case, verbatim from the agent's `DiagnosticActionId`** (print#223,
+ * shipped v2.2.2) — not the snake_case the rest of this file's ACTION names use.
+ * That is a deliberate trade. `sinfactura/print` does not depend on this package,
+ * so any renaming here has to be re-implemented as a mapping table on the agent
+ * side, where a drift is invisible to both ends until an operator reports that a
+ * button does nothing. Passing the agent's own ids through untouched removes the
+ * mapping layer entirely: the BE forwards a string the agent already keys on.
+ * The frame's ACTION (`agent_command`) stays snake_case like its siblings; this
+ * is the payload vocabulary, a different namespace.
+ *
+ * A command the agent does not recognise is safe by construction — its
+ * `runDiagnosticAction` returns a structured "unknown command" result instead of
+ * throwing — so an older agent degrades to a visible failure, not a crash.
+ *
+ * Two members of the originally-proposed set are absent on purpose:
+ *
+ * - **`view-logs`** exists on the agent but is not remotely meaningful. It opens
+ *   the log FOLDER on the agent's own machine and resolves `ok: true`, so a
+ *   remote operator would read "logs delivered" while a window opened on an
+ *   unattended PC. Shipping logs BACK to the backend is a genuinely different
+ *   capability that the agent does not have; it needs its own contract.
+ * - **`test_print`** is not an agent-local action at all. The backend dispatches
+ *   a real job to an explicit printer (api#2041, shipped), so routing it through
+ *   here would be a second way to do one thing — and the agent would reject it as
+ *   an unknown command.
+ */
+export const AGENT_COMMANDS = ['redetect-printers', 'reconnect-socket', 'flush-acks', 'clear-queue'] as const;
+
+/** Union of every remote-triggerable diagnostic command. */
+export type AgentCommand = (typeof AGENT_COMMANDS)[number];
+
+/** Runtime guard — narrows an untrusted string to a known command. */
+export const isAgentCommand = (value: unknown): value is AgentCommand =>
+	typeof value === 'string' && (AGENT_COMMANDS as readonly string[]).includes(value);
+
+/**
+ * Commands that destroy operator data and MUST be confirmed before dispatch.
+ *
+ * Mirrors the agent's own `destructive` flag. The agent deliberately does not
+ * prompt inside `run()` — its confirmation lives in the DOM layer, which a remote
+ * trigger never reaches — so the "are you sure?" is the CALLER's job. For a
+ * remote command that means the app, before it asks the backend to dispatch.
+ *
+ * `clear-queue` deletes queued work that then never prints. print#235 (agent
+ * v2.2.3) stopped it destroying in-flight ACKs, but queued jobs are still lost,
+ * and the operator who loses them is not the one who pressed the button.
+ */
+export const DESTRUCTIVE_AGENT_COMMANDS: readonly AgentCommand[] = ['clear-queue'];
+
+/**
+ * `data` payload of the BE → agent `agent_command` frame — nested,
+ * `{ action: 'agent_command', data: AgentCommandData }`, like every other
+ * server→client frame.
+ *
+ * Declared here rather than beside `PrintersActiveData` in `print.ts` because it
+ * references `AgentCommand`, which is derived from the runtime `AGENT_COMMANDS`
+ * array above; re-declaring the vocabulary as an ambient type would give it two
+ * sources that drift independently.
+ */
+export interface AgentCommandData {
+	command: AgentCommand;
+	/**
+	 * The target agent. Advisory for the agent itself — the BE has already scoped
+	 * delivery to that agent's connections — but carried so the agent can drop a
+	 * frame that reached it through a mis-scoped broadcast rather than acting on
+	 * another machine's instruction.
+	 */
+	agentId: string;
+	/**
+	 * Stable per-dispatch id. **Required, never optional.**
+	 *
+	 * The wss `$default` route has a bare Lambda integration and no route
+	 * response, so a frame the agent sends can never fail visibly to it. Delivery
+	 * therefore has to be idempotent-and-repeatable rather than once-and-hope,
+	 * and a re-dispatch needs a stable id for the agent to deduplicate on and for
+	 * the backend to match a late result against.
+	 */
+	commandId: string;
+}
+
+/**
+ * Agent → BE outcome of one `agent_command`.
+ *
+ * ⚠️ **A report, not an acknowledgement of delivery.** The agent cannot observe
+ * whether the backend received this frame (see `commandId`), so "did the command
+ * work" is a question the BACKEND answers by reconciling its own dispatch state —
+ * never one the agent can settle by sending this.
+ *
+ * Note that `ok: false` is not necessarily a failure of the action: the agent
+ * guards every command with a 3s per-action cooldown and an in-flight lock, and
+ * a refusal from either returns `ok: false` with an operator-facing message
+ * ("Esperá unos segundos…"). Surface `message`; do not translate `ok: false`
+ * into "the agent is broken".
+ */
+export interface SocketAgentCommandResultMessage {
+	action: 'agent_command_result';
+	/** Echoes `AgentCommandData.commandId` — the only way to match a result to its dispatch. */
+	commandId: string;
+	ok: boolean;
+	/** Operator-facing, Spanish voseo, always non-empty. Produced by the agent. */
+	message: string;
+	[key: string]: unknown;
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Client → server frames                                                    */
 /* -------------------------------------------------------------------------- */
 
@@ -164,6 +287,14 @@ export interface SocketMessage<T = unknown> {
  * shipped in 1.10.x, but the action string was never added to these two arrays —
  * so `isClientSocketAction`-style checks and exhaustive switches keyed off
  * `ClientSocketAction` silently excluded a live action. Corrected in 1.10.5.
+ *
+ * `agent_command_result` is declared but **NOT live** (print#224, 1.10.8): no
+ * `$default` union entry or handler exists for it yet, so the api answers it with
+ * `400 Invalid message`. It is in this array — the full vocabulary — and out of
+ * `LIVE_CLIENT_SOCKET_ACTIONS` below, which is exactly the distinction the two
+ * arrays exist to carry. Do not "fix the inconsistency" by adding it there; that
+ * is the inverse of the 1.10.5 bug, and it would tell a consumer the frame is
+ * accepted when it is rejected.
  */
 export const CLIENT_SOCKET_ACTIONS = [
 	'auth',
@@ -172,12 +303,17 @@ export const CLIENT_SOCKET_ACTIONS = [
 	'ack',
 	'register_printers',
 	'export_local_rules',
+	'agent_command_result',
 ] as const;
 
 /** Union of every client→server action. */
 export type ClientSocketAction = (typeof CLIENT_SOCKET_ACTIONS)[number];
 
-/** Client→server actions the backend accepts **today**. */
+/**
+ * Client→server actions the backend accepts **today** — a strict subset of
+ * `CLIENT_SOCKET_ACTIONS`. Anything declared but absent here is published ahead
+ * of its handler and will be rejected `400 Invalid message` on the wire.
+ */
 export const LIVE_CLIENT_SOCKET_ACTIONS = [
 	'auth',
 	'logs',
@@ -292,7 +428,8 @@ export type ClientSocketMessage =
 	| SocketHeartbeatMessage
 	| SocketAckMessage
 	| SocketRegisterPrintersMessage
-	| SocketExportLocalRulesMessage;
+	| SocketExportLocalRulesMessage
+	| SocketAgentCommandResultMessage;
 
 /* -------------------------------------------------------------------------- */
 /*  Control frames                                                            */

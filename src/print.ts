@@ -5,6 +5,18 @@ declare global {
 
   type PrintContentType = 'pdf_uri' | 'pdf_base64' | 'raw_uri' | 'raw_base64';
 
+  /**
+   * A raw (non-PDF) control language a printer can be sent.
+   *
+   * Deliberately NOT encoded into `PrintContentType`: that field says how the
+   * bytes ARRIVE (`raw_uri` vs `raw_base64`), not what dialect they are, and the
+   * two axes are independent — every format is transportable both ways. Widening
+   * `PrintContentType` to `raw_zpl_base64`-style members would multiply out to a
+   * member per (format × transport) pair and break every existing consumer that
+   * switches on it.
+   */
+  type PrintRawFormat = 'zpl' | 'escpos';
+
   interface PrintOptions {
     bin?: string;
     collate?: boolean;
@@ -172,6 +184,29 @@ declare global {
      * survive a re-registration that omits it. `false` = do not route jobs here.
      */
     active: boolean;
+    /**
+     * Raw control languages the OPERATOR declares this device understands.
+     * BE-owned and operator-set, exactly like `active` — never agent-reported.
+     *
+     * ⚠️ **Absent or empty means REFUSE all raw content.** This is the one field
+     * in the printer registry where absence is a "no" rather than a "not
+     * reported", and it inverts `PrintPrinterCapabilities`' core rule on purpose
+     * (`api/stacks/services/printRules.ts`: "Absent capabilities = not reported —
+     * accept everything"). That default is right for `paper`/`bins`/`dpis`, where
+     * guessing wrong wastes one job. Here, guessing wrong sends a ZPL stream to a
+     * laser printer, which does not error — it renders every command as text and
+     * puts a ream through the machine until someone physically cancels it. The
+     * spooler accepts the bytes, the agent ACKs `printed`, and the BE records
+     * success. So it cannot live in `capabilities`, or the next person to "fix
+     * the inconsistency" reopens the hole.
+     *
+     * It is also not something the agent could report honestly: it can read a
+     * driver string (`ZDesigner ZD420`), but a generic driver, a renamed queue or
+     * a shared network printer defeats that heuristic. And an agent-reported
+     * field is overwritten on every re-registration — the same bug `active` is
+     * shaped to avoid, with a worse outcome than an un-paused printer.
+     */
+    rawFormats?: PrintRawFormat[];
     /** ms epoch of the last `register_printers` report that included this printer. */
     reportedAt: number;
     /**
@@ -193,7 +228,7 @@ declare global {
    * wholesale would silently reset the operator's per-printer pause toggle on
    * every agent restart.
    */
-  type PrintPrinterReport = Omit<PrintPrinter, 'agentId' | 'active' | 'reportedAt' | 'online'>;
+  type PrintPrinterReport = Omit<PrintPrinter, 'agentId' | 'active' | 'reportedAt' | 'online' | 'rawFormats'>;
 
   /**
    * payload of the agent → BE `register_printers` WSS frame. ⚠️ That frame is
