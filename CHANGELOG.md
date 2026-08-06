@@ -7,6 +7,42 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.11
+
+- **fix(contracts):** eleven declarations corrected against what the api
+  actually reads and writes, found by an audit of all 42 modules against
+  `stacks/**`. Every one of these had a consumer coding against a field that is
+  always `undefined`, a field under a name no row carries, or a documented
+  invariant the api does not hold.
+  - **`Currency`** reshaped to the poller's real `put` — drops `catalogId` (no
+    writer has ever set it; the api#942 rename applies to the catalog
+    contracts, not to this time-series sample), types `dated` as the `number`
+    `getDated()` returns rather than `string`, and publishes the `createdAt`,
+    `variation` and `sourceId` the row has always carried.
+  - **`Product.totalIncomes` → `totalIncome`** — the singular is what
+    `products/_post.ts` increments; the published plural matched no row.
+  - **`Product.incomes[]`** gains `returnId` (the purchase-vs-return
+    discriminator, api#547) and an honest `orderId` comment.
+  - **`Product.inOffer`** is now optional and documented as client-authored:
+    the "read-projection of any active promo" it claimed to be does not exist
+    in the api. Read `prices[].promo` instead.
+  - **`Account.userId`** is now optional — the manual `POST /account` row and
+    the order-delivery debit, the two highest-volume writers, never stamp it.
+  - **`UserActivityEvent`** gains the `Printer Active Toggled` arm (api#2008),
+    which the api has validated, persisted and served from a live route since
+    1.10.3 graduated only the Print Rule variants beside it.
+  - **`scope`** narrowed to `'app' | 'landing' | 'storefront'` on
+    `PlatformConfigEntry`, `PlatformGlobalsPostBody` and
+    `PlatformConfigUpdatedEvent` — api#1955 retired `'web'` and the write gate
+    now rejects it with a 400.
+  - **`CashEvent`** PK corrected to `SHIFT#{storeId}#{shiftId}`; the documented
+    bare `SHIFT#{shiftId}` is the exact form the api's key factory rejects,
+    since shiftIds are per-store counters and the bare key merges tenants.
+  - **`Invoice.dueDate`**, **`PaymentReceived.currencyValue`/`currencyValueAt`**
+    and **`PaymentReceived.reconciled`/`reconcileReason`** keep their shape but
+    are now marked as not populated on those surfaces, so absence is no longer
+    readable as a meaningful value.
+
 ## 1.10.10
 
 - **feat(orders):** `returns` joins `SOCKET_ACTIONS` — the BE → store-user frame

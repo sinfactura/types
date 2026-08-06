@@ -80,13 +80,22 @@ declare global {
 	// the FX pollers (api#941). Each sample is one observation of one
 	// catalog entry's rate at a point in time.
 	//   PK: CURRENCY#${isoCode}#${variant}    SK: ${createdAt}
-	// Renamed from `currencyId` to `catalogId` (api#942) — the field
-	// is now an FK to PlatformCurrency, not a tenant-local integer.
+	// The api#942 `currencyId` → `catalogId` rename applies to the CATALOG
+	// contracts (StoreCurrencySubscription / PlatformCurrency), NOT to this
+	// time-series sample: the poller identifies the series by the PK, so the
+	// row carries no catalog FK at all. This interface previously declared a
+	// `catalogId` no writer has ever set, and typed `dated` as a string.
+	// Shape below mirrors the single writer verbatim — the documentClient.put
+	// in stacks/lambdas/fxPoller/_common.ts.
 	interface Currency {
-		catalogId: string; // FK to PlatformCurrency
-		dated: string;
+		createdAt: number; // Unix ms; also the SK
+		dated: number; // YYYYMMDD, America/Argentina/Buenos_Aires (getDated())
 		value: number;
+		// Provider-supplied change indicator, stored verbatim (e.g. '+1,2%').
+		// Absent when the provider reports none.
+		variation?: string;
 		source?: string; // 'ambito' | 'dolarapi' | 'bluelytics' | 'bcra' (api#941)
+		sourceId?: string; // FX-source registry id the sample came from (api#1019)
 	}
 
 	// ───────────────────────────────────────────────────────────────

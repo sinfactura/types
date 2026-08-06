@@ -37,7 +37,11 @@ declare global {
 		// Unix ms at which `currencyValue` was effective (app#1539 / ADR-0013).
 		currencyValueAt?: number;
 		balance?: number;
-		userId: string;
+		// Optional: only some writers stamp it. The payment-link credit and the
+		// return credit do; the manual POST /account row and the order-delivery
+		// debit — the two highest-volume writers — do not, and no read path
+		// fabricates it. Render a fallback rather than assuming attribution.
+		userId?: string;
 		deleted?: boolean;
 		/**
 		 * Provenance of a link-derived credit row (api#933 / PR#943, app#1344).

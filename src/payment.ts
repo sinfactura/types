@@ -42,6 +42,11 @@ declare global {
     currency: string;
     // Self-describing currency stamp (app#1539 / ADR-0013): FX rate and
     // the Unix ms at which it was effective.
+    //
+    // ⚠️ NOT IMPLEMENTED on this row. The PAYMENT partition never stores the
+    // stamp and `projectRowToWire` cannot emit it, so these are undefined on
+    // 100% of GET /payments/received rows. Declared as the ADR-0013 target
+    // shape; do not treat their absence as "no FX applied".
     currencyValue?: number;
     currencyValueAt?: number;
     payerName?: string;
@@ -63,6 +68,11 @@ declare global {
     // cannot complete (older-than-today, no-ledger-credit, reversal-failed,
     // etc.). `reconciled: false` signals the operator must reconcile
     // manually (#915); cleared on a subsequent full reversal.
+    //
+    // ⚠️ Stamped ONLY on the `MP#{storeId}` row. The PAYMENT projection that
+    // backs GET /payments/received does not carry these, and its projector
+    // cannot emit them — so on that endpoint both are always undefined.
+    // Absence here means "not projected", never "reconciled".
     reconciled?: boolean;
     reconcileReason?: string;
   }

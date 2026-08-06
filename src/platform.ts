@@ -9,7 +9,10 @@ export interface PlatformConfigEntry {
 	kind: 'setting' | 'flag';
 	value: string | number | boolean;
 	defaultValue: string | number | boolean;
-	scope: 'app' | 'web' | 'landing' | 'storefront';
+	// api#1955 retired 'web'. `scope` names the consuming REPO, not an audience,
+	// and POST /platform/globals validates z.enum(['app','landing','storefront']),
+	// so a 'web' value is rejected with a 400 and can never be read back.
+	scope: 'app' | 'landing' | 'storefront';
 	description?: string;
 	// Inclusive bounds for a `valueType: 'number'` key (api#1078). Absent on
 	// unbounded/boolean/string keys. These are part of the WRITE contract, not a
@@ -33,7 +36,8 @@ export interface PlatformGlobalsPostBody {
 			value: string | number | boolean | null;
 			valueType: 'boolean' | 'string' | 'number';
 			kind: 'setting' | 'flag';
-			scope: 'app' | 'web' | 'landing' | 'storefront';
+			// api#1955 — see PlatformConfigEntry.scope above; 'web' is rejected.
+			scope: 'app' | 'landing' | 'storefront';
 		}
 	>;
 }

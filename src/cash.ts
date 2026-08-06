@@ -68,9 +68,15 @@ declare global {
   }
 
   /**
-   * Append-only audit row for every drawer movement. PK `SHIFT#{shiftId}`,
-   * SK `EVENT#{createdAt}#{eventId}`. Never overwritten or deleted —
-   * reconciliation replays it.
+   * Append-only audit row for every drawer movement.
+   * PK `SHIFT#{storeId}#{shiftId}`, SK `EVENT#{createdAt}#{eventId}`.
+   * Never overwritten or deleted — reconciliation replays it.
+   *
+   * The storeId segment is load-bearing, not decoration: shiftIds are
+   * per-store counters, so a bare `SHIFT#{shiftId}` would merge two tenants'
+   * drawer history into one partition. The api's key factory rejects the bare
+   * form for exactly that reason — do not "simplify" this back.
+   * (`CashShift`'s own SK `SHIFT#{shiftId}` below is correct and unrelated.)
    */
   interface CashEvent {
     eventId: string;

@@ -28,7 +28,12 @@ declare global {
 		limit?: number;
 		incomes?: {
 			stockId: string;
-			orderId?: string; // when we put items trough a buy order
+			// Present on a RETURN-sourced income: the SALES order the units came
+			// back from. The purchase path does not set it.
+			orderId?: string;
+			// Set when this income is a customer return rather than a purchase —
+			// the purchase-vs-return discriminator (api#547).
+			returnId?: string;
 			supplierName?: string;
 			quantity: number;
 			cost: number;
@@ -40,7 +45,10 @@ declare global {
 			quantity: number;
 			price: number;
 		}[];
-		totalIncomes?: number;
+		// Singular, matching the only writer (products/_post.ts increments
+		// `totalIncome`). Published as `totalIncomes` up to 1.10.10, which no
+		// row has ever carried.
+		totalIncome?: number;
 		totalSales?: number;
 		zone?: string;
 
@@ -55,8 +63,13 @@ declare global {
 		ivaType: number;
 		categoryId: string;
 		brandId: string;
-		// READ-PROJECTION of "any slot has an active promo" — never authored. (#1780)
-		inOffer: boolean;
+		// ⚠️ Intended as a READ-PROJECTION of "any slot has an active promo"
+		// (#1780), but the api implements NO derivation: the value is accepted
+		// from the client on POST/import and persisted verbatim, and nothing
+		// recomputes it when a promo window opens or expires. Optional because
+		// no writer guarantees it. Do not gate promo UI on it until the
+		// projection actually exists — read `prices[].promo` instead.
+		inOffer?: boolean;
 		isNew: boolean;
 		isService: boolean;
 

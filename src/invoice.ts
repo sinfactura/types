@@ -188,8 +188,13 @@ declare global {
      *
      * Optional and forward-only. Unrelated to `ttl` above (a DDB cost boundary)
      * and to `caeExpiration` (an ARCA authorization window) — this is a
-     * commercial payment term, and it is what the AR dunning chains schedule
-     * against. Inherited from the order or set independently at issuance.
+     * commercial payment term.
+     *
+     * ⚠️ DECLARATIVE ONLY — nothing populates it. No invoice creation path
+     * writes `dueDate`, and `invoicePostSchema` strips it from the request
+     * body, so it is absent on every stored invoice. Reserved for the dunning
+     * work in api#713, which is open and deliberately blocked. Mirrors the
+     * caveat its Order twin already carries.
      */
     dueDate?: number;
   }

@@ -665,7 +665,9 @@ declare global {
 		event: 'Platform Config Updated';
 		key: string;
 		kind: 'setting' | 'flag';
-		scope: 'app' | 'web' | 'landing' | 'storefront';
+		// api#1955 retired 'web' — the write gate is z.enum(['app','landing',
+		// 'storefront']) and rejects it, so no audit row can carry it.
+		scope: 'app' | 'landing' | 'storefront';
 		before: string | number | boolean;
 		after: string | number | boolean;
 	}
@@ -731,9 +733,20 @@ declare global {
 		printer_id: string;
 	}
 
+	// Per-printer `active` pause toggle (api#2008). Mirrors
+	// `printerActiveToggledSchema` in the api's userActivity/schema.ts — the api
+	// has validated, persisted and served this variant from a live route since
+	// api#2008, while 1.10.3 graduated only the three Print Rule variants above.
+	interface PrinterActiveToggledEvent extends UserActivityEventBase {
+		event: 'Printer Active Toggled';
+		agent_id: string;
+		printer_id: string;
+		active: boolean;
+	}
+
 	// ──────────────────────────────────────────────────────────────────────────
-	// Discriminated union — 81 variants (the count had drifted: it read 72 while
-	// the union already held 78, so don't trust it without recounting)
+	// Discriminated union — 82 variants. Recount before trusting this number:
+	// it has drifted twice (read 72 at 78 arms, then 81 at 81).
 	// ──────────────────────────────────────────────────────────────────────────
 
 	type UserActivityEvent =
@@ -826,7 +839,9 @@ declare global {
 		// Phase 8 (api#2007 — PRINT_RULE# routing rules)
 		| PrintRuleCreatedEvent
 		| PrintRuleEditedEvent
-		| PrintRuleDeletedEvent;
+		| PrintRuleDeletedEvent
+		// Per-printer `active` pause toggle (api#2008)
+		| PrinterActiveToggledEvent;
 
 }
 
