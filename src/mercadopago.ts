@@ -100,6 +100,44 @@ declare global {
   }
 
   // ───────────────────────────────────────────────────────────────
+  // QR collection responses (api#879 static · api#884/#959 dynamic)
+  // ───────────────────────────────────────────────────────────────
+
+  // `data` payload of POST /mercadopago/qr — the static "QR Personal"
+  // (api#879): a persistent, printable POS QR the customer scans to pay
+  // over the counter. Mirrors the success `data` the handler returns in
+  // `api/stacks/lambdas/mercadopago/_qr.ts`. `null`s are the handler's
+  // explicit `?? null` fallbacks when MP omits the field.
+  interface MpStaticQrResponse {
+    posId: string;                     // MP-issued POS numeric id (stringified).
+    externalPosId: string;             // SINFACTURA-pinned external id (`SF{storeId}POS`).
+    qrImageUrl: string | null;         // MP-hosted QR image URL.
+    qrTemplateUrl: string | null;      // MP-hosted printable template image URL.
+    mpUserId: string | null;           // connected tenant's MP user_id.
+    externalReference: string | null;  // echoed FE reference, when one was supplied.
+    isNew: boolean;                    // true when the POS was created on this call.
+  }
+
+  // `data` payload of POST /mercadopago/qr/dynamic — the amount-bound
+  // EMVCo QR (api#884 → api#959 amount-bound consolidation): one per
+  // charge, minted from the order / cuenta-balance / ad-hoc surfaces.
+  // The FE renders `qrData` as an EMVCo QR the MP app interprets
+  // natively. Mirrors the amount-bound success `data` in
+  // `api/stacks/lambdas/mercadopago/_qrDynamic.ts`.
+  interface MpDynamicQrResponse {
+    qrData: string;             // EMVCo QR string.
+    inStoreOrderId: string;     // MP in-store order id backing this QR.
+    posId: string;              // MP dynamic POS id (`SF{storeId}DYN`).
+    externalReference: string;  // SINFACTURA linkage key (ORD/CUST/INV/ACC or ad-hoc).
+    customerId?: string;        // present when the charge targets a customer cuenta.
+    amount: number;             // charge amount.
+    currency: string;           // 'ARS' — MP Argentina settles ARS only.
+    expiresAt: number;          // unix ms when the QR expires (FE re-mints on expiry).
+    createdAt: number;          // unix ms when the QR (cache row) was created.
+    isNew: boolean;             // false when a still-valid cached QR was returned.
+  }
+
+  // ───────────────────────────────────────────────────────────────
   // Super-ops forensic logs (api#970/#976) — operator OPERACIONES panels
   // ───────────────────────────────────────────────────────────────
 
