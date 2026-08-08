@@ -859,6 +859,14 @@ augmentation file:
   taxonomy — per-surface defaults plus per-tenant overrides keyed off the
   `LITERALS` row `SK` (api#1484).
 
+## 1.6.31
+
+- **feat(mercadopago):** super-ops forensic log shapes for the per-tenant
+  payments integration — `MpHookLogEntry` / `MpHookResult` (webhook),
+  `MpIpnLogEntry` / `MpIpnOutcome` (IPN), `MpMovementLogEntry` / `MpMovementType`
+  (movements poller) (api#970, api#976). *(Backfilled — recovered from git
+  `ce2cddc`; the MercadoPago epic originally shipped without a changelog line.)*
+
 ## 1.6.28
 
 - **feat(subscription):** graduate the MANAGER store-subscription override types
@@ -938,6 +946,19 @@ augmentation file:
   `StoreCurrencySubscription`, FX auto-update bindings — and widen every
   currency field to the catalogId encoding (api#942). Money entities became
   self-describing via their own `currency` stamp (ADR-0013).
+
+## 1.5.0 – 1.6.x (mercadopago per-tenant payments)
+
+- **feat(mercadopago):** per-tenant MercadoPago integration contracts — OAuth
+  Connect (`MpOauthTokenResponse`, `MpOauthInitiateResponse`,
+  `MpOauthCallbackResponse`), `MercadopagoStatus`, the webhook/IPN notification
+  shapes (`MpWebhookEvent`, `MpPaymentNotification`) and `MpPointDevice`
+  (`mercadopago.ts`) — the foundation each tenant's OAuth Connect, static +
+  dynamic QR collection and webhook/IPN ingestion path builds on (types#51,
+  api#832). *(Backfilled — recovered from git `a57d78b`; the epic originally
+  shipped without a changelog line. QR-response bodies and the
+  `staticQr`/`dynamicQrPos`/`lastMovementCheckpoint` STORE fields are read via
+  local casts in api and are not yet declared here — see api#894 TODO.)*
 
 ## 1.1.0 – 1.5.x (subscription)
 
