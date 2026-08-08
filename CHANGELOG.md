@@ -7,6 +7,17 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.12
+
+- **feat(mercadopago):** declare the QR-collection response DTOs that api had
+  been returning without a shared type — `MpStaticQrResponse` (`data` of `POST
+  /mercadopago/qr`) and `MpDynamicQrResponse` (`data` of `POST
+  /mercadopago/qr/dynamic`), mirrored from `_qr.ts` / `_qrDynamic.ts`
+  (`mercadopago.ts`). Also adds `Mercadopago.lastMovementCheckpoint?: number`
+  (`store.ts`) — the money-movement poller checkpoint the api read via a
+  lambda-local `MpWithCheckpoint` cast, which can now be dropped (api#879,
+  api#959, api#895/#976).
+
 ## 1.10.11
 
 - **fix(contracts):** eleven declarations corrected against what the api

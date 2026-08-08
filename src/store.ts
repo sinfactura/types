@@ -311,6 +311,13 @@ declare global {
       createdAt: number; // unix ms when the POS was created.
     };
 
+    // Money-movement poller checkpoint (api#895/#976) — unix ms of the
+    // latest MP payment/movement date already ingested. `mpMovementsPoller`
+    // advances it monotonically so the next poll walks forward from here.
+    // Supersedes the lambda-local `MpWithCheckpoint` cast in
+    // `api/stacks/lambdas/mpMovementsPoller/_pollTenant.ts`.
+    lastMovementCheckpoint?: number;
+
     // FEATURE TOGGLES per store, surfaced in the FE Integrations hub.
     features?: {
       checkoutPro?: boolean; // online payments via Checkout Pro.
