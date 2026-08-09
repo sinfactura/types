@@ -8,13 +8,13 @@ reshapes an exported type.
 
 Any repo that imports `sinfactura-types` must stay green against a new release:
 
-| Repo                                                          | Channel                    |
-| ------------------------------------------------------------- | -------------------------- |
-| [`sinfactura/api`](https://github.com/sinfactura/api)         | npm, **exact** pin         |
-| [`sinfactura/app`](https://github.com/sinfactura/app)         | npm, **exact** pin         |
+| Repo                                                                | Channel                   |
+| ------------------------------------------------------------------- | ------------------------- |
+| [`sinfactura/api`](https://github.com/sinfactura/api)               | npm, **exact** pin        |
+| [`sinfactura/app`](https://github.com/sinfactura/app)               | npm, **exact** pin        |
 | [`sinfactura/storefront`](https://github.com/sinfactura/storefront) | npm, caret range — see ⚠️ |
-| [`sinfactura/mobile`](https://github.com/sinfactura/mobile)   | npm, **exact** pin         |
-| [`sinfactura/landing`](https://github.com/sinfactura/landing) | none — no dependency       |
+| [`sinfactura/mobile`](https://github.com/sinfactura/mobile)         | npm, **exact** pin        |
+| [`sinfactura/landing`](https://github.com/sinfactura/landing)       | none — no dependency      |
 
 > ⚠️ **`storefront` is the one caret pin (`^1.8.2`), and that is a latent hazard.**
 > Yarn Berry holds it at exactly 1.8.2 in `yarn.lock`, so it has NOT silently
@@ -87,11 +87,11 @@ sinfactura-types@<version> latest` once both sides are green.
 
 Bump `package.json` `version` whenever exported types change:
 
-| Change                                              | Bump      |
-| --------------------------------------------------- | --------- |
-| Removed field, renamed type, narrowed/changed type  | **major** |
-| New type, new optional field, new union member      | **minor** |
-| Doc/comment fix, no shape change                    | **patch** |
+| Change                                             | Bump      |
+| -------------------------------------------------- | --------- |
+| Removed field, renamed type, narrowed/changed type | **major** |
+| New type, new optional field, new union member     | **minor** |
+| Doc/comment fix, no shape change                   | **patch** |
 
 > **Project convention (overrides semver default):** additive, backward-compatible
 > changes ship as **patch** bumps in this repo, not minor — keep the diff small and
@@ -120,6 +120,3 @@ subscription types + their `api` handlers):
 2. Open the paired consumer PR(s) and point them at the new `dist` commit
    (`yarn up`) or `@next` tag.
 3. Merge consumers once green. Promote `@next` → `latest` if using npm.
-
-First cross-cutting use case: the subscription feature
-(`sinfactura/app#710` + `sinfactura/api#626`).

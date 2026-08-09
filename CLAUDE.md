@@ -9,6 +9,7 @@ This file provides types-specific guidance for the shared TypeScript types packa
 **sinfactura-types** is the centralized TypeScript type definitions package that serves as the single source of truth for data contracts across all SINFACTURA services. Published as an npm package, it ensures type consistency between frontend applications (app, web, landing) and backend services (api).
 
 ### Package Information
+
 - **Name**: `sinfactura-types`
 - **Version**: 1.0.79+ (check package.json for current)
 - **License**: MIT (⚠️ Different from proprietary services!)
@@ -18,6 +19,7 @@ This file provides types-specific guidance for the shared TypeScript types packa
 ## ⚠️ Critical Considerations
 
 ### License Difference
+
 ```typescript
 // ⚠️ This package uses MIT license, NOT proprietary
 // Headers should reflect MIT license:
@@ -28,7 +30,9 @@ This file provides types-specific guidance for the shared TypeScript types packa
 ```
 
 ### Breaking Changes
+
 **EXTREME CAUTION**: Breaking changes affect ALL services!
+
 - Major version bumps require coordinated updates across all services
 - Always maintain backwards compatibility when possible
 - Use deprecation warnings before removing types
@@ -41,7 +45,7 @@ Enforced by ESLint — the local `sinfactura/no-issue-refs-in-comments` rule (wi
 - **No issue references in code comments.** A bare `#1234` or a `repo#1234` token (`api#`, `app#`, `types#`, `print#`, …) is opaque to a reader and rots silently when the issue closes. A closed issue is archaeology: **strip the reference and keep the constraint** it encoded, written as prose. The knowledge stays in the comment — only the lookup goes.
 - **A genuinely live pointer belongs in a marker:** `TODO(<repo>#<n>): …` or `FIXME(<repo>#<n>): …` is the only sanctioned home for a reference, and only for open, actionable work.
 - **`ADR-NNNN` is exempt** — an ADR is in-repo and immutable, so citing one is a stable pointer, not a lookup.
-- **JSDoc must stand alone.** This package is consumed by every service, so its comments *are* the contract's documentation: state the rule/constraint inline rather than citing a cross-repo issue, which is meaningless from another repo.
+- **JSDoc must stand alone.** This package is consumed by every service, so its comments _are_ the contract's documentation: state the rule/constraint inline rather than citing a cross-repo issue, which is meaningless from another repo.
 
 ## 📁 Type Modules Structure
 
@@ -72,11 +76,12 @@ src/
 
 ### 💱 Currency taxonomy
 
-Two currency encodings exist: **catalogId** (canonical, lowercase — e.g. `ars`, `usd-oficial`) vs raw **ISO** (legacy uppercase, e.g. `ARS`). `CatalogId` (`currency.ts`) is the canonical union. Money entities are self-describing via their own `currency` catalogId stamp; an **unstamped `ACCOUNT` row falls back to `store.config.displayCurrency`, never to `customer.currencyId`** (root cause of api#1333). The full ledger-denomination + self-describing rule lives in api `docs/CURRENCY.md` / `docs/ENTITIES.md` §ACCOUNT and app `docs/adr/0013-currency-self-describing-entities.md`.
+Two currency encodings exist: **catalogId** (canonical, lowercase — e.g. `ars`, `usd-oficial`) vs raw **ISO** (legacy uppercase, e.g. `ARS`). `CatalogId` (`currency.ts`) is the canonical union. Money entities are self-describing via their own `currency` catalogId stamp; an **unstamped `ACCOUNT` row falls back to `store.config.displayCurrency`, never to `customer.currencyId`**. The full ledger-denomination + self-describing rule lives in api `docs/CURRENCY.md` / `docs/ENTITIES.md` §ACCOUNT and app `docs/adr/0013-currency-self-describing-entities.md`.
 
 ## 📝 Type Definition Standards
 
 ### Interface vs Type Alias
+
 ```typescript
 // ✅ Use interface for object shapes (extendable)
 export interface User {
@@ -86,25 +91,26 @@ export interface User {
 }
 
 // ✅ Use type for unions, intersections, or primitives
-export type UserRole = 'admin' | 'manager' | 'supervisor' | 'customer';
+export type UserRole = "admin" | "manager" | "supervisor" | "customer";
 export type UserId = string;
 export type UserWithMetadata = User & { createdAt: Date };
 ```
 
 ### Naming Conventions
+
 ```typescript
 // Interfaces: PascalCase, descriptive
-export interface ProductDetails { }
-export interface OrderSummary { }
+export interface ProductDetails {}
+export interface OrderSummary {}
 
 // Type aliases: PascalCase
-export type PaymentStatus = 'pending' | 'completed' | 'failed';
+export type PaymentStatus = "pending" | "completed" | "failed";
 
 // Enums: PascalCase with UPPER_SNAKE members
 export enum InvoiceType {
-  TYPE_A = 'A',
-  TYPE_B = 'B',
-  TYPE_C = 'C'
+  TYPE_A = "A",
+  TYPE_B = "B",
+  TYPE_C = "C",
 }
 
 // Generic types: Use T, K, V or descriptive names
@@ -115,25 +121,27 @@ export interface ApiResponse<TData = unknown> {
 ```
 
 ### Required vs Optional Fields
+
 ```typescript
 // Be explicit about optionality
 export interface Product {
-  id: string;                  // Always required
-  name: string;                // Always required
-  description?: string;        // Optional field
-  price: number;              // Required
-  discountPrice?: number;     // Optional
+  id: string; // Always required
+  name: string; // Always required
+  description?: string; // Optional field
+  price: number; // Required
+  discountPrice?: number; // Optional
   metadata?: ProductMetadata; // Optional nested object
 }
 
 // Use Partial/Required utilities when needed
 export type ProductUpdate = Partial<Product> & { id: string };
-export type ProductCreation = Omit<Product, 'id'>;
+export type ProductCreation = Omit<Product, "id">;
 ```
 
 ## 🔄 Versioning Strategy
 
 ### Semantic Versioning
+
 - **Major (X.0.0)**: Breaking changes
   - Removing fields
   - Changing field types
@@ -147,6 +155,7 @@ export type ProductCreation = Omit<Product, 'id'>;
   - Type corrections that don't break compatibility
 
 ### Version Bump Process
+
 ```bash
 # 1. Make your changes
 # 2. Build to verify
@@ -169,7 +178,9 @@ cd ../api && yarn add sinfactura-types@latest
 ## 🏗️ Adding New Types
 
 ### Step-by-Step Process
+
 1. **Create new type file** (if new domain)
+
 ```typescript
 // src/newdomain.ts
 export interface NewDomainEntity {
@@ -177,16 +188,18 @@ export interface NewDomainEntity {
   // ... fields
 }
 
-export type NewDomainStatus = 'active' | 'inactive';
+export type NewDomainStatus = "active" | "inactive";
 ```
 
 2. **Export from index**
+
 ```typescript
 // src/index.ts
-export * from './newdomain';
+export * from "./newdomain";
 ```
 
 3. **Document the types**
+
 ```typescript
 /**
  * Represents a new domain entity in the system
@@ -205,11 +218,13 @@ export interface NewDomainEntity {
 ```
 
 4. **Test build**
+
 ```bash
 yarn build
 ```
 
 5. **Version and release** (CI publishes on push — see PUBLISHING.md)
+
 ```bash
 npm version patch --no-git-tag-version   # additive = patch by project convention
 # update CHANGELOG.md, commit `chore(release): X.Y.Z`, push to main → CI publishes
@@ -218,18 +233,20 @@ npm version patch --no-git-tag-version   # additive = patch by project conventio
 ## 🔗 Integration Patterns
 
 ### Importing in Services
+
 ```typescript
 // In web/app/api services
-import type { User, Product, Order } from 'sinfactura-types';
+import type { User, Product, Order } from "sinfactura-types";
 
 // Import specific types
-import type { InvoiceType } from 'sinfactura-types/invoice';
+import type { InvoiceType } from "sinfactura-types/invoice";
 ```
 
 ### Extending Types Locally
+
 ```typescript
 // Service-specific extensions
-import type { User } from 'sinfactura-types';
+import type { User } from "sinfactura-types";
 
 // Extend for local use
 interface UserWithPermissions extends User {
@@ -244,18 +261,20 @@ type EnhancedUser = User & {
 ```
 
 ### Type Guards
+
 ```typescript
 // Define type guards in consuming services
-import type { User, Customer } from 'sinfactura-types';
+import type { User, Customer } from "sinfactura-types";
 
 function isCustomer(user: User | Customer): user is Customer {
-  return 'companyName' in user;
+  return "companyName" in user;
 }
 ```
 
 ## 🚫 Anti-Patterns to Avoid
 
 ### ❌ Don't Use `any`
+
 ```typescript
 // ❌ BAD
 export interface ApiResponse {
@@ -269,16 +288,17 @@ export interface ApiResponse<T = unknown> {
 ```
 
 ### ❌ Don't Create Circular Dependencies
+
 ```typescript
 // ❌ BAD - user.ts imports from order.ts and vice versa
 // user.ts
-import { Order } from './order';
+import { Order } from "./order";
 export interface User {
   orders: Order[];
 }
 
 // order.ts
-import { User } from './user';
+import { User } from "./user";
 export interface Order {
   user: User;
 }
@@ -294,10 +314,13 @@ export interface Order {
 ```
 
 ### ❌ Don't Mix Business Logic
+
 ```typescript
 // ❌ BAD - Types package should not contain logic
 export class UserValidator {
-  validate(user: User) { /* ... */ }
+  validate(user: User) {
+    /* ... */
+  }
 }
 
 // ✅ GOOD - Only type definitions
@@ -312,6 +335,7 @@ export interface User {
 ## 📊 Common Patterns
 
 ### API Response Types
+
 ```typescript
 // Standardized API responses
 export interface ApiSuccess<T = unknown> {
@@ -333,12 +357,13 @@ export type ApiResponse<T = unknown> = ApiSuccess<T> | ApiError;
 ```
 
 ### Pagination Types
+
 ```typescript
 export interface PaginatedRequest {
   page: number;
   limit: number;
   sort?: string;
-  order?: 'asc' | 'desc';
+  order?: "asc" | "desc";
 }
 
 export interface PaginatedResponse<T> {
@@ -352,6 +377,7 @@ export interface PaginatedResponse<T> {
 ```
 
 ### Timestamp Types
+
 ```typescript
 export interface Timestamps {
   createdAt: string; // ISO 8601
@@ -367,23 +393,25 @@ export interface Product extends Timestamps {
 ```
 
 ### Status Enums
+
 ```typescript
 // Use string enums for readability
 export enum OrderStatus {
-  PENDING = 'PENDING',
-  PROCESSING = 'PROCESSING',
-  SHIPPED = 'SHIPPED',
-  DELIVERED = 'DELIVERED',
-  CANCELLED = 'CANCELLED'
+  PENDING = "PENDING",
+  PROCESSING = "PROCESSING",
+  SHIPPED = "SHIPPED",
+  DELIVERED = "DELIVERED",
+  CANCELLED = "CANCELLED",
 }
 
 // Or use type unions for simpler cases
-export type SimpleStatus = 'active' | 'inactive';
+export type SimpleStatus = "active" | "inactive";
 ```
 
 ## 🧪 Testing Type Changes
 
 ### Build Testing
+
 ```bash
 # Always test build before publishing
 yarn build
@@ -395,18 +423,20 @@ yarn build  # Ensure no type errors
 ```
 
 ### Type Coverage
+
 ```typescript
 // Ensure all exports are typed
 // src/index.ts should export all public types
-export * from './account';
-export * from './auth';
+export * from "./account";
+export * from "./auth";
 // ... etc
 ```
 
 ## 📚 Documentation Requirements
 
 ### JSDoc Comments
-```typescript
+
+````typescript
 /**
  * Represents a customer in the B2B system
  * @remarks
@@ -434,13 +464,14 @@ export interface Customer {
    * Customer tier for pricing
    * @default 'standard'
    */
-  tier?: 'standard' | 'premium' | 'enterprise';
+  tier?: "standard" | "premium" | "enterprise";
 }
-```
+````
 
 ## 🚀 Publishing Checklist
 
 Before publishing a new version:
+
 - [ ] All types are properly exported in index.ts
 - [ ] No TypeScript errors (`yarn build` succeeds)
 - [ ] Version bumped appropriately (major/minor/patch)
@@ -452,6 +483,7 @@ Before publishing a new version:
 ## 🔐 Security Considerations
 
 ### Sensitive Data Types
+
 ```typescript
 // Never include actual sensitive data in type definitions
 export interface UserAuth {
@@ -466,7 +498,9 @@ export interface UserAuth {
 ```
 
 ### Type Validation
+
 Types are compile-time only! Always validate at runtime:
+
 ```typescript
 // Types don't provide runtime validation
 // Services must implement actual validation
@@ -482,6 +516,7 @@ export interface EmailInput {
 ### Common Issues
 
 **Module not found after update:**
+
 ```bash
 # Clear node_modules and reinstall
 cd ../web
@@ -490,6 +525,7 @@ yarn install
 ```
 
 **Type conflicts between versions:**
+
 ```bash
 # Check installed version
 yarn list sinfactura-types
@@ -499,6 +535,7 @@ yarn add sinfactura-types@latest
 ```
 
 **Build fails after adding new types:**
+
 - Ensure all new files are exported in index.ts
 - Check for circular dependencies
 - Verify no runtime code in type files
@@ -508,26 +545,30 @@ yarn add sinfactura-types@latest
 When introducing breaking changes:
 
 1. **Deprecate first** (minor version)
+
 ```typescript
 /** @deprecated Use NewInterface instead */
-export interface OldInterface { }
+export interface OldInterface {}
 
-export interface NewInterface { }
+export interface NewInterface {}
 ```
 
 2. **Document migration** (in CHANGELOG)
+
 ```markdown
 ## Migration from 1.x to 2.0
+
 - Replace `OldInterface` with `NewInterface`
 - Update field `oldField` to `newField`
 ```
 
 3. **Remove in major version**
+
 ```typescript
 // Version 2.0.0 - OldInterface removed
-export interface NewInterface { }
+export interface NewInterface {}
 ```
 
 ---
 
-*For universal code standards and other shared conventions, refer to the [umbrella overview](../docs/architecture/UMBRELLA_OVERVIEW.md) in the shared `sinfactura/docs` repo.*
+_For universal code standards and other shared conventions, refer to the [umbrella overview](../docs/architecture/UMBRELLA_OVERVIEW.md) in the shared `sinfactura/docs` repo._
