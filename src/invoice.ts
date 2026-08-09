@@ -13,7 +13,7 @@ declare global {
     | 'voided';
 
   /**
-   * One discriminated IVA alicuota on an issued voucher (api#1961).
+   * One discriminated IVA alicuota on an issued voucher.
    *
    * `id` is AFIP's WSFE `Iva[].Id`, which is ALSO the Libro IVA Digital alicuota
    * code once 4-padded — verified against ARCA's *Tablas del SISTEMA* section 1:
@@ -36,48 +36,44 @@ declare global {
 
   interface Invoice {
     storeId: string;
-    invoiceId: string; // ID
-    customerId: string; // CLIENTE_ID
-    orderId: string; // PEDIDO_ID
-    createdAt: number; // FECHA
+    invoiceId: string;
+    customerId: string;
+    orderId: string;
+    createdAt: number;
     dated: number;
 
     invoiceType: number; // CBTE_TIPO / 1 FAC A  / 6 FAC B
-    pointOfSale: number; // PTO_VTA
-    invoiceNumber: number; // CBTE_NUMERO
-    razonSocial: string; // RAZON_SOCIAL
+    pointOfSale: number;
+    invoiceNumber: number;
+    razonSocial: string;
     address: string; // address and postalCode
     location: string; // city and province
     concept: number; // CONCEPTO 1 productos 2 servicios
-    // cuitType/cuit carry the #1368-RESOLVED receptor identity actually
-    // declared on the voucher (explicit docType/docNumber override, or the
-    // condFiscal-derived fallback) under these legacy column names —
-    // cuitType = ARCA DocTipo (80 CUIT / 86 CUIL / 96 DNI / 99 CF),
-    // cuit = DocNro as string ('0' for CF). api#1731 freezes an NC's
-    // identity to its original FAC's values by reading these two fields.
-    cuitType: number; // CUIT_TIPO
-    cuit: string; // CUIT CF?
-    // catalogId (api#942) — FK to PlatformCurrency. AFIP `'PES'/'DOL'`
-    // projection happens at invoice-write time via `catalog.afipCode`.
+    // cuitType/cuit carry the RESOLVED receptor identity declared on the voucher
+    // (explicit docType/docNumber override, or the condFiscal-derived fallback):
+    // cuitType = ARCA DocTipo (80 CUIT / 86 CUIL / 96 DNI / 99 CF), cuit = DocNro
+    // as string ('0' for CF). An NC freezes its identity to the original FAC's values.
+    cuitType: number;
+    cuit: string;
+    // catalogId — FK to PlatformCurrency. AFIP `'PES'/'DOL'` projection happens
+    // at invoice-write time via `catalog.afipCode`.
     currency?: string;
     currencyValue?: number;
-    // Unix ms at which `currencyValue` was effective (app#1539 / ADR-0013).
-    currencyValueAt?: number;
+    currencyValueAt?: number; // Unix ms at which `currencyValue` was effective (ADR-0013)
     fiscalCondition: string; // COND_FISCAL / RESPONSABLE INSCRIPTO
-    // ARCA RG 5616 — buyer's IVA condition under the 1-13 codeset.
-    // Mapped server-side from legacy `condFiscal` (20/30/32/96/99) on every
-    // issued invoice. Audit field — the value sent to AFIP. (api#1173)
+    // ARCA RG 5616 — buyer's IVA condition under the 1-13 codeset, mapped
+    // server-side from legacy `condFiscal` (20/30/32/96/99). Audit field: the value sent to AFIP.
     condicionIvaReceptor?: number;
     paymentCondition: string; // COND_VENTA
     deliveryCondition: string; // COND_ENTREGA
 
     items: InvoiceItem[];
-    neto10: number; // NETO10
-    neto21: number; // NETO21
+    neto10: number;
+    neto21: number;
     iva10: number;
     iva21: number;
     /**
-     * api#1961 — the FULL per-alicuota IVA breakdown, one entry per declared rate.
+     * The FULL per-alicuota IVA breakdown, one entry per declared rate.
      *
      * The `neto10`/`neto21`/`iva10`/`iva21` quartet above only ever captured AFIP
      * Iva Ids 4 (10,5 %) and 5 (21 %). The catalog has SIX rates, so the other
@@ -85,116 +81,96 @@ declare global {
      * while `total` included every bucket — silently under-reporting the Libro IVA
      * Digital, the RG 3685 export, the F.2051 apertura and the invoice PDF.
      *
-     * Forward-only, no backfill: absent on every row issued before api#1961, and
-     * never set on the WSFEX export path. Consumers MUST fall back to the legacy
-     * quartet when it is absent rather than treating an empty result as "no IVA".
-     * The quartet is retained, not deprecated — still written on every new row.
+     * Forward-only, no backfill: absent on every row issued before this field
+     * shipped, and never set on the WSFEX export path. Consumers MUST fall back
+     * to the legacy quartet when it is absent rather than treating an empty
+     * result as "no IVA". The quartet is retained, not deprecated — still
+     * written on every new row.
      */
     alicuotas?: InvoiceAlicuota[];
     discount?: number;
-    total: number; // IMP_TOTAL
+    total: number;
 
-    cae: string; // CAE
-    caeExpiration: string; // CAE_VENCIMIENTO
+    cae: string;
+    caeExpiration: string;
     observations?: string; // afip observations
-    // ARCA fiscal lifecycle (app#1409 / app#1023 split A). Optional —
-    // absent means `authorized_cae` (V1.0 implicit happy path). BE sets
-    // `pending_cae` when WSFEv1 network-failed, `rejected` on business
-    // validation errors. See ADR-0012 for the CAEA states.
+    // ARCA fiscal lifecycle (split A). Optional — absent means `authorized_cae`
+    // (V1.0 implicit happy path). BE sets `pending_cae` on WSFEv1 network failure,
+    // `rejected` on business validation errors. See ADR-0012 for the CAEA states.
     fiscalStatus?: FiscalStatus;
-    // Structured ARCA rejection detail (api#1380). Present when
-    // fiscalStatus === 'rejected'; supersedes regex-parsing the legacy
-    // `observations` string above for FE error classification.
+    // Structured ARCA rejection detail, present when fiscalStatus === 'rejected';
+    // supersedes regex-parsing the legacy `observations` string above.
     arcaError?: ArcaError;
-    // ARCA observaciones (api#1559). Structured Resultado='O' warnings
-    // parsed from every FECAESolicitar response. Deliberately a NEW field
-    // rather than widening `observations` above — that field is free text
-    // (string) and is already consumed as FiscalStatusBanner's errorMessage
-    // (app), so changing its type would be a breaking change.
+    // ARCA observaciones — structured Resultado='O' warnings parsed from every
+    // FECAESolicitar response. A NEW field rather than widening `observations`
+    // above, which is free text already consumed as FiscalStatusBanner's errorMessage (app).
     arcaObservations?: InvoiceObservation[];
-    // ARCA events (api#1559 follow-up, PR api#1571). AFIP's Events.Evt[] --
-    // the third message array alongside Observaciones.Obs[] (above) and
-    // Errors.Err[]: envelope-level, informational (deprecation notices,
-    // service advisories), independent of Resultado. Same {code, msg} shape,
-    // so InvoiceObservation is reused rather than minting a new type.
+    // ARCA events — AFIP's Events.Evt[], the third message array alongside
+    // Observaciones.Obs[] (above) and Errors.Err[]: envelope-level, informational,
+    // independent of Resultado. Same {code, msg} shape, so InvoiceObservation is reused.
     arcaEvents?: InvoiceObservation[];
-    // RG 5762/2025 Factura M elimination (api#1560). Frozen on the Invoice
-    // row AT ISSUANCE (not re-derived from the live punto-de-venta config at
-    // render time) so a historical PDF keeps the legend that actually applied
-    // when the CAE was requested, even if Afip.facturaMLegend/cbu change
-    // later. `cbu` is only ever set alongside facturaMLegend 'cbu_informada'.
+    // RG 5762/2025 Factura M elimination. Frozen on the Invoice row AT ISSUANCE
+    // (not re-derived at render time) so a historical PDF keeps the legend that
+    // applied when the CAE was requested. `cbu` is only set alongside 'cbu_informada'.
     facturaMLegend?: 'retencion' | 'cbu_informada';
     cbu?: string;
-    // ARCA CAEA contingency (api#1556). Set only when fiscalStatus is
+    // ARCA CAEA contingency. Set only when fiscalStatus is
     // 'authorized_caea' | 'caea_reported'.
     caea?: string; // 14-digit ARCA-issued CAEA code
     caeaPeriod?: string; // "202608#1" -- links to CAEAPeriod.period
-    // Frozen FECAEADetRequest-shaped snapshot captured at CAEA-stamp time
-    // (api#1580). The plain Invoice row is LOSSY for Inform replay (only the
-    // 10.5%/21% alicuotas survive as neto10/21+iva10/21; MonId, ImpTotConc,
-    // FchServ*, CanMisMonExt, CondicionIVAReceptorId are all dropped), so the
-    // deferred FECAEARegInformativo step replays THIS snapshot verbatim
-    // instead of reconstructing. Absent on non-CAEA invoices and on rows
-    // stamped before the snapshot shipped (those need operator handling).
+    // Frozen FECAEADetRequest-shaped snapshot captured at CAEA-stamp time. The
+    // plain Invoice row is LOSSY for Inform replay (only 10.5%/21% alicuotas
+    // survive as neto10/21+iva10/21; MonId, ImpTotConc, FchServ*, CanMisMonExt,
+    // CondicionIVAReceptorId are dropped), so the deferred FECAEARegInformativo
+    // step replays THIS snapshot verbatim. Absent on non-CAEA/pre-snapshot rows.
     caeaDet?: CaeaInformDet;
-    // ARCA WSFEXV1 export invoicing (api#1557). Present only when
-    // invoiceType is an export voucher (19/20/21, Factura E).
+    // ARCA WSFEXV1 export invoicing. Present only when invoiceType is an
+    // export voucher (19/20/21, Factura E).
     export?: ExportInvoiceFields;
-    // ARCA WSFECRED FCE MiPyME credit invoices (api#1558). Present only when
-    // invoiceType is an FCE voucher (201/202/203, 206/207/208, 211/212/213).
+    // ARCA WSFECRED FCE MiPyME credit invoices. Present only when invoiceType
+    // is an FCE voucher (201/202/203, 206/207/208, 211/212/213).
     fce?: FceFields;
-    // Service order integration (sinfactura/types#30). AFIP concept=2 service
-    // invoices carry the service period + payment due date. All Unix ms.
+    // Service order integration. AFIP concept=2 service invoices carry the
+    // service period + payment due date. All Unix ms.
     serviceStartDate?: number; // AFIP FchServDesde
     serviceEndDate?: number; // AFIP FchServHasta
     paymentDueDate?: number; // AFIP FchVtoPago
     serviceOrderId?: string; // link to the originating ServiceOrder
-    // ARCA contingency reconciliation (api#1314). When a FECAESolicitar submit
-    // dies mid-call and retry-on-query can't settle whether the voucher landed,
-    // the pending_cae row records the targeted voucher number + as-submitted date
+    // ARCA contingency reconciliation. When a FECAESolicitar submit dies
+    // mid-call and retry-on-query can't settle whether the voucher landed, the
+    // pending_cae row records the targeted voucher number + as-submitted date
     // (yyyymmdd) so the drain reconciles (FECompConsultar) before re-submitting.
     // NOT the row's own number — pending rows keep the invoiceNumber=0 sentinel.
     attemptedCbteNro?: number;
     attemptedCbteFch?: string;
-    // Mirror of Order.orderPrinted (api#643) — set when the invoice is printed.
+    // Mirror of Order.orderPrinted — set when the invoice is printed.
     invoicePrinted?: boolean;
     /**
-     * Server-derived ms epoch (api#642), stamped by the WSS `ack` handler on an
-     * `ACK_PRINTED` that correlates to this row's CURRENT `printJobId`.
-     *
-     * **Absent = not confirmed printed** — never seeded to `0`. Cleared on every
-     * reprint, so it only ever describes the current `printJobId`. Distinct from
-     * `invoicePrinted`, which is stamped optimistically at dispatch.
+     * Server-derived ms epoch, stamped by the WSS `ack` handler on an
+     * `ACK_PRINTED` correlating to this row's CURRENT `printJobId`.
+     * **Absent = not confirmed printed** — never seeded to `0`, and cleared on
+     * every reprint. Distinct from `invoicePrinted`, stamped optimistically at dispatch.
      */
     printedAt?: number;
-    /** BE-minted pointer to the most recent print dispatch (api#642). Last-write-wins on reprint. */
+    /** BE-minted pointer to the most recent print dispatch. Last-write-wins on reprint. */
     printJobId?: string;
     /**
-     * DynamoDB TTL, Unix SECONDS (api#1559).
-     *
-     * ⚠️ A COST BOUNDARY on the hot tier — it carries no legal meaning and is NOT
-     * the fiscal retention term. **Never surface this to a user as a retention or
-     * expiry date.** The no-expiry S3 cold archive is the record of retention
-     * (api#1949): the duty runs to ~12 years from the operation and is not even a
-     * fixed term, since Ley 11.683 arts. 65/67 suspend and interrupt the
-     * prescription it derives from.
-     *
-     * Optional: forward-only, so rows written before api#1559 carry no ttl.
+     * DynamoDB TTL, Unix SECONDS. A COST BOUNDARY on the hot tier — carries no
+     * legal meaning and is NOT the fiscal retention term; never surface as a
+     * retention/expiry date. The no-expiry S3 cold archive is the retention
+     * record (~12 years, not even a fixed term — Ley 11.683 arts. 65/67 suspend
+     * and interrupt the prescription it derives from). Optional: forward-only.
      */
     ttl?: number;
 
     /**
-     * Expected payment due date, Unix ms (api#713 / types#110).
-     *
-     * Optional and forward-only. Unrelated to `ttl` above (a DDB cost boundary)
-     * and to `caeExpiration` (an ARCA authorization window) — this is a
-     * commercial payment term.
+     * Expected payment due date, Unix ms. Unrelated to `ttl` above (a DDB cost
+     * boundary) and to `caeExpiration` (an ARCA authorization window) — this is
+     * a commercial payment term.
      *
      * ⚠️ DECLARATIVE ONLY — nothing populates it. No invoice creation path
      * writes `dueDate`, and `invoicePostSchema` strips it from the request
-     * body, so it is absent on every stored invoice. Reserved for the dunning
-     * work in api#713, which is open and deliberately blocked. Mirrors the
-     * caveat its Order twin already carries.
+     * body. Reserved for pending dunning work, deliberately blocked.
      */
     dueDate?: number;
   }
@@ -205,9 +181,9 @@ declare global {
     quantity: number;
     iva: number;
     neto: number; // net base in the INVOICE HEADER currency (lines convert to it)
-    // Audit / re-sourcing (#1780 / types#86). NO per-line currency: one AFIP
-    // voucher = one MonId/MonCotiz; each line converts to the header currency at
-    // issuance (api#1416), with the per-line FX kept on the ORDER line (BasketItem).
+    // Audit / re-sourcing only. NO per-line currency: one AFIP voucher = one
+    // MonId/MonCotiz; each line converts to the header currency at issuance,
+    // with the per-line FX kept on the ORDER line (BasketItem).
     unitPrice?: number; // frozen per-unit price (today only `neto` survives)
     listId?: number;
     appliedMinQty?: number;
@@ -226,15 +202,15 @@ declare global {
     fiscalCondition: FiscalCondition;
     netos: Neto;
     ivaTypes: Method[];
-    // catalogId (api#942) — projection to AFIP `'PES'/'DOL'` happens
-    // at the AFIP-package boundary, not in this response shape.
+    // catalogId — projection to AFIP `'PES'/'DOL'` happens at the
+    // AFIP-package boundary, not in this response shape.
     currency: string;
     currencyValue: number;
     total: number;
     observations?: string;
     invoiceType: number;
-    // ARCA RG 5616 — passed back from AFIP request so _post.ts can stamp
-    // it on the persisted Invoice. (api#1173)
+    // ARCA RG 5616 — passed back from AFIP request so _post.ts can stamp it
+    // on the persisted Invoice.
     condicionIvaReceptor?: number;
   }
 
@@ -242,7 +218,7 @@ declare global {
 
   /**
    * `GET /reports?mode=libro-iva-digital&date=YYYYMM[&book=ventas|compras|all]`
-   * response (api#1501, RG 4597). Returns the four CRLF-terminated
+   * response, RG 4597. Returns the four CRLF-terminated
    * fixed-width payloads; an empty string means an empty period or a book
    * not requested. See docs/LIBRO_IVA_DIGITAL.md.
    */
@@ -255,8 +231,8 @@ declare global {
   }
 
   /**
-   * `GET /reports?mode=iva-simple-apertura&date=YYYYMM` response (api#1741,
-   * IVA Simple F.2051). `rows` is the CRLF-terminated, header-less apertura
+   * `GET /reports?mode=iva-simple-apertura&date=YYYYMM` response,
+   * IVA Simple F.2051. `rows` is the CRLF-terminated, header-less apertura
    * CSV (`;` separators, `,` decimals) for the accountant to import into
    * Portal IVA; empty string = empty period. `count` = aggregated bucket
    * rows, NOT source vouchers. Requires `Afip.actividades` configured —
@@ -270,10 +246,10 @@ declare global {
 
   /**
    * ARCA Obs.Code/Obs.Msg pair, parsed from FECAESolicitar's Observaciones[]
-   * when Resultado='O' (approved-with-warnings). (api#1559)
+   * when Resultado='O' (approved-with-warnings).
    *
    * `code`/`msg` naming matches the already-shipped `FiscalAuditEvent.observaciones`
-   * / `.errores` shape (api#1498, audit.ts) rather than inventing a second
+   * / `.errores` shape (audit.ts) rather than inventing a second
    * convention for the same ARCA concept.
    */
   interface InvoiceObservation {
@@ -282,7 +258,7 @@ declare global {
   }
 
   /**
-   * Structured ARCA rejection/observation error (api#1380). Reused by
+   * Structured ARCA rejection/observation error. Reused by
    * `CAEAInformResult.errors` below rather than inventing a second shape.
    */
   interface ArcaError {
@@ -292,35 +268,30 @@ declare global {
     observations?: string[]; // raw FECAESolicitar Observaciones / Errores
   }
 
-  // ARCA CAEA contingency (api#1556) — fallback authorization path used when
+  // ARCA CAEA contingency — fallback authorization path used when
   // FECAESolicitar (real-time CAE) is unavailable. Mandatory 2026-08-01
   // (RG 5782/2025 + RG 5785/2025, postponed from 2026-06-01 by RG 5852/2026).
 
   /** A single CAEA fortnightly period, requested and tracked per store. */
   interface CAEAPeriod {
     storeId: string;
-    period: string; // "202608" -- YYYYMM only; the fortnight order (1 = days 1-15, 2 = 16-end) is a separate, non-typed DDB bookkeeping attribute alongside this row (see sinfactura/api docs/ENTITIES.md), not concatenated into `period`
+    period: string; // "202608" -- YYYYMM only; fortnight order (1/2) is a separate non-typed DDB attribute, not concatenated here (see sinfactura/api docs/ENTITIES.md)
     caea: string; // 14-digit ARCA-issued code
     validFrom: string; // ISO date
     validTo: string; // ISO date
     status: 'active' | 'used' | 'informed' | 'expired';
     invoiceCount: number;
     informedAt?: string; // ISO timestamp -- set once the ARCA inform step completes
-    // ARCA-supplied Inform deadline (api#1580), captured verbatim from
-    // FECAEASolicitar/FECAEAConsultar's ResultGet.FchTopeInf (AFIP wire
-    // yyyymmdd, converted to ISO yyyy-mm-dd like validFrom/validTo above) --
-    // the authoritative per-period cutoff to inform CAEA-stamped invoices via
-    // FECAEARegInformativo, NOT a hardcoded day-count assumption. Optional:
-    // absent on CAEAPeriod rows requested before this field was captured.
+    // ARCA-supplied Inform deadline, captured verbatim from
+    // FECAEASolicitar/FECAEAConsultar's ResultGet.FchTopeInf (wire yyyymmdd,
+    // converted to ISO yyyy-mm-dd) — the authoritative per-period cutoff to
+    // inform CAEA-stamped invoices, NOT a hardcoded day-count assumption.
     fchTopeInf?: string;
-    // The fortnight half this period covers (1 = days 1-15, 2 = 16-end) --
-    // previously surfaced only via an ad hoc `CAEAPeriod & { order: 1 | 2 }`
-    // intersection; promoted here so `GET /caea`'s period-history response
-    // can carry it directly (api#1638). Optional: single-period reads like
-    // `getCurrentCaea`/`getCaeaForPeriod` don't need it.
+    // The fortnight half this period covers (1 = days 1-15, 2 = 16-end) —
+    // previously surfaced only via an ad hoc intersection type; promoted here
+    // so `GET /caea`'s period-history response can carry it directly.
     order?: 1 | 2;
-    // Calendar-relative annotation `GET /caea` computes per row (never
-    // stored) -- optional for the same reason `order` is (api#1638).
+    // Calendar-relative annotation `GET /caea` computes per row (never stored).
     phase?: 'upcoming' | 'active' | 'past';
   }
 
@@ -336,10 +307,9 @@ declare global {
     invoiceCount: number;
     informedAt: string; // ISO timestamp
     errors?: ArcaError[];
-    // Count of CAEA-stamped invoices still awaiting Inform for this period --
+    // Count of CAEA-stamped invoices still awaiting Inform for this period —
     // mirrors the outcome `informCaeaPeriodForStore` already computes, so the
-    // on-demand admin Inform/no-movement trigger endpoint can surface the
-    // same shape the cron already produces (api#1638).
+    // on-demand admin trigger endpoint can surface the same shape the cron produces.
     pendingInvoices: number;
     classification?: 'inform' | 'recovered' | 'zero-movement' | 'drift';
   }
@@ -347,7 +317,7 @@ declare global {
   /**
    * Frozen `FECAEADetRequest`-shaped snapshot, persisted on `Invoice.caeaDet`
    * at CAEA-stamp time and replayed verbatim by the deferred
-   * `FECAEARegInformativo` step (api#1580). PascalCase keys are AFIP wire
+   * `FECAEARegInformativo` step. PascalCase keys are AFIP wire
    * vocabulary, stored exactly as the voucher body was built at stamp time.
    * Array fields (`Iva`, `CbtesAsoc`, `Tributos`) stay FLAT here (the afip.ts
    * SDK-wrapper flavor); the Inform sender re-nests them into the raw SOAP
@@ -380,10 +350,10 @@ declare global {
     CbteFchHsGen: string; // yyyymmddhhmiss, Buenos Aires local, from the row's createdAt
   }
 
-  // ARCA WSFEXV1 export invoicing (api#1557). RG 2758/2010 + RG 4401/2019.
+  // ARCA WSFEXV1 export invoicing. RG 2758/2010 + RG 4401/2019.
 
   /** Export-invoice-specific fields, present only when Invoice.invoiceType is an
-   * export voucher (19 Factura E / 20 ND E / 21 NC E). Amended per the api#1557
+   * export voucher (19 Factura E / 20 ND E / 21 NC E). Amended per the
    * preflight read of the WSFEX manual (v2.0.1 §2.1.3). */
   interface ExportInvoiceFields {
     /** Tipo_expo: 1=exportación definitiva de bienes, 2=servicios (RG 4401), 4=otros.
@@ -417,7 +387,7 @@ declare global {
 
   /** Reference data cached from WSFEXV1 `GetPARAM_*` operations, refreshed on a schedule.
    * Persists as the platform-wide singleton PLATFORM / WSFEX_PARAMS (AFIP-global tables,
-   * not per-store) — api#1557. */
+   * not per-store). */
   interface WsfexReferenceData {
     currencies: { id: string; name: string }[]; // GetPARAM_MON
     countries: { id: number; name: string }[]; // GetPARAM_DST_pais
@@ -432,13 +402,13 @@ declare global {
     fetchedAt: string; // ISO timestamp — drives cache invalidation (string per original convention; AfipHealth uses epoch ms)
   }
 
-  // ARCA WSFECRED FCE MiPyME credit invoices (api#1558). Ley 27.440 +
+  // ARCA WSFECRED FCE MiPyME credit invoices. Ley 27.440 +
   // Decreto 471/2018 + RG 4367/2018 (amended by RG 4919/2021, RG 5395/2023,
   // RG 5764/2025).
 
   /** WSFECRED rejection-motivo catalog (`consultarTiposMotivosRechazo`), refreshed on a
    * schedule. Persists as the platform-wide singleton PLATFORM / FCE_MOTIVOS (AFIP-global,
-   * not per-store) — api#1647; mirrors WsfexReferenceData. */
+   * not per-store); mirrors WsfexReferenceData. */
   interface FceMotivosCatalog {
     motivos: { codigo: number; descripcion?: string }[];
     fetchedAt: string; // ISO timestamp — same convention as WsfexReferenceData
@@ -466,7 +436,7 @@ declare global {
     acceptanceWindowDays: number; // 21 as of Res. 219/2025 (through 2026-10-31); statutory fallback is 30
     acceptanceWindowValidThrough?: string; // ISO date -- when the exceptional window's own extension expires
     /**
-     * api#1754 — epoch-ms last-write trace, set by the api on every threshold
+     * Epoch-ms last-write trace, set by the api on every threshold
      * write and echoed on GET /config + the POST response (api PLATFORM_API.md
      * section 20). OPTIONAL by design: a row written before the field carries
      * none, so a reader must not treat its absence as "never updated".

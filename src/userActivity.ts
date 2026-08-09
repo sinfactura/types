@@ -1,37 +1,19 @@
-// Typed user activity audit pipeline (types#70, api#1244).
+// Actor-centric audit trail, distinct from the entity-centric `AUDIT#{entity}#{entityId}`
+// rows in `sinfactura/api/stacks/services/audit.ts`; emitted via the `recordUserActivity`
+// synchronous helper at the end of mutating REST handlers.
 //
-// Actor-centric audit trail companion to the entity-centric `AUDIT#{entity}#{entityId}`
-// rows authored in `sinfactura/api/stacks/services/audit.ts`. Schema mirrored in
-// `sinfactura/api/stacks/helpers/userActivity/schema.ts`; emitted via the
-// `recordUserActivity` synchronous helper at the end of mutating REST handlers.
+// Naming follows `StorefrontEvent`'s convention: Title Case Object + Past-Tense Action for
+// event names, snake_case for properties.
 //
-// Naming follows the same convention as `StorefrontEvent` (types#69): Title Case
-// Object + Past-Tense Action for event names, snake_case for properties.
-//
-// Distinct from `StorefrontEvent` (types#69):
-//   - Subject: internal staff (USER/ADMIN/SUPERVISOR/MANAGER), never anonymous
-//   - Retention: 90d hot + multi-year archive (vs 30d hot + 90d archive)
-//   - Erasure: append-only / anti-erasure per Ley 25.326 audit-trail exemption
-//   - Ingest: synchronous REST-handler helper (WS ingest explicitly disallowed)
-//
-// 61 variants:
-//   - 1.6.11 (Phase 1, 17 variants) — MVP wire-ins covering the hot paths
-//   - 1.6.12 (Phase 2, +32 variants) — full mutating admin-handler coverage
-//   - 1.6.13 (Phase 3, +8 UI-only variants) — FE companion (app#1642, api#1247)
-//   - 1.6.18 (+2 variants) — TOTP 2FA enroll/disable lifecycle (types#68, api#636)
-//   - 1.6.20 (+1 variant) — operator 2FA reset, target_user_id (api#1335)
-//   - 1.6.21 (+1 variant) — TOTP recovery codes generated (api#1336); method += 'recovery'
-//   - 1.6.34 (+field) — LiteralUpdatedEvent gains `scope`; new `LiteralScope` contract (api#1484)
-//   - (+1 variant) — IntegrationTokenRefreshedEvent (types#91, api#1540)
-//   - 1.6.39 (+1 variant) — WaitlistConvertedEvent (types#92, api#1567)
-//   - 1.6.43 (+1 variant) — PlatformConfigUpdatedEvent (api#1108)
-//   - (+1 variant) — MlChannelStatusChangedEvent (api#1894); shared by api#1893's unlink
+// Distinct from `StorefrontEvent`: subject is internal staff (USER/ADMIN/SUPERVISOR/MANAGER),
+// never anonymous; retention is 90d hot + multi-year archive; append-only / anti-erasure per
+// Ley 25.326 audit-trail exemption; ingest is synchronous only (WS ingest disallowed).
 
 declare global {
 
 	interface UserActivityEventBase {
-		tenant_store_id: string;       // e.g. "STO002"
-		user_id: string;               // actor — e.g. "USR000003"
+		tenant_store_id: string;
+		user_id: string;
 		actor_role: 'USER' | 'ADMIN' | 'SUPERVISOR' | 'MANAGER';
 		actor_full_name: string;       // denormalized at write time so rows survive renames
 		actor_ip?: string;             // API Gateway sourceIp; absent for system-triggered actions
@@ -40,11 +22,7 @@ declare global {
 		ts: string;                    // ISO 8601 with offset
 	}
 
-	// ──────────────────────────────────────────────────────────────────────────
 	// Phase 1 (1.6.11) — 17 variants
-	// ──────────────────────────────────────────────────────────────────────────
-
-	// Auth (4)
 
 	interface UserLoggedInEvent extends UserActivityEventBase {
 		event: 'User Logged In';
@@ -66,10 +44,10 @@ declare global {
 		reason: string;
 	}
 
-	// TOTP 2FA lifecycle (1.6.18 — types#68, api#636). Enroll/Disable are
-	// self-service, so `user_id` is both actor and target. Step-up login
-	// success reuses `UserLoggedInEvent.method = 'totp'`; wrong-code attempts
-	// go to the LOGIN# login-history partition, not this feed.
+	// TOTP 2FA lifecycle (1.6.18): Enroll/Disable are self-service (`user_id` is
+	// both actor and target). Step-up login success reuses
+	// `UserLoggedInEvent.method = 'totp'`; wrong-code attempts go to the LOGIN#
+	// login-history partition, not this feed.
 
 	interface TwoFactorEnrolledEvent extends UserActivityEventBase {
 		event: 'Two-Factor Enrolled';
@@ -79,27 +57,23 @@ declare global {
 		event: 'Two-Factor Disabled';
 	}
 
-	// Operator account-recovery (1.6.20 — api#1335): a SUPERVISOR/MANAGER
-	// clears a locked-out user's TOTP. Unlike Enroll/Disable this is an
-	// operator-on-user action, so `target_user_id` is the reset user while
-	// `user_id`/`actor_*` identify the operator.
+	// Operator account-recovery (1.6.20): a SUPERVISOR/MANAGER clears a
+	// locked-out user's TOTP. `target_user_id` is the reset user; `user_id`/
+	// `actor_*` identify the operator.
 	interface TwoFactorResetEvent extends UserActivityEventBase {
 		event: 'Two-Factor Reset';
 		target_user_id: string;
 	}
 
-	// Self-service recovery codes (1.6.21 — api#1336): the user mints a new set
-	// of single-use backup codes, at enrollment or via the regenerate endpoint.
-	// A recovery-code LOGIN is captured by `User Logged In` method:'recovery'
-	// (no bespoke "code used" variant), mirroring how a TOTP login reuses
-	// method:'totp'.
+	// Self-service recovery codes (1.6.21): mints a new set of single-use
+	// backup codes at enrollment or via the regenerate endpoint. A
+	// recovery-code LOGIN is captured by `User Logged In` method:'recovery'
+	// (no bespoke "code used" variant).
 	interface TwoFactorRecoveryCodesGeneratedEvent extends UserActivityEventBase {
 		event: 'Two-Factor Recovery Codes Generated';
 		count: number;
 		trigger: 'enrollment' | 'regenerate';
 	}
-
-	// Tenant config (3)
 
 	interface StorePaletteChangedEvent extends UserActivityEventBase {
 		event: 'Store Palette Changed';
@@ -119,8 +93,6 @@ declare global {
 		from_tier: string;
 		to_tier: string;
 	}
-
-	// Business operations (4)
 
 	interface InvoiceCreatedEvent extends UserActivityEventBase {
 		event: 'Invoice Created';
@@ -143,7 +115,7 @@ declare global {
 		reason: string;
 	}
 
-	/** api#546 — an operator replaced an order's content under optimistic concurrency. */
+	/** An operator replaced an order's content under optimistic concurrency. */
 	interface OrderEditedEvent extends UserActivityEventBase {
 		event: 'Order Edited';
 		order_id: string;
@@ -156,7 +128,7 @@ declare global {
 		lines_modified: number;
 	}
 
-	/** api#547 — an operator processed a full or partial return. */
+	/** An operator processed a full or partial return. */
 	interface OrderReturnedEvent extends UserActivityEventBase {
 		event: 'Order Returned';
 		order_id: string;
@@ -173,8 +145,8 @@ declare global {
 	}
 
 	// Per-price-list resolved-base before/after delta carried by
-	// ProductPriceChangedEvent.changes (api#1419). Amounts are in the store's
-	// display currency. snake_case to match the event-property convention.
+	// ProductPriceChangedEvent.changes. Amounts are in the store's display
+	// currency.
 	interface PriceListChange {
 		list_id: number;
 		from: number;
@@ -187,13 +159,10 @@ declare global {
 		from_price: number;
 		to_price: number;
 		currency: string;
-		// Per-price-list resolved-base deltas for the A-prime prices[] slot model
-		// (api#1419). Optional + additive: the scalar from_price/to_price stay the
-		// headline (the first changed list); legacy/scalar emits omit this.
+		// Optional + additive: from_price/to_price stay the headline (the first
+		// changed list); legacy/scalar emits omit this.
 		changes?: PriceListChange[];
 	}
-
-	// Customer lifecycle (2)
 
 	interface CustomerCreatedEvent extends UserActivityEventBase {
 		event: 'Customer Created';
@@ -205,8 +174,6 @@ declare global {
 		customer_id: string;
 		fields_changed: string[];
 	}
-
-	// Cash (2)
 
 	interface CashDrawerOpenedEvent extends UserActivityEventBase {
 		event: 'Cash Drawer Opened';
@@ -223,8 +190,6 @@ declare global {
 		currency: string;
 	}
 
-	// Platform-level — MANAGER actions (2)
-
 	interface TenantImpersonatedEvent extends UserActivityEventBase {
 		event: 'Tenant Impersonated';
 		target_store_id: string;
@@ -236,11 +201,7 @@ declare global {
 		secret_name: string;
 	}
 
-	// ──────────────────────────────────────────────────────────────────────────
 	// Phase 2 (1.6.12) — +32 variants, full admin mutating-handler coverage
-	// ──────────────────────────────────────────────────────────────────────────
-
-	// Auth (2)
 
 	interface UserCreatedEvent extends UserActivityEventBase {
 		event: 'User Created';
@@ -253,8 +214,6 @@ declare global {
 		target_user_id: string;
 		fields_changed: string[];
 	}
-
-	// Catalog (7)
 
 	interface ProductCreatedEvent extends UserActivityEventBase {
 		event: 'Product Created';
@@ -301,8 +260,6 @@ declare global {
 		fields_changed: string[];
 	}
 
-	// Suppliers (5)
-
 	interface SupplierCreatedEvent extends UserActivityEventBase {
 		event: 'Supplier Created';
 		supplier_id: string;
@@ -336,8 +293,6 @@ declare global {
 		account_id: string;
 		fields_changed: string[];
 	}
-
-	// Accounts + Baskets + Cash (5)
 
 	interface AccountCreatedEvent extends UserActivityEventBase {
 		event: 'Account Created';
@@ -374,8 +329,6 @@ declare global {
 		concept: string;
 	}
 
-	// Payments (4)
-
 	interface PaymentCreatedEvent extends UserActivityEventBase {
 		event: 'Payment Created';
 		payment_id: string;
@@ -405,8 +358,6 @@ declare global {
 		after: Record<string, unknown>;
 	}
 
-	// Notifications / Logs / Plans (3)
-
 	interface NotificationReadEvent extends UserActivityEventBase {
 		event: 'Notification Read';
 		notification_id?: string;
@@ -426,8 +377,6 @@ declare global {
 		name: string;
 	}
 
-	// Store / Platform / Tenant (4)
-
 	interface StoreMaintenanceToggledEvent extends UserActivityEventBase {
 		event: 'Store Maintenance Toggled';
 		enabled: boolean;
@@ -446,10 +395,9 @@ declare global {
 		name: string;
 	}
 
-	// Multi-scope literals taxonomy (api#1484). The `SK` of a `LITERALS` row:
-	// per-surface defaults (`GLOBAL`/`APP`/`PLATFORM`/`WEB`) plus per-tenant
-	// overrides (`APP#${storeId}`/`WEB#${storeId}`). Shared by the GET surface→SK
-	// merge chain, the POST scope write-gate, and the audit event below.
+	// `LITERALS` row SK scope: per-surface defaults (GLOBAL/APP/PLATFORM/WEB)
+	// plus per-tenant overrides (APP#{storeId}/WEB#{storeId}). Shared by the
+	// GET surface→SK merge chain, POST scope write-gate, and the audit event below.
 	type LiteralScope = 'GLOBAL' | 'APP' | 'PLATFORM' | 'WEB' | `APP#${string}` | `WEB#${string}`;
 
 	interface LiteralUpdatedEvent extends UserActivityEventBase {
@@ -459,8 +407,6 @@ declare global {
 		before: string;
 		after: string;
 	}
-
-	// Support (2)
 
 	interface SupportTicketCreatedEvent extends UserActivityEventBase {
 		event: 'Support Ticket Created';
@@ -474,17 +420,13 @@ declare global {
 		fields_changed: string[];
 	}
 
-	// ──────────────────────────────────────────────────────────────────────────
-	// Phase 3 (1.6.13) — +8 UI-only variants emitted by the FE companion
-	// (`app#1642`) via the dedicated ingest endpoint (`api#1247`).
-	//
-	// Distinct from Phase 1/2 variants which originate from BE mutating
-	// handlers. UI-only variants are gated on the api side by an explicit
-	// whitelist (`UI_ONLY_USER_ACTIVITY_VARIANTS` below) so the FE cannot
-	// spoof emissions that should only come from BE-side mutations.
-	// ──────────────────────────────────────────────────────────────────────────
+	// Phase 3 (1.6.13) — +8 UI-only variants emitted by the FE companion via
+	// the dedicated ingest endpoint. UI-only variants are gated on the api
+	// side by an explicit whitelist (`UI_ONLY_USER_ACTIVITY_VARIANTS` below)
+	// so the FE cannot spoof emissions that should only come from BE-side
+	// mutations.
 
-	// Meta + read-side audit (3) — Argentine regulator expectations include
+	// Meta + read-side audit: Argentine regulator expectations include
 	// meta-audit of audit-log views and PII reveals.
 
 	interface AuditTrailViewedEvent extends UserActivityEventBase {
@@ -507,8 +449,8 @@ declare global {
 		fields_revealed: string[];
 	}
 
-	// Cash drawer UI lifecycle (2) — distinct from the BE `Cash Drawer
-	// Opened/Closed` variants which record the POST mutation. These record
+	// Cash drawer UI lifecycle: distinct from the BE `Cash Drawer
+	// Opened/Closed` variants (which record the POST mutation) — these record
 	// the UI act of opening/closing the drawer panel.
 
 	interface CashDrawerUiOpenedEvent extends UserActivityEventBase {
@@ -521,8 +463,6 @@ declare global {
 		cash_id: string;
 	}
 
-	// Export (1)
-
 	interface ExportInitiatedEvent extends UserActivityEventBase {
 		event: 'Export Initiated';
 		format: 'csv' | 'pdf' | 'xlsx';
@@ -530,9 +470,9 @@ declare global {
 		row_count: number;
 	}
 
-	// Impersonation UI lifecycle (2) — distinct from the BE-side
-	// `Tenant Impersonated` which records the POST that mints the
-	// impersonation token. These bracket the FE-side session.
+	// Impersonation UI lifecycle: distinct from the BE-side `Tenant
+	// Impersonated` (records the POST that mints the impersonation token) —
+	// these bracket the FE-side session.
 
 	interface ImpersonationUiStartedEvent extends UserActivityEventBase {
 		event: 'Impersonation UI Started';
@@ -544,20 +484,17 @@ declare global {
 		target_store_id: string;
 	}
 
-	// ──────────────────────────────────────────────────────────────────────────
-	// Phase 4 (1.6.23 — api#1266) — +11 interaction-coverage variants. FE-emitted
-	// (UI-only) via the api#1247 ingest endpoint; `Action Denied` is ALSO written
-	// BE-side on a real 403 (the FE emits only its own pre-roundtrip
-	// maintenance/subscription/permission denials). Grooming: app#1653 /
-	// app/docs/research/AUDIT_INTERACTION_COVERAGE.md.
+	// Phase 4 (1.6.23) — +11 interaction-coverage variants, FE-emitted via the
+	// ingest endpoint; `Action Denied` is ALSO written BE-side on a real 403
+	// (the FE emits only its own pre-roundtrip maintenance/subscription/
+	// permission denials).
 	//
-	// PII guarantees: `Search Performed` carries `query_hash` only (raw text never
-	// leaves the client); `Two-Factor Recovery Codes Revealed` carries `code_count`
-	// only (never the codes); `Action Denied.attempted_action` is a stable verb id;
-	// every `*_id` is an opaque entity id — no name/email/CUIT/phone anywhere.
-	// ──────────────────────────────────────────────────────────────────────────
+	// PII guarantees: `Search Performed` carries `query_hash` only (raw text
+	// never leaves the client); `Two-Factor Recovery Codes Revealed` carries
+	// `code_count` only (never the codes); `Action Denied.attempted_action` is
+	// a stable verb id; every `*_id` is an opaque entity id — no
+	// name/email/CUIT/phone anywhere.
 
-	// Sensitive views (4)
 	interface PaymentViewedEvent extends UserActivityEventBase {
 		event: 'Payment Viewed';
 		payment_id: string;
@@ -581,7 +518,7 @@ declare global {
 		supplier_id: string;
 	}
 
-	// Search (1) — scope-tagged; query HASHED, never raw (Ley 25.326)
+	// Search: scope-tagged; query HASHED, never raw (Ley 25.326)
 	interface SearchPerformedEvent extends UserActivityEventBase {
 		event: 'Search Performed';
 		scope: 'customers' | 'audit' | 'suppliers' | 'invoices' | 'payments';
@@ -589,8 +526,8 @@ declare global {
 		result_count?: number; // count only — never the result identities
 	}
 
-	// Denied (1) — forensic headline. BE writes the 403 row; FE writes its own
-	// pre-roundtrip denials (maintenance/subscription/permission short-circuits).
+	// Forensic headline: BE writes the 403 row; FE writes its own pre-roundtrip
+	// denials (maintenance/subscription/permission short-circuits).
 	interface ActionDeniedEvent extends UserActivityEventBase {
 		event: 'Action Denied';
 		attempted_action: string; // stable verb id, e.g. 'order.status.advance'
@@ -599,7 +536,6 @@ declare global {
 		reason: 'permission' | 'subscription' | 'maintenance';
 	}
 
-	// 2FA / auth step-up (5)
 	interface TwoFactorChallengeShownEvent extends UserActivityEventBase {
 		event: 'Two-Factor Challenge Shown';
 		method: 'password' | 'social';
@@ -627,61 +563,43 @@ declare global {
 		initiator_role: string;
 	}
 
-	// ──────────────────────────────────────────────────────────────────────────
-	// Phase 5 (+1 variant) — integration token refresh audit (types#91, api#1540)
-	// ──────────────────────────────────────────────────────────────────────────
+	// Integration token refresh audit
 
 	interface IntegrationTokenRefreshedEvent extends UserActivityEventBase {
 		event: 'Integration Token Refreshed';
-		// Stripe deliberately excluded (api#1540) — no per-tenant OAuth connect
-		// flow / enumeration path exists today. 'mercadolibre' added in
-		// types#94 (api#1572).
+		// Stripe deliberately excluded — no per-tenant OAuth connect flow /
+		// enumeration path exists today.
 		provider: 'mercadopago' | 'gmail' | 'mercadolibre';
 		outcome: 'refreshed' | 'disconnected' | 'skipped' | 'error';
 		trigger: 'operator-single' | 'operator-global';
 		detail?: string; // short machine code only — never a token/secret (Ley 25.326)
 	}
 
-	// ──────────────────────────────────────────────────────────────────────────
-	// Phase 5 (+1 variant) — waitlist conversion audit (types#92, api#1567)
-	// ──────────────────────────────────────────────────────────────────────────
-
 	// MANAGER converts a pre-launch waitlist registration into a live tenant
-	// (`POST /platform/operations { mode: 'convert-waitlist' }`). The target
-	// tenant is the base `tenant_store_id`; the MANAGER actor is the base
+	// (`POST /platform/operations { mode: 'convert-waitlist' }`). Target tenant
+	// is the base `tenant_store_id`; the MANAGER actor is the base
 	// `user_id`/`actor_*` — no variant-specific fields beyond the discriminant.
 	interface WaitlistConvertedEvent extends UserActivityEventBase {
 		event: 'Waitlist Converted';
 	}
 
-	// ──────────────────────────────────────────────────────────────────────────
-	// Phase 6 (+1 variant) — platform config/flag change audit (api#1108)
-	// ──────────────────────────────────────────────────────────────────────────
-
 	// MANAGER writes a platform-wide setting or feature flag
 	// (`POST /platform/globals`). `scope` is the consuming app the key targets
-	// (not the actor) — mirrors `LiteralUpdatedEvent.scope` (api#1484).
+	// (not the actor) — mirrors `LiteralUpdatedEvent.scope`.
 	interface PlatformConfigUpdatedEvent extends UserActivityEventBase {
 		event: 'Platform Config Updated';
 		key: string;
 		kind: 'setting' | 'flag';
-		// api#1955 retired 'web' — the write gate is z.enum(['app','landing',
-		// 'storefront']) and rejects it, so no audit row can carry it.
+		// 'web' was retired — the write gate rejects it, so no audit row can carry it.
 		scope: 'app' | 'landing' | 'storefront';
 		before: string | number | boolean;
 		after: string | number | boolean;
 	}
 
-	// ──────────────────────────────────────────────────────────────────────────
-	// Phase 7 (+1 variant) — first audit coverage for the marketplace-channel
-	// product-link state machine (api#1894 pause/reactivate; shared by api#1893's
-	// unlink, which reuses this same variant with to_status: 'unlinked' rather
-	// than adding a second one-off event).
-	// ──────────────────────────────────────────────────────────────────────────
-
-	// Any operator-initiated transition of `Product.channels[provider].status`.
-	// `provider` is future-proofed like `IntegrationTokenRefreshedEvent` even
-	// though 'mercadolibre' is the only channel with this state machine today.
+	// Marketplace-channel product-link state machine transition
+	// (`Product.channels[provider].status`); shared by unlink, which reuses
+	// this variant with to_status: 'unlinked'. `provider` is future-proofed
+	// even though 'mercadolibre' is the only channel with this state machine today.
 	interface MlChannelStatusChangedEvent extends UserActivityEventBase {
 		event: 'ML Channel Status Changed';
 		provider: 'mercadolibre';
@@ -691,17 +609,9 @@ declare global {
 		to_status: ProductChannelStatus;
 	}
 
-	// ──────────────────────────────────────────────────────────────────────────
-	// Phase 8 (+3 variants) — PRINT_RULE# useCase routing rules (api#2007).
-	// Every mutation of a store's `useCase → printer` routing map is audited;
-	// print#156 names "no record of who changed what, when" as a failure of the
-	// pre-#2007 agent-local model, so these are the record that replaces it.
-	// ──────────────────────────────────────────────────────────────────────────
-
-	// The addressable target of a rule is the (`agent_id`, `printer_id`) PAIR,
-	// never `printer_id` alone — `printerId` is unique only WITHIN an agent (two
-	// machines can both expose "Microsoft Print to PDF"). Consumers keying a
-	// per-printer view off `printer_id` by itself will merge distinct printers.
+	// PRINT_RULE# useCase routing rules. The addressable target is the
+	// (`agent_id`, `printer_id`) PAIR, never `printer_id` alone — it is unique
+	// only WITHIN an agent (two machines can both expose "Microsoft Print to PDF").
 	interface PrintRuleCreatedEvent extends UserActivityEventBase {
 		event: 'Print Rule Created';
 		use_case: PrintUseCase;
@@ -709,18 +619,15 @@ declare global {
 		printer_id: string;
 	}
 
-	// `printer_id` is the NEW target after the edit. Re-pointing a use case at a
-	// different printer is an update, not a create — `printerId` is the route
-	// VALUE, not part of the rule's key.
+	// `printer_id` is the NEW target after the edit — re-pointing a use case at
+	// a different printer is an update, not a create.
 	interface PrintRuleEditedEvent extends UserActivityEventBase {
 		event: 'Print Rule Edited';
 		use_case: PrintUseCase;
 		agent_id: string;
 		printer_id: string;
-		// Dotted paths for option changes (`options.color`), bare names otherwise
-		// (`printerId`). Symmetric diff — a key REMOVED from the options payload
-		// is listed too, not just added/changed ones. May be empty when a write
-		// changed nothing.
+		// Dotted paths for option changes (`options.color`), bare names otherwise.
+		// Symmetric diff — a key REMOVED from the options payload is listed too.
 		fields_changed: string[];
 	}
 
@@ -733,10 +640,6 @@ declare global {
 		printer_id: string;
 	}
 
-	// Per-printer `active` pause toggle (api#2008). Mirrors
-	// `printerActiveToggledSchema` in the api's userActivity/schema.ts — the api
-	// has validated, persisted and served this variant from a live route since
-	// api#2008, while 1.10.3 graduated only the three Print Rule variants above.
 	interface PrinterActiveToggledEvent extends UserActivityEventBase {
 		event: 'Printer Active Toggled';
 		agent_id: string;
@@ -744,18 +647,15 @@ declare global {
 		active: boolean;
 	}
 
-	// ──────────────────────────────────────────────────────────────────────────
-	// Discriminated union — 82 variants. Recount before trusting this number:
-	// it has drifted twice (read 72 at 78 arms, then 81 at 81).
-	// ──────────────────────────────────────────────────────────────────────────
-
+	// Discriminated union. Count in this comment has drifted before — recount
+	// the arms before trusting any number stated here.
 	type UserActivityEvent =
 		// Phase 1
 		| UserLoggedInEvent
 		| UserLoggedOutEvent
 		| UserPasswordChangedEvent
 		| UserSuspendedEvent
-		// TOTP 2FA (1.6.18 — types#68)
+		// TOTP 2FA (1.6.18)
 		| TwoFactorEnrolledEvent
 		| TwoFactorDisabledEvent
 		| TwoFactorResetEvent
@@ -808,7 +708,7 @@ declare global {
 		| LiteralUpdatedEvent
 		| SupportTicketCreatedEvent
 		| SupportTicketUpdatedEvent
-		// Phase 3 (UI-only — emitted via api#1247 ingest endpoint)
+		// Phase 3 (UI-only — emitted via the ingest endpoint)
 		| AuditTrailViewedEvent
 		| ReportViewedEvent
 		| CustomerPiiViewedEvent
@@ -817,7 +717,7 @@ declare global {
 		| ExportInitiatedEvent
 		| ImpersonationUiStartedEvent
 		| ImpersonationUiEndedEvent
-		// Phase 4 (api#1266 — interaction coverage)
+		// Phase 4 (interaction coverage)
 		| PaymentViewedEvent
 		| InvoiceViewedEvent
 		| CustomerDetailViewedEvent
@@ -836,24 +736,20 @@ declare global {
 		| PlatformConfigUpdatedEvent
 		// Phase 7
 		| MlChannelStatusChangedEvent
-		// Phase 8 (api#2007 — PRINT_RULE# routing rules)
+		// Phase 8 (PRINT_RULE# routing rules)
 		| PrintRuleCreatedEvent
 		| PrintRuleEditedEvent
 		| PrintRuleDeletedEvent
-		// Per-printer `active` pause toggle (api#2008)
+		// Per-printer `active` pause toggle
 		| PrinterActiveToggledEvent;
 
 }
 
 /**
- * Canonical whitelist of UI-only `UserActivityEvent` variant names — the 8
- * Phase 3 verbs shipped in 1.6.13 (types#74). Imported by the api side
- * (`POST /audit/user-activity`, api#1247) to gate the FE-ingest endpoint:
- * any `event` value NOT in this set originates from a BE mutating handler
- * and must be rejected to prevent the FE from spoofing audit emissions.
- *
- * Source of truth lives here so the api whitelist can't drift from the
- * actual UI-only variant taxonomy.
+ * Canonical whitelist of UI-only `UserActivityEvent` variant names. Imported by
+ * the api side (`POST /audit/user-activity`) to gate the FE-ingest endpoint:
+ * any `event` value NOT in this set originates from a BE mutating handler and
+ * must be rejected to prevent the FE from spoofing audit emissions.
  */
 export const UI_ONLY_USER_ACTIVITY_VARIANTS = [
 	'Audit Trail Viewed',
@@ -864,9 +760,9 @@ export const UI_ONLY_USER_ACTIVITY_VARIANTS = [
 	'Export Initiated',
 	'Impersonation UI Started',
 	'Impersonation UI Ended',
-	// Phase 4 (api#1266) — FE emits each through the ingest gate. `Action Denied`
-	// is whitelisted for the FE-gate path (pre-roundtrip maintenance/subscription/
-	// permission denials); the real BE 403 row is written server-side, not POSTed.
+	// `Action Denied` is whitelisted for the FE-gate path (pre-roundtrip
+	// maintenance/subscription/permission denials); the real BE 403 row is
+	// written server-side, not POSTed.
 	'Payment Viewed',
 	'Invoice Viewed',
 	'Customer Detail Viewed',
@@ -885,9 +781,8 @@ export type UiOnlyUserActivityVariant = (typeof UI_ONLY_USER_ACTIVITY_VARIANTS)[
 /**
  * Valid per-entity timeline entity types for the user-activity audit feed.
  * MUST stay in sync with the BE `VALID_ENTITY_TYPES` const in
- * `sinfactura/api/stacks/lambdas/userActivity/_get.ts` (api#1258), which Zod-
- * enums the `entityType` query param. The api should import this union to
- * derive that const so the two can't drift (separate api follow-up).
+ * `sinfactura/api/stacks/lambdas/userActivity/_get.ts`, which Zod-enums the
+ * `entityType` query param.
  */
 export type UserActivityEntityType =
 	| 'order'

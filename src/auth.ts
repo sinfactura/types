@@ -3,21 +3,16 @@ declare global {
 	interface Login {
 		email: string;
 		password: string;
-		/** TOTP step-up code (6-32 chars) — required by the BE only when the
-		 * account has 2FA enrolled; otherwise omit. */
+		/** TOTP step-up code (6-32 chars) — required only when the account has 2FA enrolled; otherwise omit. */
 		totpCode?: string;
-		/** reCAPTCHA v3 token — required by the BE only after a
-		 * `CAPTCHA_REQUIRED` login rejection (api#1505); otherwise omit. */
+		/** reCAPTCHA v3 token — required only after a `CAPTCHA_REQUIRED` login rejection; otherwise omit. */
 		captchaToken?: string;
-		/** Firebase App Check token — the mobile (body-transport) step-up,
-		 * required by the BE only after an `ATTESTATION_REQUIRED` login
-		 * rejection (api#1855); the native equivalent of `captchaToken`. */
+		/** Firebase App Check token — the mobile step-up, required only after an `ATTESTATION_REQUIRED` rejection; the native equivalent of `captchaToken`. */
 		appCheckToken?: string;
 	}
 
 	interface Social {
-		/** REQUIRED on the wire (the BE rejects an empty/missing token) —
-		 * was wrongly optional before 1.6.70. */
+		/** REQUIRED on the wire (BE rejects an empty/missing token) — was wrongly optional before 1.6.70. */
 		accessToken: string;
 		/** TOTP step-up code (6-32 chars) — same semantics as `Login.totpCode`. */
 		totpCode?: string;
@@ -29,15 +24,15 @@ declare global {
 		cuit: string;
 		fullName: string;
 		phone?: string;
-		acknowledgedSharedCuit?: boolean; // api#1328 — shared-CUIT consent gate
+		acknowledgedSharedCuit?: boolean; // shared-CUIT consent gate
 	}
 
 	interface Recover {
 		email: string;
 	}
 
-	// api#1505 — wire error codes for the password brute-force lockout flow.
-	// api#1855 — ATTESTATION_* are the mobile (body-transport) captcha-tier equivalents of CAPTCHA_*.
+	// Wire error codes for the password brute-force lockout flow. ATTESTATION_*
+	// are the mobile (body-transport) captcha-tier equivalents of CAPTCHA_*.
 	type LoginErrorCode =
 		| 'WRONG_CREDENTIALS'
 		| 'ACCOUNT_LOCKED'
@@ -53,8 +48,8 @@ declare global {
 		retryAfterSeconds: number;
 	}
 
-	// api#640 — `POST /auth?mode=register` response when `waitlist: true` is
-	// sent. No accessToken/session: pre-launch waitlist submissions persist a
+	// `POST /auth?mode=register` response when `waitlist: true` is sent — no
+	// accessToken/session; pre-launch waitlist submissions persist a
 	// lightweight row instead of creating a tenant.
 	interface WaitlistRegisterResponse {
 		waitlistId: string;

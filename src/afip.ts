@@ -80,11 +80,10 @@ declare global {
     errorRegimenGeneral?: AfipErrorRegimenGeneral;
   }
 
-  // api#1704 — normalized taxpayer identity resolved from Padrón A5
-  // (registerScopeFiveService.getTaxpayerDetails → CuitAfip) by
-  // resolvePadronIdentity; the wire shape of GET /afip?mode=padron. condFiscal
-  // maps to FISCAL_CONDITIONS (20 Monotributo | 30 RI | 32 Exento), unset when
-  // AFIP returns no fiscal regime; docType is always 80 (CUIT).
+  // Normalized taxpayer identity resolved from Padrón A5 (wire shape of GET
+  // /afip?mode=padron). condFiscal maps to FISCAL_CONDITIONS (20 Monotributo |
+  // 30 RI | 32 Exento), unset when AFIP returns no fiscal regime; docType is
+  // always 80 (CUIT).
   interface PadronIdentity {
     cuit: string; // 11-digit, the looked-up CUIT
     razonSocial: string; // legal name (JURIDICA) or "apellido nombre" (FISICA)
@@ -97,18 +96,17 @@ declare global {
     city?: string;
     province?: string;
     postalCode?: string;
-    /** Registered activity codes from the A5 response (api#1741 — feeds store
-     * actividades autofill). Present only on cache rows written at
-     * PADRON_CACHE_SCHEMA_VERSION >= 2; older rows re-fetch on read. */
+    /** Registered activity codes from the A5 response (feeds store actividades
+     * autofill). Present only on cache rows written at schema version >= 2;
+     * older rows re-fetch on read. */
     actividades?: { id: number; description?: string }[];
   }
 
   /**
-   * Cached AFIP/ARCA platform-wide health snapshot (api#1213). One DDB row
-   * (PK 'AFIP_HEALTH', SK 'current') overwritten every ~5 min by the
-   * afipHealthPoller cron; served by anonymous GET /afip/health behind the
-   * public /estado page. Each *Server is 'OK' when healthy, else an AFIP-side
-   * status code. BE-internal name: AfipHealthSnapshot.
+   * Cached AFIP/ARCA platform-wide health snapshot, overwritten every ~5 min
+   * by the afipHealthPoller cron; served by anonymous GET /afip/health behind
+   * the public /estado page. Each *Server is 'OK' when healthy, else an
+   * AFIP-side status code.
    */
   interface AfipHealth {
     appServer: string;

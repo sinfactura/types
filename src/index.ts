@@ -1,15 +1,8 @@
-// Explicit `.js` specifiers are REQUIRED, not stylistic (types#107).
-//
-// This package is `"type": "module"`, so Node's ESM resolver applies to
-// `dist/index.js` and it does NOT do extensionless resolution — a bare
-// `export * from "./account"` throws ERR_MODULE_NOT_FOUND at import time.
-// That went unnoticed for the package's whole life because every module was
-// ambient-only (`declare global` + `export {}`): nothing ever imported a
-// runtime VALUE, so Node never actually loaded this file. `./socket.js` is the
-// first module exporting real values, which made the latent break reachable.
-//
-// TypeScript maps `./x.js` back to `./x.ts` at compile time, and the CJS build
-// resolves it fine too, so one spelling works for both targets.
+// Explicit `.js` specifiers are REQUIRED, not stylistic: this package is
+// `"type": "module"`, so Node's ESM resolver does NOT do extensionless
+// resolution — a bare `export * from "./account"` throws ERR_MODULE_NOT_FOUND
+// at import time. TypeScript maps `./x.js` back to `./x.ts` at compile time,
+// and the CJS build resolves it fine too, so one spelling works for both.
 export * from "./account.js";
 export * from "./afip.js";
 export * from "./ai.js";

@@ -1,6 +1,6 @@
 declare global {
-  // Agent-agnostic print-protocol wire types (api#1004 / api#1290): the POST
-  // /print contract + the append-only PRINT_JOB# state timeline.
+  // Agent-agnostic print-protocol wire types: the POST /print contract
+  // + the append-only PRINT_JOB# state timeline.
   type PrintJobState = 'queued' | 'sent' | 'printed' | 'error';
 
   type PrintContentType = 'pdf_uri' | 'pdf_base64' | 'raw_uri' | 'raw_base64';
@@ -42,7 +42,7 @@ declare global {
   }
 
   /**
-   * One Cloud Print agent connection in `PrintAgentStatus.agents` (api#612).
+   * One Cloud Print agent connection in `PrintAgentStatus.agents`.
    *
    * Every field except `online` comes from the agent's own last heartbeat, so
    * all of them are absent on a connection that has never reported — a
@@ -70,7 +70,7 @@ declare global {
     uptime?: number;
     /**
      * Machine hostname. **Live** — the agent sends it as of v2.1.6
-     * (sinfactura/print#180) and the api persists and exposes it as of api#2016.
+     * and the api persists and exposes it.
      *
      * Still optional, and a UI still needs the `agentId` + `platform` fallback
      * label: mixed fleets are real, so a pre-v2.1.6 agent reports none and the
@@ -91,7 +91,7 @@ declare global {
   }
 
   /**
-   * `GET /print?mode=agent-status` response payload (api#612).
+   * `GET /print?mode=agent-status` response payload.
    *
    * Agent-LEVEL connectivity — "is a Cloud Print agent reachable for this store
    * right now" — as distinct from the job-level `PrintJobTransition` timeline
@@ -133,10 +133,7 @@ declare global {
     agents: PrintAgentSummary[];
   }
 
-  /* ------------------------------------------------------------------ */
-  /*  Printer registry + routing rules (api#2005 / types#112)            */
-  /*  Moves useCase → printer routing out of the agent into the web app. */
-  /* ------------------------------------------------------------------ */
+  // Printer registry + routing rules — moves useCase → printer routing out of the agent into the web app.
 
   /** OS spooler state for a printer as of the agent's last report. */
   type PrintPrinterState = 'idle' | 'printing' | 'paused' | 'offline' | 'error' | 'unknown';
@@ -231,10 +228,10 @@ declare global {
   type PrintPrinterReport = Omit<PrintPrinter, 'agentId' | 'active' | 'reportedAt' | 'online' | 'rawFormats'>;
 
   /**
-   * payload of the agent → BE `register_printers` WSS frame. ⚠️ That frame is
- * **FLAT** — `{ action, printers }`, NOT `{ action, data }` (api#2017); this type
- * describes the fields, not a nested envelope. `agentId` here is advisory: the api
- * derives it from the authenticated SOCKET row and is not declared on the frame.
+   * Payload of the agent → BE `register_printers` WSS frame. ⚠️ That frame is
+   * **FLAT** — `{ action, printers }`, NOT `{ action, data }`; this type
+   * describes the fields, not a nested envelope. `agentId` here is advisory: the
+   * api derives it from the authenticated SOCKET row and is not declared on the frame.
    */
   interface RegisterPrintersData {
     agentId: string;
@@ -267,7 +264,7 @@ declare global {
 
   /**
    * The routing field the BE resolves from `PrintRule` and injects into the
-   * BE → agent print-job dispatch payload (api#2005).
+   * BE → agent print-job dispatch payload.
    *
    * ⚠️ The full dispatch payload is NOT yet canonicalized in this package — the
    * de-facto shape is `cloudprint/src/shared/schemas/print-job.schemas.ts`
@@ -275,12 +272,12 @@ declare global {
    * (`invoice | shipping_tag | delivery_label`) does not match `PrintUseCase`
    * above. Canonicalizing it, and reconciling those two vocabularies, needs its
    * own ticket; this interface exists so the api and agent lanes can type the
-   * one field #156 adds without minting a competing full payload here.
+   * one field this adds without minting a competing full payload here.
    */
   interface PrintJobRouting {
     /**
      * Resolved from `PrintRule` at dispatch time. Absent = the agent falls back
-     * to its own local config (the pre-#156 behaviour), which keeps already
+     * to its own local config (the earlier behaviour), which keeps already
      * deployed agents working against a BE that already routes.
      */
     printerId?: string;
@@ -288,8 +285,7 @@ declare global {
 
   /**
    * One mapping in the agent's `export_local_rules` frame — the migration of
-   * agent-local routing into `PRINT_RULE#${storeId}` (api#2010 /
-   * sinfactura/print#183, #156 phase 5).
+   * agent-local routing into `PRINT_RULE#${storeId}`.
    *
    * The agent resolves its own slot setting to a `printerId`, by matching the
    * stored OS printer name against its **current enumerated set**. The BE never
@@ -322,7 +318,7 @@ declare global {
   }
 
   /**
-   * One row of `PRINT_JOB_STATE#${storeId}` (api#2013) — a per-job SUMMARY, one
+   * One row of `PRINT_JOB_STATE#${storeId}` — a per-job SUMMARY, one
    * row per `jobId`, upserted alongside every `PRINT_JOB#${storeId}#${jobId}`
    * timeline write. The timeline partition is per-JOB, so it cannot answer
    * "list this store's print jobs" — this row exists so that listing can, via
@@ -364,14 +360,14 @@ declare global {
      * Machine-readable failure classification, when one is recognised. BE-side
      * dispatch skips write `PRINTER_INACTIVE` / `AGENT_OFFLINE` (or both joined
      * by `+`); an agent `ACK_FAILED` can classify to `PRINTER_PAUSED` /
-     * `NO_PRINTER_ASSIGNED` / `PRINTER_NOT_FOUND` (api#2028). Unrecognised agent
+     * `NO_PRINTER_ASSIGNED` / `PRINTER_NOT_FOUND`. Unrecognised agent
      * text stays in `detail` only, so absence of a code does NOT mean success.
      */
     errorCode?: string;
   }
 
   /**
-   * `data` payload of the server → agent `printers_active` WSS frame (api#2028),
+   * `data` payload of the server → agent `printers_active` WSS frame,
    * envelope `{ action: 'printers_active', data: PrintersActiveData }` — nested,
    * like every server→client frame (`SocketMessage<T>`), and the opposite of the
    * FLAT client→server convention `RegisterPrintersData` documents above.

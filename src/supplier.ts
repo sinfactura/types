@@ -12,13 +12,11 @@ declare global {
 		company: string;
 		cuit: string;
 		razonSocial: string;
-		// contact
 		contactName: string;
 		phone: string;
 		email: string;
-		// options
 		balance: number;
-		// catalogId (api#942) — FK to PlatformCurrency.
+		// catalogId — FK to PlatformCurrency.
 		currencyId: string;
 		service: boolean;
 		disabled: boolean;
@@ -30,13 +28,11 @@ declare global {
 		invoiceId: string;
 		supplierId: string;
 		createdAt: number;
-		// invoice data
 		type: 'FAC' | 'ND' | 'NC';
 		dated: number;
 		number: string;
 		razonSocial: string;
 		cuit: string;
-		// details
 		neto: number;
 		iva10: number;
 		iva21: number;
@@ -44,15 +40,15 @@ declare global {
 		per_iibb: number;
 		per_iva: number;
 		file: string;
-		// catalogId (api#942) — FK to PlatformCurrency (app#1539 / ADR-0013).
+		// catalogId — FK to PlatformCurrency (ADR-0013).
 		currency?: string;
 		currencyValue: number;
-		// Unix ms at which `currencyValue` was effective (app#1539 / ADR-0013).
+		// Unix ms at which `currencyValue` was effective (ADR-0013).
 		currencyValueAt?: number;
 		// Lowercase '#'-joined search index, written by
-		// `buildSupplierInvoiceSearch` on every insert/update (api#1233).
+		// `buildSupplierInvoiceSearch` on every insert/update.
 		search?: string;
-		// api#1501 — per-alícuota IVA discrimination required by the Libro IVA
+		// Per-alícuota IVA discrimination required by the Libro IVA
 		// Digital COMPRAS records (docs/LIBRO_IVA_DIGITAL.md §3–4). Mirrors the
 		// ventas Invoice shape (neto10/neto21 + iva10/iva21, where the `10` slot
 		// is AR's 10,5% reduced rate) plus the 27% rate common on purchases.
@@ -63,14 +59,14 @@ declare global {
 		iva27?: number; // impuesto liquidado 27%
 		noGravado?: number; // conceptos no gravados (compras CBTE campo 10)
 		exento?: number; // operaciones exentas (compras CBTE campo 11)
-		// api#1542 — real ARCA comprobante class. `type` (FAC/ND/NC) alone can't
+		// Real ARCA comprobante class. `type` (FAC/ND/NC) alone can't
 		// distinguish A/B/C, so the Libro IVA Digital compras export mis-stamped
 		// every non-A purchase. Optional/forward-only — legacy rows without it
 		// fall back to A-class in the builder.
 		cbteClass?: 'A' | 'B' | 'C';
 
-		// api#1703 — WSCDC constatación inputs (forward-only; populated by manual
-		// entry now, by the app#723 AI extractor later — same fields).
+		// WSCDC constatación inputs (forward-only; populated by manual
+		// entry now, by the AI extractor later — same fields).
 		voucherDate?: number; // yyyymmdd — voucher's REAL emission date (WSCDC CbteFch); distinct from `dated` (load date).
 		pointOfSale?: number; // WSCDC PtoVta
 		invoiceNumber?: number; // WSCDC CbteNro
@@ -79,19 +75,19 @@ declare global {
 		constatacion?: SupplierInvoiceConstatacion; // WSCDC result, written async by the supplier-constatar consumer
 
 		/**
-		 * DynamoDB TTL, Unix SECONDS (api#1947). Mirrors `Invoice.ttl`.
+		 * DynamoDB TTL, Unix SECONDS. Mirrors `Invoice.ttl`.
 		 *
 		 * ⚠️ A COST BOUNDARY on the hot tier — it carries no legal meaning and is NOT
 		 * the fiscal retention term. **Never surface this to a user as a retention or
 		 * expiry date.** The no-expiry S3 PDF is the record of retention.
 		 *
-		 * Optional: forward-only, so rows written before api#1947 carry no ttl.
+		 * Optional: forward-only, so older rows carry no ttl.
 		 */
 		ttl?: number;
 	}
 
-	// api#1703 — generic per-invoice ARCA trust-check status, shared across
-	// WSCDC (this ticket) and APOC (api#1563) so the FE renders one uniform
+	// Generic per-invoice ARCA trust-check status, shared across
+	// WSCDC and APOC so the FE renders one uniform
 	// chip. Each check keeps its own payload (constatacion/apoc are separate
 	// top-level SupplierInvoice fields — collision-safe for concurrent writers).
 	type SupplierInvoiceCheckStatus =
@@ -102,28 +98,28 @@ declare global {
 		| 'not_applicable' // CAE absent, type outside grid, or store has no AFIP cert (gris)
 		| 'error'; // WSCDC unreachable / transient auth failure (reintentar)
 
-	// api#1937 — WHY a row is `not_applicable`. Without this the status conflated
+	// WHY a row is `not_applicable`. Without this the status conflated
 	// a permanent property of the comprobante with a transient property of the
 	// TENANT, and the FE re-derived the difference by reimplementing the BE's
-	// own eligibility rule (app#2252) — which silently drifts when that rule
+	// own eligibility rule — which silently drifts when that rule
 	// changes. Only ever meaningful alongside `status: 'not_applicable'`.
 	type SupplierInvoiceNotApplicableReason =
 		| 'not_constatable' // permanent(ish): missing CAE/coordinates/cuit/total, or type outside the CbteTipo grid. A property of THIS voucher — becomes stale only if the row is edited to completeness.
 		| 'wscdc_not_configured' // transient: the tenant hasn't switched WSCDC on. Nobody ever asked ARCA about this row, so the write path re-evaluates it once the toggle flips.
 		| 'wscdc_not_authorized'; // the tenant HAS switched WSCDC on, but ARCA refused the certificate for the `wscdc` service (relación incomplete) — `coe.notAuthorized`. Distinct from the above because ARCA *was* contacted: this is the consumer's verdict, so the write path must not re-enqueue it on every edit (that loops one WSAA login per save). Clears when the relación completes and the CAE is re-submitted.
 
-	// api#1703 — WSCDC ComprobanteConstatar outcome persisted on the row.
+	// WSCDC ComprobanteConstatar outcome persisted on the row.
 	interface SupplierInvoiceConstatacion {
 		status: SupplierInvoiceCheckStatus;
 		result?: 'A' | 'O' | 'R'; // ARCA Resultado (A→passed, O→warning, R→failed)
 		reason?: string; // present when failed — ARCA's own prose. NOT the not_applicable discriminator; see notApplicableReason.
-		notApplicableReason?: SupplierInvoiceNotApplicableReason; // api#1937 — present when status is 'not_applicable'
+		notApplicableReason?: SupplierInvoiceNotApplicableReason; // present when status is 'not_applicable'
 		observations?: InvoiceObservation[]; // present when observado
 		verifiedAt?: string; // ISO — WSCDC FchProceso
 	}
 
 	/**
-	 * WSCDC `ConstatarComprobante` request (api#1500) -- verifies a
+	 * WSCDC `ConstatarComprobante` request -- verifies a
 	 * third-party (supplier) voucher was genuinely authorized by ARCA before
 	 * it's booked/credited as IVA input. Fields per the ticket's tech spec.
 	 */
@@ -141,7 +137,7 @@ declare global {
 	}
 
 	/**
-	 * WSCDC `ConstatarComprobante` result (api#1500). `result` mirrors the
+	 * WSCDC `ConstatarComprobante` result. `result` mirrors the
 	 * A/O/R convention already used for `FECAESolicitar`'s own `Resultado`
 	 * and `FiscalAuditEvent` (Aceptado/Observado/Rechazado) -- every
 	 * verification call is also logged to that same audit table per the
@@ -155,7 +151,7 @@ declare global {
 	}
 
 	/**
-	 * WSCDC endpoint error-code vocabulary (api#1682) -- the 502 `error` values
+	 * WSCDC endpoint error-code vocabulary -- the 502 `error` values
 	 * of `POST /afip {mode:'wscdc'}` (mirrors the MlOauthErrorCode pattern).
 	 * Producer: api `stacks/lambdas/afip/helpers/wscdc.ts`
 	 * (`ConstatarComprobanteOutcome`). `WSCDC_NOT_CONFIGURED` = expected
@@ -165,7 +161,7 @@ declare global {
 	type WscdcErrorCode = 'WSCDC_NOT_CONFIGURED' | 'WSCDC_AUTH_FAILED' | 'WSCDC_COMPROBANTE_CONSTATAR_FAILED';
 
 	/**
-	 * `GET /reports?mode=supplier-invoices` per-date resume row (api#1550) --
+	 * `GET /reports?mode=supplier-invoices` per-date resume row --
 	 * compras-side mirror of the ventas `mode=invoices` resume shape. Unlike
 	 * ventas Invoice, SupplierInvoice has no CAE-authorization concept, so
 	 * every row in range counts (no fiscalStatus filter).
@@ -201,11 +197,10 @@ declare global {
 		debit: number;
 		credit: number;
 		amount: number;
-		// catalogId (api#942) — FK to PlatformCurrency. Promoted from the
-		// api#945 module augmentation (app#1539 / ADR-0013).
+		// catalogId — FK to PlatformCurrency (ADR-0013).
 		currency?: string;
 		currencyValue: number;
-		// Unix ms at which `currencyValue` was effective (app#1539 / ADR-0013).
+		// Unix ms at which `currencyValue` was effective (ADR-0013).
 		currencyValueAt?: number;
 		balance: number;
 		deleted: boolean;

@@ -21,7 +21,7 @@ declare global {
 			url: string;
 		}[];
 		stock: number;
-		// api#1806 — per-product low-stock threshold. A sale that crosses `stock`
+		// Per-product low-stock threshold. A sale that crosses `stock`
 		// down to <= minStock fires a LOW_STOCK notification (unset => no
 		// LOW_STOCK; OUT_OF_STOCK at stock <= 0 fires regardless).
 		minStock?: number;
@@ -32,7 +32,7 @@ declare global {
 			// back from. The purchase path does not set it.
 			orderId?: string;
 			// Set when this income is a customer return rather than a purchase —
-			// the purchase-vs-return discriminator (api#547).
+			// the purchase-vs-return discriminator.
 			returnId?: string;
 			supplierName?: string;
 			quantity: number;
@@ -53,18 +53,18 @@ declare global {
 		zone?: string;
 
 		// OPTIONS
-		// catalogId (api#942) — FK to PlatformCurrency. Was a
+		// catalogId — FK to PlatformCurrency. Was a
 		// tenant-local integer; now resolves via the catalog directly.
 		currency: string;
-		// Self-describing currency stamp (app#1539 / ADR-0013): FX rate and
+		// Self-describing currency stamp (ADR-0013): FX rate and
 		// the Unix ms at which it was effective.
 		currencyValue?: number;
 		currencyValueAt?: number;
 		ivaType: number;
 		categoryId: string;
 		brandId: string;
-		// ⚠️ Intended as a READ-PROJECTION of "any slot has an active promo"
-		// (#1780), but the api implements NO derivation: the value is accepted
+		// ⚠️ Intended as a READ-PROJECTION of "any slot has an active promo",
+		// but the api implements NO derivation: the value is accepted
 		// from the client on POST/import and persisted verbatim, and nothing
 		// recomputes it when a promo window opens or expires. Optional because
 		// no writer guarantees it. Do not gate promo UI on it until the
@@ -75,22 +75,22 @@ declare global {
 
 		// PRICES
 		cost: number;
-		// Canonical pricing (A-prime, #1780). Operators author ONLY this. The
+		// Canonical pricing (A-prime). Operators author ONLY this. The
 		// materialized price1..4 shim was removed end-of-epic; all consumers
 		// read `prices[]` directly. See ADR-0014.
 		prices?: PriceSlot[];
 
-		// Per-channel listing links (app#797 / ADR-0018 Decision 1), keyed by
+		// Per-channel listing links (ADR-0018 Decision 1), keyed by
 		// channel id (`'meli'` today) so DELETE/SET are atomic map ops.
 		channels?: Record<string, ProductChannelMapping>;
 
-		// BARCODES (app#840/#841 model, shipped BE-first via api#1653). All
+		// BARCODES (model, shipped BE-first). All
 		// optional/additive. `barcodePrimary` denormalizes the isPrimary
 		// entry's value for the `PK-barcodePrimary` lookup GSI + search.
 		barcodes?: ProductBarcode[];
 		barcodePrimary?: string;
 
-		// VARIANTS (api#1653 Part B, fields only — the ML family fan-out is a
+		// VARIANTS (Part B, fields only — the ML family fan-out is a
 		// follow-up). Sibling Products sharing a variantGroupId form one
 		// catalog family; each row keeps its own stock/prices. Distinct from
 		// channels.mercadolibre.familyId (ML-ASSIGNED cluster, post-publish).
@@ -99,10 +99,10 @@ declare global {
 		// PARENT_PK/CHILD_PK — e.g. { id: 'COLOR', value: 'Negro' }).
 		variantAttributes?: { id: string; value: string }[];
 
-		// Manufacturer model — feeds channel attributes (ML MODEL) (api#1653).
+		// Manufacturer model — feeds channel attributes (ML MODEL).
 		model?: string;
 
-		// AI ENRICHMENT (api#1768). Optional/additive, operator-authored — set
+		// AI ENRICHMENT. Optional/additive, operator-authored — set
 		// via the suggestion-only enrichment endpoint's write-through on accept.
 		// `attributes` is descriptive product metadata and is DISTINCT from
 		// `variantAttributes` above (which clusters variant families). `evidence`
@@ -113,7 +113,7 @@ declare global {
 		attributes?: { name: string; value: string; evidence?: string }[];
 	}
 
-	// One barcode on a product (app#841 design). `type` follows GS1 naming;
+	// One barcode on a product. `type` follows GS1 naming;
 	// 'internal' = store-generated EAN-13 in the 20-29 prefix range.
 	interface ProductBarcode {
 		value: string;
@@ -132,7 +132,7 @@ declare global {
 		| 'unlinked'; // explicitly detached; kept for history
 
 	// One product↔listing link. For UP-migrated sellers the UP-variant is
-	// the unit (api#1575/#1577) — `externalId` alone can't express it.
+	// the unit — `externalId` alone can't express it.
 	interface ProductChannelMapping {
 		externalId?: string; // ML item id (e.g. 'MLA123...').
 		userProductId?: string; // UP-variant identity.
@@ -145,20 +145,20 @@ declare global {
 		basis?: MlMatchBasis | 'manual';
 		// Raw channel error causes (e.g. ML `cause[]`) for the rejected state.
 		syncErrors?: string[];
-		// UP-aware MercadoLibre stock regime (api#1635): classic single-SKU
+		// UP-aware MercadoLibre stock regime: classic single-SKU
 		// listing vs. coexistence with a legacy pub, vs. multi-origin/UP-managed
 		// — lets the FE render per-channel regime state without re-deriving it
-		// from raw ML fields (api#1649).
+		// from raw ML fields.
 		regime?: 'classic' | 'coexistence' | 'multi-origin';
 		// Whether outbound stock sync should mirror the channel's own count
-		// (e.g. Full fulfillment) rather than push local stock (api#1649).
+		// (e.g. Full fulfillment) rather than push local stock.
 		stockMirrorOnly?: boolean;
 		// Public listing URL (ML `GET /items/{id}`.permalink), persisted on link
-		// success and backfilled for pre-existing links (api#1895). A real
+		// success and backfilled for pre-existing links. A real
 		// Product field (unlike the three below), so it round-trips untouched.
 		permalink?: string;
 		// Read-time-only enrichment sourced from the ML_ITEM webhook cache
-		// (api#1895) — mirrors the regime/stockMirrorOnly precedent above.
+		// — mirrors the regime/stockMirrorOnly precedent above.
 		// NEVER persisted on Product; merged onto the response the same way.
 		listingPrice?: number;
 		listingStock?: number;

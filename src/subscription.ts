@@ -1,13 +1,13 @@
 /**
  * Subscription types — plan tiers, entitlements, feature matrix, subscription state.
  *
- * Ships app#710 (Chunk 1). Canonical decisions live in
+ * Ships Chunk 1. Canonical decisions live in
  * sinfactura/app/docs/plans/SUBSCRIPTION_BUSINESS_DECISIONS.md and
  * sinfactura/app/docs/adr/0010-launch-trial-policy.md.
  *
  * Notes:
- * - Tier names are the 4 locked Spanish tiers (per SUBSCRIPTION_TIERS_BEST_PRACTICES §0
- *   and api#802): BÁSICO, EMPRENDEDOR, PROFESIONAL, AVANZADO. The launch policy
+ * - Tier names are the 4 locked Spanish tiers (per SUBSCRIPTION_TIERS_BEST_PRACTICES §0):
+ *   BÁSICO, EMPRENDEDOR, PROFESIONAL, AVANZADO. The launch policy
  *   (ADR-0010) gives every new paid subscription a 30-day Stripe trial; courtesy
  *   gifts (formerly the Founders cohort) are now a one-off ops action via
  *   `gift-subscription` that sets `freeUntil` on the SUBSCRIPTION row.
@@ -17,14 +17,14 @@
  * - Monetary amounts are integers in minor units (ARS cents) to avoid float issues.
  * - Feature keys now match the BE wire format directly (renamed afip→afipInvoicing,
  *   cash→cashManagement, reportsAdvanced→advancedReports as of 2026-04-26). The interim
- *   paymentIntegrations key was split into domesticPayments + stripePayments (api#1823).
+ *   paymentIntegrations key was split into domesticPayments + stripePayments.
  *   New keys whatsappCommerce/aiFeatures/mobileApp/customDomain are
  *   declared here even when their epics haven't shipped — the matrix can set
  *   enabled:false until they do.
  */
 
 declare global {
-	// ───────────────────────────── Plan structure ─────────────────────────────
+	// Plan structure
 
 	type PlanTier = 'basico' | 'emprendedor' | 'profesional' | 'avanzado';
 
@@ -50,7 +50,7 @@ declare global {
 
 	type BillingCycle = 'monthly' | 'annual';
 
-	// ───────────────────────────── Entitlements ─────────────────────────────
+	// Entitlements
 
 	/**
 	 * Shape of a single entitlement on a (tier, feature) cell.
@@ -74,7 +74,7 @@ declare global {
 		source?: 'plan' | 'override' | 'trial';
 	}
 
-	// ───────────────────────────── Feature keys ─────────────────────────────
+	// Feature keys
 
 	/**
 	 * All gated features. Add new keys here when a new feature becomes gateable;
@@ -89,11 +89,11 @@ declare global {
 		| 'maxUsers'
 		| 'maxCustomers'
 		| 'maxStores'
-		| 'priceListsMax' // NEW — numeric cap on price lists (#1780 / types#87)
+		| 'priceListsMax' // NEW — numeric cap on price lists
 		// Facturación
 		| 'afipInvoicing'
 		| 'suppliers'
-		// Cobros — gated by capability class, not vendor brand (api#1823)
+		// Cobros — gated by capability class, not vendor brand
 		| 'domesticPayments' // MercadoPago · MODO · Ualá Bis (domestic ARS rail) — all tiers
 		| 'stripePayments' // Stripe (USD / international acquiring) — profesional+
 		// Operación
@@ -111,8 +111,8 @@ declare global {
 		| 'aiFeatures'
 		| 'mobileApp'
 		| 'customDomain'
-		| 'advancedPricing' // boolean gate: absolute / per-list-currency / breaks / promos (#1780 / types#87)
-		| 'marketplaceChannels'; // NEW — boolean gate: marketplace integrations (MercadoLibre first — app#797 / types#94); PLAN#{tier} rows PATCHed per the app#1935 ceremony
+		| 'advancedPricing' // boolean gate: absolute / per-list-currency / breaks / promos
+		| 'marketplaceChannels'; // NEW — boolean gate: marketplace integrations (MercadoLibre first); PLAN#{tier} rows PATCHed per the marketplace-channels ceremony
 
 	/** Full feature matrix — every tier declares every feature. */
 	type FeatureMatrix = Record<PlanTier, Record<FeatureKey, Entitlement>>;
@@ -120,7 +120,7 @@ declare global {
 	/** Resolved entitlements for a specific tenant (matrix + overrides applied). */
 	type ResolvedEntitlements = Record<FeatureKey, Entitlement>;
 
-	// ───────────────────────────── Plan catalog ─────────────────────────────
+	// Plan catalog
 
 	/**
 	 * Implementation status of a feature on a plan row. Informational —
@@ -150,9 +150,9 @@ declare global {
 
 	/**
 	 * A sellable plan in the catalog. Aligned with the BE wire format from
-	 * `GET /subscription/plans` (api#859). Source of truth lives in
+	 * `GET /subscription/plans`. Source of truth lives in
 	 * DynamoDB (`PLAN#{tier}` partition), administered via `POST /sa/plans`
-	 * + `PATCH /sa/plans/{tier}` (api#859).
+	 * + `PATCH /sa/plans/{tier}`.
 	 *
 	 * Prices are integers in the `currency` smallest unit (centavos for ARS,
 	 * cents for USD). `null` = "Contactar ventas" (AVANZADO annual at launch
@@ -172,7 +172,7 @@ declare global {
 	 *     (BE-internal — not on the public wire format)
 	 *   - `createdAt` / `updatedAt` removed (not on the public wire format)
 	 *
-	 * Added per api#859:
+	 * Added:
 	 *   - `displayOrder` (number)
 	 *   - `color` (single hex string, FE derives `soft`/`border` shades)
 	 *   - `isPopular` (now required, was optional)
@@ -185,15 +185,13 @@ declare global {
 		description: string;
 		/**
 		 * Whether the plan is shown on the pricing page and accepting new
-		 * subscribers. Pre-launch / sales-led tiers (e.g. AVANZADO until ≥2
-		 * Planned features ship) set this to `false` without deleting the row.
+		 * subscribers. Pre-launch / sales-led tiers set this `false` without
+		 * deleting the row.
 		 */
 		isActive: boolean;
 		/**
-		 * Anchor / recommended tier on the pricing page. The FE typically
-		 * renders the "Más elegido" pill on the plan(s) flagged here. The
-		 * BE does not enforce uniqueness — admins can flag any number of
-		 * plans, but the canonical convention is exactly one.
+		 * Anchor/recommended tier on the pricing page (renders the "Más elegido"
+		 * pill). Not enforced unique by the BE — canonical convention is exactly one.
 		 */
 		isPopular: boolean;
 		/** Sort order on the pricing page (ascending). Ties allowed. */
@@ -204,14 +202,12 @@ declare global {
 		priceAnnualCents: number | null;
 		/**
 		 * Currency the prices are denominated in. `'ARS'` at launch; `'USD'`
-		 * is the migration target (api#841). `null` on free / off-billing
-		 * tiers (basico).
+		 * is the migration target. `null` on free/off-billing tiers (basico).
 		 */
 		currency: 'ARS' | 'USD' | null;
 		/**
-		 * Single brand hex color (e.g. '#590d82'). The FE derives `soft`
-		 * (light tint) and `border` shades via MUI's `alpha()` helper.
-		 * `null` on plans created/seeded before the api#859 backfill.
+		 * Single brand hex color (e.g. '#590d82'); FE derives `soft`/`border`
+		 * shades via MUI's `alpha()`. `null` on plans seeded before the color backfill.
 		 */
 		color: string | null;
 		/**
@@ -220,29 +216,21 @@ declare global {
 		 */
 		features: PlanFeature[];
 		/**
-		 * Marketing-curated short bullets shown on the customer-facing
-		 * pricing card. Display order = array order. Recommended 3-5
-		 * entries; the BE allows up to 6, each up to 80 chars (one card
-		 * line). Always present — empty array when no bullets are set
-		 * (FE then falls back to a synthesized list from `features[]`).
-		 *
-		 * Lifted onto the row in api#869 to let marketing tweak copy via
-		 * `/sa/plans` without a redeploy. Replaces the FE-only
-		 * `BULLET_LIST_BY_TIER` constant.
+		 * Marketing-curated short bullets for the pricing card. Display order =
+		 * array order; up to 6 entries, 80 chars each. Always present — empty array
+		 * when unset (FE synthesizes a list from `features[]`). Lets marketing tweak
+		 * copy via `/sa/plans` without a redeploy; replaces the FE-only `BULLET_LIST_BY_TIER`.
 		 */
 		bullets: string[];
 	}
 
-	// ───────────────────────────── Plan audit ─────────────────────────────
+	// Plan audit
 
 	/**
-	 * One audit row per SUPER_ADMIN-driven plan mutation. Returned by
-	 * `GET /platform/billing/plans/{tier}/audit` (api#859). The store-subscription
-	 * audit (api#827) shares this storage shape but is read as
-	 * `SubscriptionAuditEntry`.
-	 *
-	 * `before` and `after` carry only the fields that changed (diff slice),
-	 * not the full row blob.
+	 * One audit row per SUPER_ADMIN-driven plan mutation, returned by
+	 * `GET /platform/billing/plans/{tier}/audit`. The store-subscription audit
+	 * shares this storage shape but is read as `SubscriptionAuditEntry`.
+	 * `before`/`after` carry only the fields that changed (diff slice).
 	 */
 	interface PlanAuditEntry {
 		entity: 'PLAN';
@@ -256,7 +244,7 @@ declare global {
 		createdAt: number;
 	}
 
-	// ───────────────────────────── Subscription state ─────────────────────────────
+	// Subscription state
 
 	/**
 	 * A tenant's current subscription row. One per `tenantId`.
@@ -268,12 +256,10 @@ declare global {
 		status: SubscriptionStatus;
 		billingCycle: BillingCycle;
 		/**
-		 * Currency this subscription was billed in at checkout time.
-		 * Snapshotted from the Plan's `currency` field so it survives
-		 * platform-wide currency switches (api#841 / api#842) — a customer
-		 * who signed up on ARS keeps being charged in ARS even after the
-		 * platform flips to USD for new signups. Required for accurate
-		 * historical reporting + AFIP invoices.
+		 * Currency this subscription was billed in at checkout time. Snapshotted
+		 * from the Plan's `currency` so it survives platform-wide currency
+		 * switches — a customer who signed up on ARS keeps being charged in ARS.
+		 * Required for accurate historical reporting + AFIP invoices.
 		 */
 		currency?: 'ARS' | 'USD';
 		/** Current period window (Unix ms). */
@@ -300,11 +286,11 @@ declare global {
 		updatedAt: number;
 	}
 
-	// ───────────────────────────── Usage (counter-based) ─────────────────────────────
+	// Usage (counter-based)
 
 	/**
 	 * Per-tenant, per-period usage counters for `metered` features. Monthly reset
-	 * via scheduled Lambda (api#629). At launch, used only for local enforcement;
+	 * via scheduled Lambda. At launch, used only for local enforcement;
 	 * not reported to Stripe Meter (metered billing is a post-launch concern).
 	 */
 	interface UsageCounters {
@@ -317,7 +303,7 @@ declare global {
 		updatedAt: number;
 	}
 
-	// ───────────────────────────── WebSocket sync ─────────────────────────────
+	// WebSocket sync
 
 	/** A single entitlement entry as returned by GET /subscription. */
 	interface SubscriptionEntitlementEntry {
@@ -361,7 +347,7 @@ declare global {
 		usage: SubscriptionUsageEntry[];
 	}
 
-	// ───────────────────────────── Store-row summary (api#1588) ─────────────────────────────
+	// Store-row summary
 
 	/**
 	 * Compact subscription summary attached to `Store.subscription` on
@@ -382,17 +368,15 @@ declare global {
 		currentPeriodEnd?: number;
 	}
 
-	// ───────────────────────────── Subscription admin override (api#827) ─────────────────────────────
+	// Subscription admin override
 
 	/**
 	 * Request body for the MANAGER out-of-band override
-	 * `PUT /platform/stores/{storeId}/subscription` (api#827). No Stripe call —
-	 * a direct DynamoDB write + audit row. `trialEndsAt` is required (non-null)
-	 * when `status === 'trialing'`; `reason` is the audit message (min 10 chars).
-	 *
-	 * `freeUntil` / `trialEndsAt` are three-state (api#1907): omit the key to
-	 * leave the existing value untouched, send `null` to clear it, send a value
-	 * to set it.
+	 * `PUT /platform/stores/{storeId}/subscription`. No Stripe call — a direct
+	 * DynamoDB write + audit row. `trialEndsAt` is required (non-null) when
+	 * `status === 'trialing'`; `reason` is the audit message (min 10 chars).
+	 * `freeUntil`/`trialEndsAt` are three-state: omit to leave untouched,
+	 * `null` to clear, or a value to set.
 	 */
 	interface SubscriptionAdminOverrideInput {
 		planTier: PlanTier;
@@ -407,7 +391,7 @@ declare global {
 
 	/**
 	 * One audit row for a MANAGER out-of-band subscription change, as returned by
-	 * `GET /platform/stores/{storeId}/subscription/audit` (api#827). Written by
+	 * `GET /platform/stores/{storeId}/subscription/audit`. Written by
 	 * the override endpoint and the gift endpoint to the
 	 * `AUDIT#SUBSCRIPTION#{storeId}` partition. `before`/`after` carry the
 	 * subscription fields an operator can change.

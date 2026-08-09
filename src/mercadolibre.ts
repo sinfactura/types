@@ -1,8 +1,6 @@
 declare global {
-  // ───────────────────────────────────────────────────────────────
-  // OAuth wire shapes (app#797 / api#1572 — per-tenant MercadoLibre
-  // seller connect; clones the MercadoPago Connect contract shapes)
-  // ───────────────────────────────────────────────────────────────
+  // OAuth wire shapes (per-tenant MercadoLibre seller connect; clones the
+  // MercadoPago Connect contract shapes)
 
   // Response from ML's token endpoint:
   //   POST https://api.mercadolibre.com/oauth/token
@@ -19,12 +17,12 @@ declare global {
     refresh_token: string;
   }
 
-  // BE → FE response from POST /mercadolibre/oauth/initiate (api#1572).
+  // BE → FE response from POST /mercadolibre/oauth/initiate.
   interface MlOauthInitiateResponse {
     authorizationUrl: string;
   }
 
-  // BE → FE response from GET /mercadolibre/oauth/callback (api#1572).
+  // BE → FE response from GET /mercadolibre/oauth/callback.
   interface MlOauthCallbackResponse {
     connected: true;
     storeId: string;
@@ -33,17 +31,17 @@ declare global {
     connectedAt: number;
   }
 
-  // BE → FE response from POST /mercadolibre/oauth/disconnect (api#1572/api#1575).
+  // BE → FE response from POST /mercadolibre/oauth/disconnect.
   interface MlOauthDisconnectResponse {
     disconnected: true;
     storeId: string;
   }
 
   // Stable OAuth/connection error vocabulary surfaced to the FE connect
-  // screen (app#1253). `invalid_operator_user_id` is the ML
+  // screen. `invalid_operator_user_id` is the ML
   // operator-sub-account state — the seller authorized with a
   // collaborator account; FE CTA: "reconectá con la cuenta principal".
-  // `ML_SELLER_ALREADY_LINKED` (api#1707) is the seller-uniqueness state —
+  // `ML_SELLER_ALREADY_LINKED` is the seller-uniqueness state —
   // the exchange SUCCEEDED but that ML account is already linked to another
   // store; distinct from OAUTH_EXCHANGE_FAILED (which means the exchange
   // itself failed). FE CTA: "esta cuenta de ML ya está vinculada a otra tienda".
@@ -57,7 +55,7 @@ declare global {
     | "ML_OPERATOR_SUB_ACCOUNT"
     | "ML_SELLER_ALREADY_LINKED";
 
-  // FE-safe DTO returned by GET /mercadolibre/status (api#1572).
+  // FE-safe DTO returned by GET /mercadolibre/status.
   // Strips tokens and any field that must never leave the BE. The FE
   // renders the Integrations hub card + Configuración tab from this.
   interface MercadolibreStatus {
@@ -68,18 +66,16 @@ declare global {
     connectedAt?: number;
     expiresAt?: number;
     autoInvoice?: boolean;
-    autoCreditNote?: boolean; // api#1684 — read side of the auto-NC toggle.
+    autoCreditNote?: boolean; // Read side of the auto-NC toggle.
     defaultPosId?: number;
-    /** api#1655 — when the operator attested ML's own Facturador is OFF
+    /** When the operator attested ML's own Facturador is OFF
      * (epoch ms); absent = never attested. FE gates the autoInvoice toggle
      * on this. */
     facturadorAttestedAt?: number;
     syncPolicy?: Mercadolibre["syncPolicy"];
   }
 
-  // ───────────────────────────────────────────────────────────────
-  // Webhook shapes (api#1573 — topic notifications)
-  // ───────────────────────────────────────────────────────────────
+  // Webhook shapes (topic notifications)
 
   // Pointer envelope ML POSTs to the notifications callback. UNSIGNED —
   // no HMAC header exists for marketplace notifications (ADR-0018); the
@@ -96,10 +92,7 @@ declare global {
     received: string; // ISO 8601
   }
 
-  // ───────────────────────────────────────────────────────────────
-  // Product↔listing mapping wire shapes (api#1575 ↔ app#1256 —
-  // the SKU mapping workbench contract)
-  // ───────────────────────────────────────────────────────────────
+  // Product↔listing mapping wire shapes (the SKU mapping workbench contract)
 
   // FE bucket grades for a match suggestion (Vinculadas / Para revisar /
   // Sin vincular).
@@ -123,9 +116,7 @@ declare global {
     basis?: MlMatchBasis;
   }
 
-  // ───────────────────────────────────────────────────────────────
-  // WebSocket frames (api#1574 — order ingestion broadcasts)
-  // ───────────────────────────────────────────────────────────────
+  // WebSocket frames (order ingestion broadcasts)
 
   // Payload for the optional dedicated `mercadolibre_order` WS action
   // (underscore naming per KNOWN_SOCKET_ACTIONS). Day-one ingestion rides
@@ -142,24 +133,19 @@ declare global {
     paidAt?: number; // unix ms
   }
 
-  // ───────────────────────────────────────────────────────────────
-  // Per-field validation errors — shared by every /items-family write
-  // ───────────────────────────────────────────────────────────────
+  // Per-field validation errors — shared by every /items-family write.
   //
-  // The publish-composer shapes that used to sit here (types#99/#100:
-  // GtinRequirementTag, MlAttribute, MlRequiredAttribute,
-  // MlCategoryPrediction, MlCategoryCandidate, PublishPrediction,
-  // MlCategoryAttributeSchema, MlPublishRequest, MlPublishResponse)
-  // were removed in 1.10.8 — SINFACTURA dropped the create-a-new-listing
-  // flow (app#797 / app#2310 / types#113).
+  // The publish-composer shapes that used to sit here (GtinRequirementTag,
+  // MlAttribute, MlRequiredAttribute, MlCategoryPrediction,
+  // MlCategoryCandidate, PublishPrediction, MlCategoryAttributeSchema,
+  // MlPublishRequest, MlPublishResponse) were removed in 1.10.8 —
+  // SINFACTURA dropped the create-a-new-listing flow.
   //
-  // `MlFieldError` deliberately SURVIVED that removal. It shipped in the
-  // same comment block, but it is not composer-only: api's
-  // `mapMlErrorCause` is "shared by every /items-family write" —
-  // including `setListingStatus` (api#1894/#1989), a manage-EXISTING
-  // flow — and app's `getMlFieldErrors` narrows the 422 payload off
-  // this ambient global with no local declaration, so deleting it here
-  // breaks app's typecheck the moment it bumps its pin.
+  // `MlFieldError` deliberately survived that removal: it is not
+  // composer-only — api's `mapMlErrorCause` uses it for every
+  // /items-family write including `setListingStatus` (a manage-existing
+  // flow), and app's `getMlFieldErrors` narrows off this ambient global
+  // with no local declaration, so deleting it breaks app's typecheck.
 
   // One per-field error in the 422 ML_VALIDATION_FAILED envelope
   // (`fieldErrors: MlFieldError[]`) — ML's `cause[]` mapped to the

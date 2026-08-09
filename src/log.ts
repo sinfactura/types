@@ -4,9 +4,9 @@ declare global {
 	interface Log {
 		storeId: string;
 		logId: string;
-		createdAt: number; // timestamp
-		updatedAt: number; // timestamp
-		dated: number; // 20220924
+		createdAt: number;
+		updatedAt: number;
+		dated: number; // YYYYMMDD
 		mode?: string;
 		userId?: string;
 		customerId?: string;
@@ -15,10 +15,10 @@ declare global {
 		details?: string;
 		moreDetails?: string;
 		ip: string;
-		action?: string; // only to send the socket
+		action?: string; // socket-only field
 		screenType?: 'mobile' | 'tablet' | 'desktop'; // mobile < smDown > tablet < mdDown > desktop
-		screenSize?: number; // screen width
-		appVersion?: number; // 1.10
+		screenSize?: number; // screen width in px
+		appVersion?: number; // e.g. 1.10
 	}
 
 }

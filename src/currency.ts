@@ -1,17 +1,8 @@
 declare global {
-	// ───────────────────────────────────────────────────────────────
-	// Platform-managed currency catalog (epic api#942)
-	// ───────────────────────────────────────────────────────────────
-
 	// Canonical catalogIds — the seeded set in api's
-	// `stacks/services/currencyCatalog.ts:PLATFORM_CURRENCY_CATALOG`.
-	// Adding a new platform-managed currency requires releasing a new
-	// sinfactura-types version with the id appended here.
-	//
-	// Narrowed from `string` in types#63 so comparisons against AFIP
-	// wire codes (`'PES'`/`'DOL'`) or other non-catalog literals fail
-	// at compile time — surfaced by the always-false `afip.currency ===
-	// 'PES'` regression caught in app#1576 (`ButtonInvoice`).
+	// `stacks/services/currencyCatalog.ts:PLATFORM_CURRENCY_CATALOG`. Narrowed
+	// from `string` so comparisons against AFIP wire codes ('PES'/'DOL') fail
+	// at compile time.
 	type CatalogId =
 		| "ars"
 		| "usd-oficial"
@@ -24,9 +15,9 @@ declare global {
 		| "eur-oficial"
 		| "brl-oficial";
 
-	// Variant of an isoCode currency. Disambiguates Argentine USD types
-	// (oficial / blue / MEP / CCL / turista / informal) plus reserved
-	// slots for crypto and BCRA reference rates.
+	// Variant of an isoCode currency: disambiguates Argentine USD types
+	// (oficial/blue/MEP/CCL/turista/informal) plus reserved slots for crypto
+	// and BCRA reference rates.
 	type CurrencyVariant =
 		| "oficial"
 		| "blue"
@@ -37,11 +28,9 @@ declare global {
 		| "cripto"
 		| "oficial-bcra";
 
-	// Single row in PLATFORM/CURRENCY — managed by SUPER admins. Every
-	// per-tenant `StoreCurrencySubscription` references one of these
-	// by catalogId. Tenants cannot create or rename catalog rows; the
-	// catalog is the platform's source of truth for
-	// {isoCode, variant, displayName, afipCode}.
+	// Single row in PLATFORM/CURRENCY — managed by SUPER admins; the platform's
+	// source of truth for {isoCode, variant, displayName, afipCode}. Tenants
+	// cannot create or rename rows, only reference one via `catalogId`.
 	interface PlatformCurrency {
 		catalogId: string; // canonical id, e.g. 'usd-oficial'
 		isoCode: string; // ISO 4217 (e.g. 'USD', 'ARS', 'EUR', 'BRL')
@@ -54,20 +43,18 @@ declare global {
 		updatedAt?: number;
 	}
 
-	// Per-tenant subscription to a catalog entry. Lives on the STORE
-	// row under `currencies[]`. Tenants control `value` (the FX rate)
-	// and `order` (display position). Auto-update bindings live in
-	// `Store.fxAutoUpdate.bindings[]` (top-level), keyed by `catalogId`
-	// — see `StoreFxAutoUpdate` in `./store.ts`.
+	// Per-tenant subscription to a catalog entry, on the STORE row under
+	// `currencies[]`. Auto-update bindings live in `Store.fxAutoUpdate.bindings[]`
+	// (top-level), keyed by `catalogId` — see `StoreFxAutoUpdate` in `./store.ts`.
 	interface StoreCurrencySubscription {
 		catalogId: string; // FK to PlatformCurrency
-		value: number; // ARS-per-unit; auto-updated when bound (api#941)
+		value: number; // ARS-per-unit; auto-updated when bound
 		order?: number; // display ordering on the FE
 	}
 
-	// Wire shape for `GET /store` and `GET /currencies` — denormalized
-	// catalog projection so the FE can render display strings without
-	// a separate catalog fetch. BE projects on read; never stored.
+	// Wire shape for `GET /store` and `GET /currencies` — denormalized catalog
+	// projection so the FE can render display strings without a separate fetch.
+	// BE projects on read; never stored.
 	interface StoreCurrencySubscriptionView extends StoreCurrencySubscription {
 		isoCode: string;
 		variant: CurrencyVariant;
@@ -76,17 +63,11 @@ declare global {
 		decimals?: number;
 	}
 
-	// Time-series sample written to the keyed CURRENCY partition by
-	// the FX pollers (api#941). Each sample is one observation of one
-	// catalog entry's rate at a point in time.
-	//   PK: CURRENCY#${isoCode}#${variant}    SK: ${createdAt}
-	// The api#942 `currencyId` → `catalogId` rename applies to the CATALOG
-	// contracts (StoreCurrencySubscription / PlatformCurrency), NOT to this
-	// time-series sample: the poller identifies the series by the PK, so the
-	// row carries no catalog FK at all. This interface previously declared a
-	// `catalogId` no writer has ever set, and typed `dated` as a string.
-	// Shape below mirrors the single writer verbatim — the documentClient.put
-	// in stacks/lambdas/fxPoller/_common.ts.
+	// Time-series sample written to the keyed CURRENCY partition by the FX
+	// pollers (PK: CURRENCY#${isoCode}#${variant}, SK: ${createdAt}). Carries no
+	// catalog FK — the poller identifies the series by the PK, not by `catalogId`.
+	// Mirrors the single writer verbatim (documentClient.put in
+	// stacks/lambdas/fxPoller/_common.ts).
 	interface Currency {
 		createdAt: number; // Unix ms; also the SK
 		dated: number; // YYYYMMDD, America/Argentina/Buenos_Aires (getDated())
@@ -94,16 +75,16 @@ declare global {
 		// Provider-supplied change indicator, stored verbatim (e.g. '+1,2%').
 		// Absent when the provider reports none.
 		variation?: string;
-		source?: string; // 'ambito' | 'dolarapi' | 'bluelytics' | 'bcra' (api#941)
-		sourceId?: string; // FX-source registry id the sample came from (api#1019)
+		source?: string; // 'ambito' | 'dolarapi' | 'bluelytics' | 'bcra'
+		sourceId?: string; // FX-source registry id the sample came from
 	}
 
 	// ───────────────────────────────────────────────────────────────
-	// Platform FX-source registry (api#941 / api#1019)
+	// Platform FX-source registry
 	// ───────────────────────────────────────────────────────────────
 
-	// Tenant-readable FX source — wire shape for GET /currencies?mode=fx-sources (api#941 / api#1019).
-	// Already enabled-filtered server-side, so `enabled` is NOT on the wire (only enabled sources are returned).
+	// Tenant-readable FX source — wire shape for GET /currencies?mode=fx-sources.
+	// Already enabled-filtered server-side (only enabled sources are returned).
 	type FxProvider = "ambito" | "dolarapi" | "bluelytics" | "bcra";
 
 	interface PlatformFxSource {
@@ -114,9 +95,9 @@ declare global {
 		provider: FxProvider;
 	}
 
-	// SUPER projection of an FX source — full persisted shape plus operational status
-	// fields and the server-derived `isStale`. Returned (per source) by
-	// GET /platform/fx-sources (api#1019 / api#1020 phase 3). Tenant `PlatformFxSource` is a strict subset.
+	// SUPER projection of an FX source — full persisted shape plus operational
+	// status fields and the server-derived `isStale`. Returned by
+	// GET /platform/fx-sources. Tenant `PlatformFxSource` is a strict subset.
 	interface PlatformFxSourceWithStatus extends PlatformFxSource {
 		enabled: boolean;
 		/** EventBridge cron expression (`minute hour day month weekday`). */
@@ -137,8 +118,9 @@ declare global {
 		isStale: boolean;
 	}
 
-	// Full PLATFORM/FX_SOURCES singleton — what GET /platform/fx-sources returns (api#941).
-	// `maxStaleness` is row-level: per-source override (keyed by source id) with a `default` fallback.
+	// Full PLATFORM/FX_SOURCES singleton — what GET /platform/fx-sources returns.
+	// `maxStaleness` is row-level: per-source override keyed by source id, with
+	// a `default` fallback.
 	interface PlatformFxSourcesRow {
 		enabled: boolean;
 		sources: PlatformFxSourceWithStatus[];

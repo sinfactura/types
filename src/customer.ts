@@ -48,7 +48,7 @@ declare global {
      * FK to PriceList.id (NOT a positional ordinal). Picks which PriceSlot /
      * materialized priceN applies to this customer. Legacy values 1..4 already
      * equal the seeded list ids, so the migration is value-preserving; getPrice
-     * resolves by id, not by `price${ordinal}`. (#1780 / types#88)
+     * resolves by id, not by `price${ordinal}`.
      */
     priceList: number;
     province: string;
@@ -56,14 +56,14 @@ declare global {
     search: string;
     updatedAt?: number;
     /**
-     * catalogId (api#942) — FK to PlatformCurrency.
+     * catalogId — FK to PlatformCurrency.
      *
      * DISPLAY / PRICING preference only: which currency this customer
      * views and transacts in (load-bearing in storefront pricing + the
      * DNI/CUIT checkout gate). It is NOT a ledger denomination and is
      * pure passenger data server-side. MUST NOT be used to infer the
      * denomination of unstamped `ACCOUNT` rows — doing so is the root
-     * cause of api#1333. Unstamped ledger rows fall back to
+     * cause of the denomination bug. Unstamped ledger rows fall back to
      * `store.config.displayCurrency`, never to this field.
      */
     currencyId?: string;

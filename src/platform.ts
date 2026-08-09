@@ -1,7 +1,7 @@
-// Platform-wide config/feature-flag contracts (api#1108). Single fixed
+// Platform-wide config/feature-flag contracts. Single fixed
 // GLOBALS/PLATFORM scope, unlike Literals' multi-scope override chain — no
 // per-tenant override use case identified for globals/flags (deliberate
-// divergence from api#1484/#1485's Literals model).
+// divergence from the Literals model).
 
 export interface PlatformConfigEntry {
 	key: string;
@@ -9,12 +9,12 @@ export interface PlatformConfigEntry {
 	kind: 'setting' | 'flag';
 	value: string | number | boolean;
 	defaultValue: string | number | boolean;
-	// api#1955 retired 'web'. `scope` names the consuming REPO, not an audience,
+	// Retired 'web'. `scope` names the consuming REPO, not an audience,
 	// and POST /platform/globals validates z.enum(['app','landing','storefront']),
 	// so a 'web' value is rejected with a 400 and can never be read back.
 	scope: 'app' | 'landing' | 'storefront';
 	description?: string;
-	// Inclusive bounds for a `valueType: 'number'` key (api#1078). Absent on
+	// Inclusive bounds for a `valueType: 'number'` key. Absent on
 	// unbounded/boolean/string keys. These are part of the WRITE contract, not a
 	// display hint: `POST /platform/globals` rejects an out-of-range value with a
 	// 400, so a client that ignores them lets an operator submit a value that
@@ -36,17 +36,17 @@ export interface PlatformGlobalsPostBody {
 			value: string | number | boolean | null;
 			valueType: 'boolean' | 'string' | 'number';
 			kind: 'setting' | 'flag';
-			// api#1955 — see PlatformConfigEntry.scope above; 'web' is rejected.
+			// See PlatformConfigEntry.scope above; 'web' is rejected.
 			scope: 'app' | 'landing' | 'storefront';
 		}
 	>;
 }
 
-// Per-provider row of `GET /platform/integrations` (api#1535; managerToken).
+// Per-provider row of `GET /platform/integrations` (managerToken).
 // The CloudWatch-derived fields (`syncSuccessRate24h`, `p95LatencyMs`,
 // `lastIncidentAt`) are ABSENT — not 0/false — for providers without a
 // backing Lambda, and `killSwitchEnabled` is absent for providers without a
-// kill switch wired (api#1538); keep them optional.
+// kill switch wired; keep them optional.
 export interface PlatformProviderHealth {
 	tenantsConnected: number;
 	/** 24h success ratio in [0, 1] (a fraction, NOT a percentage). */

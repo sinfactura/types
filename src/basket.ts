@@ -8,10 +8,9 @@ declare global {
 		createdAt: number;
 		updatedAt: number;
 		quantity: number;
-		// catalogId (api#942) — FK to PlatformCurrency.
+		// catalogId — FK to PlatformCurrency.
 		currency: string,
-		// Self-describing currency stamp (app#1539 / ADR-0013): FX rate and
-		// the Unix ms at which it was effective.
+		// Self-describing currency stamp (ADR-0013): FX rate + the Unix ms it was effective.
 		currencyValue?: number;
 		currencyValueAt?: number;
 		cost: number;
@@ -30,8 +29,8 @@ declare global {
 		ivaType: number,
 		cost: number;
 		price: number; // the resolved unit price, in the line's own currency
-		// A-prime line provenance (#1780 / types#86). Inlined OPTIONAL (NOT
-		// `extends CurrencyStamp`) so existing un-stamped lines stay valid.
+		// A-prime line provenance. Inlined OPTIONAL (NOT `extends CurrencyStamp`)
+		// so existing un-stamped lines stay valid.
 		listId?: number; // which PriceList resolved this line
 		currency?: string; // catalogId — per-line (a USD-list line + an ARS-list line can coexist)
 		currencyValue?: number; // frozen FX at re-price time
@@ -42,7 +41,7 @@ declare global {
 		basePrice?: number; // pre-promo unit price
 	}
 
-	// Response envelope sibling to `data` on `POST /basket?mode=merge` (api#1209).
+	// Response envelope sibling to `data` on `POST /basket?mode=merge`.
 	interface BasketMergeMeta {
 		// productIds from the request `items[]` that didn't resolve to a real
 		// product — never written to the basket.

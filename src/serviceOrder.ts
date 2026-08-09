@@ -2,17 +2,16 @@
  * Service order types — repair / installation / maintenance / diagnosis
  * workflows ("Órdenes de Servicio").
  *
- * Phase 1 Foundation for the Services Feature (sinfactura/app#758,
- * sinfactura/types#30). A ServiceOrder is a parallel entity to the
+ * Phase 1 Foundation for the Services Feature. A ServiceOrder is a parallel entity to the
  * product-sales Order pipeline: multi-stage workflow, technician assignment,
  * equipment intake, parts consumption, and AFIP concept=2 service invoicing.
  *
- * Companion: ServiceTemplate (serviceTemplate.ts, sinfactura/types#31) defines
+ * Companion: ServiceTemplate (serviceTemplate.ts) defines
  * per-type default configuration that seeds new orders.
  */
 
 declare global {
-	// ───────────────────────────── Classification ─────────────────────────────
+	// Classification
 
 	/** Kind of service. Drives which workflow stages apply (see ServiceTemplate). */
 	type ServiceType = 'repair' | 'installation' | 'maintenance' | 'diagnosis';
@@ -47,7 +46,7 @@ declare global {
 	 */
 	type PricingModel = 'flat' | 'hourly' | 'parts_labor' | 'diagnostic' | 'warranty';
 
-	// ───────────────────────────── Sub-entities ─────────────────────────────
+	// Sub-entities
 
 	/** A single inventory part consumed on a service order. */
 	interface PartUsed {
@@ -81,12 +80,12 @@ declare global {
 		notes?: string;
 	}
 
-	// ───────────────────────────── Service order ─────────────────────────────
+	// Service order
 
 	/**
 	 * Core service-order entity. Parallel to `Order` but with a multi-stage
 	 * workflow, equipment intake, technician assignment, and service-specific
-	 * pricing. Stored in its own DynamoDB partition (sinfactura/api#637).
+	 * pricing. Stored in its own DynamoDB partition.
 	 */
 	interface ServiceOrder {
 		// Identity

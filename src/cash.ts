@@ -9,9 +9,9 @@ declare global {
     outcome?: number;
     balance?: number;
     subject?: string;
-    // catalogId (api#942) — FK to PlatformCurrency. Self-describing
+    // catalogId — FK to PlatformCurrency. Self-describing
     // currency stamp matching the rest of the money entities
-    // (api#1184 / app#1539 / ADR-0013).
+    // (ADR-0013).
     currency?: string;
     currencyValue?: number;
     // Unix ms at which `currencyValue` was effective.
@@ -19,12 +19,12 @@ declare global {
     // Per-currency totals. On CASH movements this is unused
     // (`income`/`outcome` + `currency` are sufficient). On the
     // CASH#BALANCE snapshot and the synthetic cashStart opening row,
-    // these carry the bucketed accumulator (api#986).
+    // these carry the bucketed accumulator.
     balanceByCurrency?: Record<string, number>;
     incomeByCurrency?: Record<string, number>;
   }
 
-  // Cash-drawer shift management (api#987 — BE companion to app#949 / epic app#946).
+  // Cash-drawer shift management.
   type CashShiftStatus = 'OPEN' | 'CLOSED' | 'RECONCILED' | 'REJECTED';
 
   type CashEventType = 'apertura' | 'cash-in' | 'cash-out' | 'sale' | 'refund' | 'tip' | 'cierre' | 'reconcile';
@@ -61,7 +61,7 @@ declare global {
     variance?: number; // declaredCount - expectedBalance (set at reconcile)
     reconcileDecision?: 'approved' | 'rejected';
     reconcileNote?: string;
-    // Room for AFIP/DNU 731/2024 cash-tip compliance reports (app#960).
+    // Room for AFIP/DNU 731/2024 cash-tip compliance reports.
     tipDistribution?: Record<string, number>;
     createdAt: number;
     updatedAt?: number;
