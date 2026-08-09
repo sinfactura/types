@@ -12,20 +12,14 @@ declare global {
 		deliveredAt?: number;
 		deliveredDate?: number;
 		comments?: string;
-		// catalogId (api#942) — FK to PlatformCurrency.
-		currency: string;
-		// Self-describing currency stamp (app#1539 / ADR-0013): FX rate and
-		// the Unix ms at which it was effective.
+		currency: string; // catalogId — FK to PlatformCurrency
+		// Self-describing currency stamp (ADR-0013): FX rate and the Unix ms at which it was effective.
 		currencyValue?: number;
 		currencyValueAt?: number;
 		paymentMethod: number;
 		/**
-		 * Expected payment due date, Unix ms (api#713 / types#110).
-		 *
-		 * Optional and forward-only. Purely declarative in v1: nothing in the
-		 * platform computes it from payment terms (Net 15/30, per-customer
-		 * credit days) — that is a separate product decision. An Invoice issued
-		 * against this order may inherit it or set its own independently.
+		 * Expected payment due date, Unix ms. Optional and forward-only —
+		 * purely declarative in v1, nothing computes it from payment terms.
 		 */
 		dueDate?: number;
 		deliveryMethod: number;
@@ -34,15 +28,15 @@ declare global {
 			condFiscalName: string;
 			cuit: string;
 			razonSocial: string;
-			// Explicit per-order ARCA receptor identity (api#1368), decoupled
-			// from condFiscal. ARCA DocTipo codeset: 80 = CUIT, 96 = DNI,
-			// 99 = Consumidor Final -- a SEPARATE axis from condFiscal (they
-			// share the number 96 only by coincidence). When present, the
-			// AFIP invoice builder uses these directly for the receptor
-			// (DocTipo/DocNro) instead of deriving from condFiscal; when
-			// absent, falls back to today's condFiscal-derived behavior.
+			/**
+			 * Explicit per-order ARCA receptor identity, decoupled from condFiscal
+			 * (ARCA DocTipo: 80 = CUIT, 96 = DNI, 99 = Consumidor Final — a
+			 * SEPARATE axis from condFiscal, sharing 96 only by coincidence).
+			 * When present, the AFIP invoice builder uses these directly for the
+			 * receptor instead of deriving from condFiscal.
+			 */
 			docType?: number;
-			docNumber?: string; // the CUIT (11-digit + checksum) / DNI (7-8 digit) value
+			docNumber?: string; // CUIT (11-digit + checksum) / DNI (7-8 digit)
 		};
 		cost: number;
 		total: number;
@@ -50,36 +44,27 @@ declare global {
 		orderPrinted?: boolean;
 		tagPrinted?: boolean;
 		/**
-		 * Server-derived ms epoch (api#642), stamped by the WSS `ack` handler on an
-		 * `ACK_PRINTED` that correlates to this row's CURRENT `printJobId`.
-		 *
-		 * **Absent = not confirmed printed** — never seeded to `0`, unlike
-		 * `readyAt`/`deliveredAt`. Cleared on every reprint, so it only ever
-		 * describes the current `printJobId`. Distinct from `orderPrinted`, which is
-		 * stamped optimistically at dispatch and reads `true` even with no printer
-		 * connected. A tag/label print never sets this.
+		 * Server-derived ms epoch, stamped by the WSS `ack` handler on an
+		 * `ACK_PRINTED` correlating to this row's CURRENT `printJobId`.
+		 * Absent = not confirmed printed — never seeded to `0`, unlike
+		 * `readyAt`/`deliveredAt`. Cleared on every reprint. Distinct from
+		 * `orderPrinted`, which is stamped optimistically at dispatch.
 		 */
 		printedAt?: number;
-		/** BE-minted pointer to the most recent print dispatch (api#642). Last-write-wins on reprint. */
+		/** BE-minted pointer to the most recent print dispatch. Last-write-wins on reprint. */
 		printJobId?: string;
 		invoices?: Partial<Invoice>[];
 		/**
-		 * Bounded, embedded projections of this order's returns (api#547),
-		 * capped at 50. The canonical rows live under `RETURN#${storeId}`.
-		 *
-		 * ⚠️ Element type narrowed from `Partial<Return>` to `ReturnSummary` in
-		 * types#111. Safe: the returns feature is unbuilt, so nothing produced or
-		 * consumed this field at the time of the change.
+		 * Bounded, embedded projections of this order's returns, capped at 50.
+		 * The canonical rows live under `RETURN#${storeId}`.
 		 */
 		returns?: ReturnSummary[];
 
 		/**
-		 * Customer self-cancellation (api#591). Cancelled is a DISTINCT state
-		 * from `disabled` (operator soft-delete) — do not conflate them, and note
-		 * that `disabled` additionally stamps `readyAt`/`deliveredAt`/
-		 * `deliveredDate`, which cancellation must NOT do.
-		 *
-		 * All four are absent on a non-cancelled order.
+		 * Customer self-cancellation, DISTINCT from `disabled` (operator
+		 * soft-delete) — `disabled` additionally stamps
+		 * `readyAt`/`deliveredAt`/`deliveredDate`, which cancellation must NOT do.
+		 * All four fields are absent on a non-cancelled order.
 		 */
 		cancelledAt?: number;
 		/** Who cancelled: the customerId for a self-cancellation, else the userId. */
@@ -87,17 +72,17 @@ declare global {
 		cancellationSource?: OrderCancellationSource;
 		/** Bounded free text supplied by the canceller. */
 		cancellationReason?: string;
-		// api#1684 — auto-credit-note status stamped once an NC is emitted (or
-		// attempted) against this ML order; FE renders "NC emitida" from this.
+		// Auto-credit-note status stamped once an NC is emitted (or attempted)
+		// against this ML order; FE renders "NC emitida" from this.
 		mercadolibreCreditNote?: {
-			creditNoteNumber?: number; // the emitted NC's ARCA CbteNro.
+			creditNoteNumber?: number; // the emitted NC's ARCA CbteNro
 			// Ms epoch of a successful emission — also the idempotency marker the
 			// emit-decision conditional-writes against (no double-NC per order).
 			emittedAt?: number;
 			status?: "emitted" | "skipped" | "failed";
-			reason?: string; // populated on skip/failure — guard reason or error code.
-			claimId?: string; // the ML claim that triggered the emission (audit).
-			source?: 'auto' | 'manual'; // auto vs manual emission path (api#1723).
+			reason?: string; // populated on skip/failure — guard reason or error code
+			claimId?: string; // the ML claim that triggered the emission (audit)
+			source?: 'auto' | 'manual';
 		};
 		disabled?: boolean;
 		items: Partial<BasketItem>[];
@@ -112,8 +97,8 @@ declare global {
 			province: string;
 			postalCode: string;
 		};
-		// DYNAMIC QR cache (api#884) — present when an MP dynamic QR is
-		// currently issued for this order. Cleared lazily on payment received.
+		// DYNAMIC QR cache — present when an MP dynamic QR is currently issued
+		// for this order. Cleared lazily on payment received.
 		mercadopago?: {
 			dynamicQr?: {
 				qrData: string;             // raw EMVCo string (FE renders to QR image)
@@ -127,41 +112,35 @@ declare global {
 			};
 		};
 		// Denormalized linked-payment metadata, keyed by paymentId so DELETE is
-		// `REMOVE linkedPayments.#pid` (atomic, race-safe) instead of array
-		// splice (api#981).
+		// `REMOVE linkedPayments.#pid` (atomic, race-safe) instead of array splice.
 		linkedPayments?: Record<string, LinkedPaymentEntry>;
-		// Sales-channel tag (app#797 / ADR-0018 Decision 1) — absent means the
-		// order originated in SINFACTURA itself. Channel-tagged orders flow
-		// through the SAME AFIP/stock/reporting pipelines, no parallel
-		// collection.
+		// Sales-channel tag (ADR-0018 Decision 1) — absent means the order
+		// originated in SINFACTURA itself. Channel-tagged orders flow through
+		// the SAME AFIP/stock/reporting pipelines, no parallel collection.
 		channel?: OrderChannel;
-		// Provider sub-record for `channel: 'meli'` orders (api#1574).
+		// Provider sub-record for `channel: 'meli'` orders.
 		mercadolibre?: OrderMercadolibre;
 	}
 
 	type OrderChannel = 'meli';
 
 	/**
-	 * Who initiated a cancellation (api#591). `customer` is the storefront
-	 * self-service path; `operator` is reserved for a future back-office
-	 * cancellation that is still distinct from `disabled`.
+	 * Who initiated a cancellation. `customer` is the storefront self-service
+	 * path; `operator` is reserved for a future back-office cancellation,
+	 * still distinct from `disabled`.
 	 */
 	type OrderCancellationSource = 'customer' | 'operator';
 
 	/**
 	 * Machine-readable reason an order is locked against a mutation — the
-	 * payload of `409 ORDER_LOCKED` (order edit, api#546) and
-	 * `409 ORDER_CANCELLATION_LOCKED` (customer self-cancellation, api#591),
-	 * and the gate a return checks before it starts (api#547).
+	 * payload of `409 ORDER_LOCKED` / `409 ORDER_CANCELLATION_LOCKED`, and the
+	 * gate a return checks before it starts. Clients map these to copy; never
+	 * user-facing strings themselves.
 	 *
-	 * Clients map these to copy; they are never user-facing strings themselves.
-	 *
-	 * ⚠️ The predicate behind every member is a `> 0` test, NOT a presence test.
-	 * `POST /orders` stamps `readyAt: 0`, `deliveredAt: 0` and `deliveredDate: 0`
-	 * at creation, so EVERY order carries all three fields — an
-	 * `attribute_exists`/"is present" check matches every order ever created and
-	 * silently inverts the lock. The api's shipped implementation
-	 * (`assessLock`, api#591) is the reference.
+	 * ⚠️ Every predicate is a `> 0` test, NOT a presence test. `POST /orders`
+	 * stamps `readyAt`/`deliveredAt`/`deliveredDate` at `0` on creation, so an
+	 * `attribute_exists` check matches every order ever created and silently
+	 * inverts the lock. The api's `assessLock` is the reference.
 	 *
 	 * Evaluated in this order, first match wins:
 	 * - `ready` — `readyAt > 0`.
@@ -171,15 +150,14 @@ declare global {
 	 *   A voucher with no `fiscalStatus` at all is legacy and counts as live.
 	 * - `payment-linked` — `linkedPayments` is non-empty. The platform never
 	 *   unlinks or refunds a provider payment on the operator's behalf.
-	 * - `cancelled` — `cancelledAt` is stamped (api#591).
+	 * - `cancelled` — `cancelledAt` is stamped.
 	 */
 	type OrderLockReason = 'ready' | 'delivered' | 'disabled' | 'invoiced' | 'payment-linked' | 'cancelled';
 
-	// WRITE-side shape of the credit-note stamp above (api#1684 / api#1723) —
-	// what `stampCreditNoteStatus` persists onto `Order.mercadolibreCreditNote`.
-	// `source` is REQUIRED at emission time; on the READ projection it stays
-	// optional (pre-#1723 stamps lack it), which is why this is a separate
-	// named interface rather than the inline field type.
+	// WRITE-side shape of the credit-note stamp above — what
+	// `stampCreditNoteStatus` persists onto `Order.mercadolibreCreditNote`.
+	// `source` is REQUIRED here; on the READ projection it stays optional
+	// (pre-existing stamps lack it), hence the separate named interface.
 	interface MercadolibreCreditNoteStamp {
 		creditNoteNumber?: number;
 		emittedAt?: number;
@@ -191,11 +169,11 @@ declare global {
 
 	// ML-side identity + ingest-stamped provider data for a channel-tagged
 	// order. Billing fields persist the RAW two-step billing-info v2 values
-	// (`invoice_type` no longer exists on the wire) — the Factura A/B
-	// mapping is the auto-invoice hook's job (api#1576). All PII.
+	// (`invoice_type` no longer exists on the wire) — Factura A/B mapping is
+	// the auto-invoice hook's job. All PII.
 	interface OrderMercadolibre {
 		mlOrderId: string;
-		packId?: string; // group unit — fiscal_documents upload target.
+		packId?: string; // group unit — fiscal_documents upload target
 		buyerNickname?: string;
 		shipmentId?: string;
 		// e.g. 'fulfillment' (Full — stock mirror-only, never restock locally),
@@ -203,15 +181,14 @@ declare global {
 		logisticType?: string;
 		// ML's own `last_updated` (epoch ms) — the out-of-order-event guard for
 		// the orders_v2 conditional upsert, kept separate from `Order.updatedAt`
-		// so unrelated local writes (print/tag/delivery) never interfere with
-		// ML's own event clock (api#1574).
+		// so unrelated local writes never interfere with ML's own event clock.
 		mlLastUpdated?: number;
 		// ML's own `order.status === 'paid'` — the auto-invoice hook's trigger
-		// signal, denormalized off `MeliOrderDetail` (api#1576).
+		// signal, denormalized off `MeliOrderDetail`.
 		paid?: boolean;
 		items?: OrderMercadolibreItem[];
 		// Marketplace fees stamped at ingest, self-describing per ADR-0013 —
-		// feeds order-detail net proceeds + margin analytics (app#1934).
+		// feeds order-detail net proceeds + margin analytics.
 		fees?: {
 			saleFee?: number;
 			shippingCostSeller?: number;
@@ -220,7 +197,7 @@ declare global {
 			currencyValueAt?: number;
 		};
 		// Raw billing-info v2 fields (GET /orders/billing-info/MLA/{id}) —
-		// feeds the missing-CUIT-for-A discrepancy badge (app#1257).
+		// feeds the missing-CUIT-for-A discrepancy badge.
 		billingInfo?: {
 			docType?: string; // identification.type — 'CUIT' | 'DNI' | 'CUIL' | ...
 			docNumber?: string;
@@ -228,21 +205,20 @@ declare global {
 			taxpayerType?: string;
 			iibbNumber?: string; // taxes.iibb_number
 		};
-		// Order-level health signals for Orders/Order-screen badges (app#1257 FE
-		// follow-up). Computed best-effort at sync/auto-invoice time; a flag is
-		// absent until evaluated. api#1654.
+		// Order-level health signals for Orders/Order-screen badges. Computed
+		// best-effort at sync/auto-invoice time; a flag is absent until evaluated.
 		discrepancies?: {
-			priceMismatch?: boolean; // ML line unit_price ≠ SKU-linked Product price.
-			oversell?: boolean; // ordered qty > SKU-linked Product available stock.
-			missingCuit?: boolean; // billing info yields no valid CUIT for Factura A.
+			priceMismatch?: boolean; // ML line unit_price ≠ SKU-linked Product price
+			oversell?: boolean; // ordered qty > SKU-linked Product available stock
+			missingCuit?: boolean; // billing info yields no valid CUIT for Factura A
 		};
-		// fiscal_documents upload outcome (api#1654): 'pending' while in flight,
-		// 'uploaded' on success, 'failed' on error. Absent = no invoice issued yet.
+		// fiscal_documents upload outcome: 'pending' while in flight, 'uploaded'
+		// on success, 'failed' on error. Absent = no invoice issued yet.
 		fiscalDocumentStatus?: 'uploaded' | 'failed' | 'pending';
 	}
 
-	// Line-level ML identity + stock provenance (order_items[].stock[]),
-	// persisted for the multi-warehouse foundation + Full no-decrement rule.
+	// Line-level ML identity + stock provenance, persisted for the
+	// multi-warehouse foundation + Full no-decrement rule.
 	interface OrderMercadolibreItem {
 		mlItemId: string;
 		variationId?: string;

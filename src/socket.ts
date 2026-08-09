@@ -1,24 +1,20 @@
 /**
  * WebSocket wire contract — the single source of truth for the SINFACTURA
- * realtime protocol (types#107).
+ * realtime protocol.
  *
- * ⚠️ This module is deliberately NOT `declare global`. Everything here is a
- * REAL runtime export, because clients need the action names as *values* to
- * validate an incoming frame and to key an exhaustive switch — an ambient type
- * alone cannot do either. Import them:
+ * Deliberately NOT `declare global`: clients need the action names as
+ * *values* (to validate an incoming frame and key an exhaustive switch), so
+ * import them:
  *
  * ```ts
  * import { SOCKET_ACTIONS, type SocketAction } from 'sinfactura-types';
  * ```
  *
- * Producers/consumers this contract binds:
- * - `api` — `stacks/wss/lambdas/socket/default.ts` (client→server zod union)
- *   and every `wsPost*` broadcast helper (server→client).
- * - `app` / `storefront` — `Sockets.tsx` action dispatch.
- * - `cloudprint` — the print agent's `websocket-client.ts`.
- *
- * Delivery path is always Lambda → SQS `ws-message` → WSS Lambda → API Gateway
- * Management API → client. Nothing posts to a connection directly.
+ * Producers/consumers: `api` (`stacks/wss/lambdas/socket/default.ts` +
+ * `wsPost*` broadcast helpers), `app`/`storefront` (`Sockets.tsx`),
+ * `cloudprint` (`websocket-client.ts`). Delivery path is always
+ * Lambda → SQS `ws-message` → WSS Lambda → API Gateway Management API → client.
+ * Nothing posts to a connection directly.
  */
 
 /* -------------------------------------------------------------------------- */
@@ -26,18 +22,14 @@
 /* -------------------------------------------------------------------------- */
 
 /**
- * Every `action` the backend broadcasts on a data frame.
+ * Every `action` the backend broadcasts on a data frame. Grouped for
+ * readability only — the wire treats them as one flat union.
  *
- * Derived from the api's actual producers: `postData: { action }` blocks, the
- * `action` argument of `dynamoUpdate` (which auto-broadcasts via `wsPostStore`),
- * and the payment/log call sites. Grouped for readability only — the wire
- * treats them as one flat union.
- *
- * ⚠️ Audience is NOT encoded here. `print*` frames go to the print agent
+ * Audience is NOT encoded here: `print*` frames go to the print agent
  * (`wsPostPrinter`), several ops frames go to admins/managers only
- * (`wsPostAdmin`), and most entity frames go to all store users
- * (`wsPostStore`). A client must ignore actions it does not own rather than
- * assume it receives all of them.
+ * (`wsPostAdmin`), most entity frames go to all store users (`wsPostStore`).
+ * A client must ignore actions it does not own rather than assume it
+ * receives all of them.
  */
 export const SOCKET_ACTIONS = [
 	// Entity upserts — mostly emitted by `dynamoUpdate`'s auto-broadcast.
@@ -52,12 +44,9 @@ export const SOCKET_ACTIONS = [
 	'literals',
 	'orders',
 	'products',
-	// BE → all store users when a return (devolución) commits (api#547). Distinct
-	// from `orders` even though a return always advances the order's `updatedAt`:
-	// the frame carries the committed `Return`, and a client that only patched its
-	// order cache would miss the stock, account and credit-note effects that landed
-	// with it. Payload is the stored row; `Order.returns` carries the bounded
-	// `ReturnSummary[]` projection instead.
+	// BE → all store users when a return (devolución) commits. Distinct from
+	// `orders` — carries the committed `Return` row itself (stock/account/credit-note
+	// effects), not just the order's bumped `updatedAt`.
 	'returns',
 	'shifts',
 	'stores',
@@ -100,44 +89,32 @@ export const SOCKET_ACTIONS = [
 	'print-product',
 	'print-tag',
 	'print_job_failed',
-	// BE → agent: re-send your COMPLETE printer set (api#2006). Carries only
-	// `storeId`; the agent already knows what to report. Exists because
-	// `register_printers` fires just on connect and on local printer change, so
-	// an agent that connected before the registry shipped stays invisible to it
-	// until it happens to reconnect — days, for a machine that is never restarted.
+	// BE → agent: re-send your COMPLETE printer set (carries only `storeId`).
+	// Needed because `register_printers` only fires on connect/local-change, so
+	// an agent connected before the registry shipped stays invisible until it
+	// happens to reconnect.
 	'request_printers',
-	// ⚠️ Despite sitting in this print block, `printers_changed` does NOT reach an
-	// agent. All three of its producers go through `wsPostStore`, which excludes
-	// printer connections (api#644) — it is the OPERATOR fleet panel's frame,
-	// telling an open panel that a printer was registered, toggled or went away.
-	// Grouped here only because the payload is print-shaped.
+	// Despite sitting in this print block, `printers_changed` does NOT reach an
+	// agent — its producers go through `wsPostStore`, which excludes printer
+	// connections. It's the OPERATOR fleet panel's frame; grouped here only
+	// because the payload is print-shaped.
 	'printers_changed',
-	// BE → OPERATOR panel only, same `wsPostStore` exclusion as `printers_changed`
-	// above: one agent's fleet-health telemetry moved (api#2065). Today that means
-	// `queueDepth`, the one field on the fleet card that had no event-driven
-	// trigger and so read up to ~90s stale. Deliberately NOT folded into
-	// `printers_changed` — the app logs a Sentry breadcrumb naming that frame, and
-	// fusing the two triggers would make them un-debuggable apart.
+	// BE → OPERATOR panel only (same `wsPostStore` exclusion): one agent's
+	// fleet-health telemetry (`queueDepth`) moved. Deliberately NOT folded into
+	// `printers_changed` — kept separately debuggable.
 	'agent_status_changed',
-	// BE → agent, fanned to every printer connection on the store: the store's
-	// routing rules changed, re-read them (api#2007/#2010).
+	// BE → agent, fanned to every printer connection on the store: routing rules changed, re-read them.
 	'print_rules_changed',
-	// BE → agent, scoped to ONE agent's own connections: that agent's COMPLETE
-	// per-printer `active` set, so its local rule-less fallback can honour an
-	// operator's pause toggle (api#2028). Payload is `PrintersActiveData`.
-	// Full replacement, never a delta; both unknowns fail OPEN (see that type).
+	// BE → agent, scoped to ONE agent's connections: that agent's COMPLETE
+	// per-printer `active` set (`PrintersActiveData`) — full replacement, never
+	// a delta; both unknowns fail OPEN.
 	'printers_active',
-	// BE → agent, scoped to ONE agent's own connections (like `printers_active`,
-	// never fanned to the store): run a local diagnostic/recovery action
-	// (print#224). Payload is `AgentCommandData`.
-	//
-	// ⚠️ NOT understood by any released agent. The agent routes inbound frames
-	// through a closed control-frame switch (`request_printers`,
-	// `printers_active`) and then a 4-member print-job enum; anything else lands
-	// in its "Unhandled frame" warn and is never executed or acknowledged. As of
-	// v2.2.2 that includes this action — print#224's agent lane must add the case
-	// before a producer can rely on it. Publishing it here first is deliberate, so
-	// all three lanes build against one `.d.ts`.
+	// BE → agent, scoped to ONE agent's connections: run a local diagnostic
+	// action (`AgentCommandData`).
+	// NOT understood by any released agent as of v2.2.2 — its inbound switch
+	// only handles `request_printers`/`printers_active` + the print-job enum, so
+	// this is published ahead of the agent handling it, deliberately, so all
+	// three lanes build against one `.d.ts`.
 	'agent_command',
 
 	// Operations / operator surfaces.
@@ -169,37 +146,25 @@ export interface SocketMessage<T = unknown> {
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Agent diagnostic commands (print#224)                                     */
+/*  Agent diagnostic commands                                                 */
 /* -------------------------------------------------------------------------- */
 
 /**
  * The remote-triggerable diagnostic actions, in the agent's OWN spelling.
  *
- * **Kebab-case, verbatim from the agent's `DiagnosticActionId`** (print#223,
- * shipped v2.2.2) — not the snake_case the rest of this file's ACTION names use.
- * That is a deliberate trade. `sinfactura/print` does not depend on this package,
- * so any renaming here has to be re-implemented as a mapping table on the agent
- * side, where a drift is invisible to both ends until an operator reports that a
- * button does nothing. Passing the agent's own ids through untouched removes the
- * mapping layer entirely: the BE forwards a string the agent already keys on.
- * The frame's ACTION (`agent_command`) stays snake_case like its siblings; this
- * is the payload vocabulary, a different namespace.
+ * Kebab-case, verbatim from the agent's `DiagnosticActionId` — not the
+ * snake_case the rest of this file's ACTION names use. Deliberate: since
+ * `sinfactura/print` does not depend on this package, passing its own ids
+ * through untouched avoids a mapping table that could silently drift.
  *
- * A command the agent does not recognise is safe by construction — its
- * `runDiagnosticAction` returns a structured "unknown command" result instead of
- * throwing — so an older agent degrades to a visible failure, not a crash.
+ * A command the agent does not recognise is safe by construction — it
+ * returns a structured "unknown command" result instead of throwing.
  *
- * Two members of the originally-proposed set are absent on purpose:
- *
- * - **`view-logs`** exists on the agent but is not remotely meaningful. It opens
- *   the log FOLDER on the agent's own machine and resolves `ok: true`, so a
- *   remote operator would read "logs delivered" while a window opened on an
- *   unattended PC. Shipping logs BACK to the backend is a genuinely different
- *   capability that the agent does not have; it needs its own contract.
- * - **`test_print`** is not an agent-local action at all. The backend dispatches
- *   a real job to an explicit printer (api#2041, shipped), so routing it through
- *   here would be a second way to do one thing — and the agent would reject it as
- *   an unknown command.
+ * Two originally-proposed members are absent on purpose: **`view-logs`**
+ * only opens the log folder on the agent's own machine (not remotely
+ * meaningful — shipping logs back would be a different capability), and
+ * **`test_print`** isn't agent-local at all (the backend already dispatches
+ * a real job to an explicit printer).
  */
 export const AGENT_COMMANDS = ['redetect-printers', 'reconnect-socket', 'flush-acks', 'clear-queue'] as const;
 
@@ -213,44 +178,32 @@ export const isAgentCommand = (value: unknown): value is AgentCommand =>
 /**
  * Commands that destroy operator data and MUST be confirmed before dispatch.
  *
- * Mirrors the agent's own `destructive` flag. The agent deliberately does not
- * prompt inside `run()` — its confirmation lives in the DOM layer, which a remote
- * trigger never reaches — so the "are you sure?" is the CALLER's job. For a
- * remote command that means the app, before it asks the backend to dispatch.
- *
- * `clear-queue` deletes queued work that then never prints. print#235 (agent
- * v2.2.3) stopped it destroying in-flight ACKs, but queued jobs are still lost,
- * and the operator who loses them is not the one who pressed the button.
+ * Mirrors the agent's own `destructive` flag; the agent's confirmation lives
+ * in the DOM layer (unreachable from a remote trigger), so the "are you
+ * sure?" is the caller's job. `clear-queue` deletes queued work that then
+ * never prints — the operator who loses it isn't the one who pressed the button.
  */
 export const DESTRUCTIVE_AGENT_COMMANDS: readonly AgentCommand[] = ['clear-queue'];
 
 /**
- * `data` payload of the BE → agent `agent_command` frame — nested,
- * `{ action: 'agent_command', data: AgentCommandData }`, like every other
- * server→client frame.
- *
- * Declared here rather than beside `PrintersActiveData` in `print.ts` because it
- * references `AgentCommand`, which is derived from the runtime `AGENT_COMMANDS`
- * array above; re-declaring the vocabulary as an ambient type would give it two
- * sources that drift independently.
+ * `data` payload of the BE → agent `agent_command` frame — nested, like every
+ * other server→client frame. Declared here (not beside `PrintersActiveData`
+ * in `print.ts`) because it references `AgentCommand`, avoiding a second
+ * ambient vocabulary that could drift from `AGENT_COMMANDS`.
  */
 export interface AgentCommandData {
 	command: AgentCommand;
 	/**
-	 * The target agent. Advisory for the agent itself — the BE has already scoped
-	 * delivery to that agent's connections — but carried so the agent can drop a
-	 * frame that reached it through a mis-scoped broadcast rather than acting on
-	 * another machine's instruction.
+	 * The target agent. Advisory — the BE has already scoped delivery to that
+	 * agent's connections — but lets the agent drop a frame from a mis-scoped broadcast.
 	 */
 	agentId: string;
 	/**
 	 * Stable per-dispatch id. **Required, never optional.**
 	 *
-	 * The wss `$default` route has a bare Lambda integration and no route
-	 * response, so a frame the agent sends can never fail visibly to it. Delivery
-	 * therefore has to be idempotent-and-repeatable rather than once-and-hope,
-	 * and a re-dispatch needs a stable id for the agent to deduplicate on and for
-	 * the backend to match a late result against.
+	 * The wss `$default` route has no route response, so a frame the agent
+	 * sends can never fail visibly to it — delivery must be idempotent-and-repeatable,
+	 * and a re-dispatch needs this id to dedupe / match a late result.
 	 */
 	commandId: string;
 }
@@ -286,29 +239,15 @@ export interface SocketAgentCommandResultMessage {
 /**
  * The client-driven actions the WSS `$default` route accepts.
  *
- * The first four mirror the zod discriminated union in
- * `api/stacks/wss/lambdas/socket/default.ts` and are live today.
- *
- * `register_printers` is **live**: api#2006 shipped its handler and the `$default`
- * union, deployed and verified against a real agent on 2026-08-01. It was
- * published ahead of that backend so the agent, api and app lanes could build
- * against one `.d.ts` — which is exactly how api#2017 caught the frame being
- * declared nested while every sibling is flat, before an agent shipped against it.
- *
- * `export_local_rules` is **live** too: api#2010 shipped its `$default` union
- * entry and handler (deployed 2026-08-03). Its frame interface
- * (`SocketExportLocalRulesMessage`) and its `ClientSocketMessage` membership
- * shipped in 1.10.x, but the action string was never added to these two arrays —
- * so `isClientSocketAction`-style checks and exhaustive switches keyed off
- * `ClientSocketAction` silently excluded a live action. Corrected in 1.10.5.
- *
- * `agent_command_result` is declared but **NOT live** (print#224, 1.10.8): no
- * `$default` union entry or handler exists for it yet, so the api answers it with
- * `400 Invalid message`. It is in this array — the full vocabulary — and out of
- * `LIVE_CLIENT_SOCKET_ACTIONS` below, which is exactly the distinction the two
- * arrays exist to carry. Do not "fix the inconsistency" by adding it there; that
- * is the inverse of the 1.10.5 bug, and it would tell a consumer the frame is
- * accepted when it is rejected.
+ * `register_printers` and `export_local_rules` are live (their handlers and
+ * `$default` union entries are deployed). `agent_command_result` is declared
+ * here — the full vocabulary — but deliberately excluded from
+ * `LIVE_CLIENT_SOCKET_ACTIONS` below: no handler exists yet, so the api
+ * answers it with `400 Invalid message`. Do NOT "fix the inconsistency" by
+ * adding it there — that would tell a consumer the frame is accepted when it
+ * is rejected. (1.10.5 fixed the inverse bug: a live action missing from
+ * this array, which let exhaustive switches keyed off `ClientSocketAction`
+ * silently exclude it.)
  */
 export const CLIENT_SOCKET_ACTIONS = [
 	'auth',
@@ -373,25 +312,18 @@ export interface SocketAckMessage {
 }
 
 /**
- * Agent → BE printer registry report (api#2006). `printers` is the agent's
- * COMPLETE current set, never a delta — the BE marks absent printers offline
- * rather than deleting them, because deleting would orphan any `PrintRule`
- * pointing at one.
+ * Agent → BE printer registry report. `printers` is the agent's COMPLETE
+ * current set, never a delta — the BE marks absent printers offline rather
+ * than deleting them, since deleting would orphan any `PrintRule` pointing at one.
  *
- * **FLAT, like every other client→server frame** (api#2017). 1.9.0–1.9.1
- * declared this nested (`{ action, data }`) — the only nested client action —
- * and that was wrong: the agent's sender builds `{ action, ...data }` by design,
- * reserving nested payloads for server→client frames, and the api destructures
- * `const { action, ...data }`. A union entry written to match the nested
- * declaration would have rejected every real report with `400 Invalid message`
- * and left the registry silently empty, presenting as an agent bug.
+ * FLAT, like every other client→server frame (1.9.0–1.9.1 wrongly declared
+ * this nested — the agent sender builds `{ action, ...data }`, so a nested
+ * union entry would reject every real report with `400`).
  *
- * `agentId` is deliberately **not declared**. The api derives it from the
- * authenticated SOCKET row, because trusting a frame-supplied value would let
- * one agent register printers under another's id. The open index signature still
- * permits sending it, and the api treats it as advisory — falling back to it only
- * when the connection has no `agentId` yet, since a report can arrive before the
- * agent's first heartbeat.
+ * `agentId` is deliberately not declared — the api derives it from the
+ * authenticated SOCKET row (trusting a frame-supplied value would let one
+ * agent register printers under another's id) — but the open index signature
+ * still permits sending it as an advisory fallback for pre-heartbeat reports.
  */
 export interface SocketRegisterPrintersMessage {
 	action: 'register_printers';
@@ -401,32 +333,26 @@ export interface SocketRegisterPrintersMessage {
 
 /**
  * Agent → BE, migration of the agent's local `useCase → printer` config into
- * `PRINT_RULE#${storeId}` (api#2010 / sinfactura/print#183, #156 phase 5).
+ * `PRINT_RULE#${storeId}`.
  *
- * **A distinct action, not a field on `register_printers`** — deliberately, and
- * the failure modes are why. An unknown ACTION fails the api's discriminated
- * union with a visible `400`; an unknown FIELD passes the loose gate and is then
- * silently stripped by the handler's schema, so an agent shipping ahead of the
- * BE would migrate nothing and still look healthy. `register_printers` also
- * recurs on every reconnect, and a one-shot payload has no business riding it.
+ * A distinct action, not a field on `register_printers`: an unknown ACTION
+ * fails visibly with `400`, but an unknown FIELD is silently stripped by the
+ * loose gate — an agent shipping ahead of the BE would migrate nothing and
+ * still look healthy. Also `register_printers` recurs on every reconnect,
+ * and this one-shot payload has no business riding it.
  *
- * Sent after a successful `register_printers` — the registry must exist before a
- * rule can point into it — and **on every connect** rather than once per
- * install. The agent cannot observe delivery (its frame is handed to the
- * renderer, which may drop it, and the socket does not serialise), so a local
- * "already exported" flag would turn one lost race into a store that never
- * migrates. Exactly-once is the BE's `PRINT_AGENT#` marker alone; a repeat costs
- * one failed conditional write.
+ * Sent after a successful `register_printers`, on every connect (not once per
+ * install) — the agent cannot observe delivery, so a local "already exported"
+ * flag would turn one lost race into a store that never migrates.
+ * Exactly-once is enforced BE-side by the `PRINT_AGENT#` marker alone.
  *
- * `agentId` is deliberately **not declared**, and unlike
- * `SocketRegisterPrintersMessage` the api will not accept an advisory one — it
- * comes from the authenticated SOCKET row only. Writing routing rules has a
- * wider blast radius than writing a registry row.
+ * `agentId` is not declared and, unlike `SocketRegisterPrintersMessage`, the
+ * api will NOT accept an advisory one — comes from the authenticated SOCKET
+ * row only (writing rules has a wider blast radius than writing a registry row).
  *
- * ⚠️ An EMPTY frame (no `rules`, no `skipped`) is not sent, and the api no-ops on
- * one: otherwise a fresh install consumes the once-only marker and completes
- * migration having seeded nothing, so anything configured locally afterwards
- * could never migrate.
+ * An EMPTY frame (no `rules`, no `skipped`) is never sent and the api no-ops
+ * on one — otherwise a fresh install would consume the once-only marker
+ * having migrated nothing, and later local config could never migrate.
  */
 export interface SocketExportLocalRulesMessage {
 	action: 'export_local_rules';
@@ -450,7 +376,7 @@ export type ClientSocketMessage =
 /* -------------------------------------------------------------------------- */
 
 /**
- * Why the backend refused the handshake (api#977 / app#1353).
+ * Why the backend refused the handshake.
  *
  * These exist because API Gateway translates a server-side disconnect into an
  * opaque 1006 close with no reason. Without an explicit frame the client cannot

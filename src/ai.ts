@@ -1,8 +1,8 @@
-// AI platform-spend contracts (api#1788; MANAGER dashboard app#1044).
+// AI platform-spend contracts (MANAGER dashboard).
 
 declare global {
 	// Wire shape of `GET /platform/ai-usage` (managerToken). Aggregated from the
-	// AI cost-meter rows (api#1078) — every field is always present (the `by*`
+	// AI cost-meter rows — every field is always present (the `by*`
 	// arrays are empty, never absent, on no data).
 	//
 	// - `from` / `to` echo the queried range as `YYYYMMDD` (Buenos Aires dating),

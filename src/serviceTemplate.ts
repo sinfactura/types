@@ -1,6 +1,6 @@
 /**
  * Service template types — pre-defined per-service-type configuration for the
- * Services Feature (sinfactura/app#758, sinfactura/types#31).
+ * Services Feature.
  *
  * A ServiceTemplate seeds defaults onto a new ServiceOrder: which workflow
  * stages are mandatory, default pricing model / rates, QA checklists, and

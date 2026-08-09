@@ -1,13 +1,9 @@
 declare global {
   /**
-   * WebSocket broadcast payload for the `payment_received` action.
-   *
-   * Fired by the API when a "money received" event is persisted across any
-   * of three sources (MP webhook, Stripe webhook, MP movements poller).
-   * Receivers (FE) should:
-   *   1. Render an immediate snackbar toast using `total` + `currency` + `payerName`.
-   *   2. Invalidate RTK Query tags `PaymentReceived` + `PaymentReceivedUnlinked`
-   *      so the canonical row is refetched from `GET /payments/received`.
+   * WebSocket broadcast payload for the `payment_received` action, fired when a
+   * "money received" event is persisted (MP webhook, Stripe webhook, or MP
+   * movements poller). FE should toast with `total`+`currency`+`payerName` and
+   * invalidate `PaymentReceived`/`PaymentReceivedUnlinked` RTK Query tags.
    */
   type PaymentReceivedSource = "mp" | "stripe" | "mp_movement";
 
@@ -23,30 +19,25 @@ declare global {
     invoiceId?: string;
     // MP/Stripe-side external_reference. Lets the FE filter the live tail
     // by the new amount-bound /qr/dynamic shape that no longer round-trips
-    // orderId (api#959).
+    // orderId.
     externalReference?: string;
   }
 
   /**
-   * REST shape of a payment row returned by `GET /payments/received` (api#902).
-   *
-   * Distinct from `PaymentReceivedWsPayload` (api#880, the WS broadcast):
-   *   - This carries denormalized labels (customerName, orderCode, invoiceCode)
-   *     attached server-side at response time so the FE doesn't N+1 fetch.
-   *   - The WS broadcast is the lean live-tail event; this is the canonical row.
+   * REST shape of a payment row returned by `GET /payments/received`. Distinct
+   * from `PaymentReceivedWsPayload` (the lean live-tail WS event): this carries
+   * denormalized labels (customerName, orderCode, invoiceCode) attached
+   * server-side so the FE doesn't N+1 fetch.
    */
   interface PaymentReceived {
     paymentId: string;
     source: PaymentReceivedSource;
     total: number;
     currency: string;
-    // Self-describing currency stamp (app#1539 / ADR-0013): FX rate and
-    // the Unix ms at which it was effective.
-    //
-    // ⚠️ NOT IMPLEMENTED on this row. The PAYMENT partition never stores the
-    // stamp and `projectRowToWire` cannot emit it, so these are undefined on
-    // 100% of GET /payments/received rows. Declared as the ADR-0013 target
-    // shape; do not treat their absence as "no FX applied".
+    // Self-describing currency stamp (ADR-0013): FX rate and Unix ms effective.
+    // ⚠️ NOT IMPLEMENTED on this row — the PAYMENT partition never stores it, so
+    // these are undefined on 100% of GET /payments/received rows. Absence here
+    // does not mean "no FX applied".
     currencyValue?: number;
     currencyValueAt?: number;
     payerName?: string;
@@ -63,22 +54,17 @@ declare global {
     accountId?: string;
     linkedAt?: number;
     linkSource?: "auto" | "manual";
-    // api#1464 — same-day refund ledger reconciliation, stamped on the
-    // `MP#{storeId}/{paymentId}` row when the auto-reversal path runs but
-    // cannot complete (older-than-today, no-ledger-credit, reversal-failed,
-    // etc.). `reconciled: false` signals the operator must reconcile
-    // manually (#915); cleared on a subsequent full reversal.
-    //
-    // ⚠️ Stamped ONLY on the `MP#{storeId}` row. The PAYMENT projection that
-    // backs GET /payments/received does not carry these, and its projector
-    // cannot emit them — so on that endpoint both are always undefined.
+    // Same-day refund ledger reconciliation, stamped on the `MP#{storeId}/{paymentId}`
+    // row when the auto-reversal path runs but can't complete. `reconciled: false`
+    // means the operator must reconcile manually.
+    // ⚠️ Stamped ONLY on the MP row — GET /payments/received never carries these.
     // Absence here means "not projected", never "reconciled".
     reconciled?: boolean;
     reconcileReason?: string;
   }
 
   /**
-   * Confidence tier for a link suggestion (api#904).
+   * Confidence tier for a link suggestion.
    *
    * Mapped from heuristic match strength:
    *   - 'Alta': customer CUIT/email exact OR order amount-exact + ±24h
@@ -88,7 +74,7 @@ declare global {
   export type LinkSuggestionConfidence = "Alta" | "Media" | "Baja";
 
   /**
-   * One ranked customer candidate for a payment's link dialog (api#904).
+   * One ranked customer candidate for a payment's link dialog.
    * The FE renders the chip with `fullName`, the confidence badge, and the
    * `reason` text verbatim.
    */
@@ -103,16 +89,10 @@ declare global {
   }
 
   /**
-   * One ranked order candidate for a payment's link dialog (api#904).
-   * `orderCode` is currently identical to `orderId` (no separate short code
-   * field on Order today); kept as a distinct field for forward-compat with
-   * a future Order.code rollout.
-   *
-   * `currency` is always 'ARS' in v1 (the storage currency for SINFACTURA's
-   * Argentine tenants); USD-priced orders surface their ARS-equivalent total.
-   * `total` is therefore in ARS regardless of how the order was originally
-   * priced; FE may derive USD display from `Order.currency` (the FX rate)
-   * if needed.
+   * One ranked order candidate for a payment's link dialog. `orderCode` is
+   * currently identical to `orderId` (no separate short code on Order today).
+   * `currency`/`total` are always in ARS (v1's storage currency); USD-priced
+   * orders surface their ARS-equivalent.
    */
   interface OrderCandidate {
     orderId: string;

@@ -15,40 +15,33 @@ declare global {
 		credit?: number;
 		amount?: number;
 		/**
-		 * catalogId (api#942, lowercase e.g. `'ars'`/`'usd-oficial'`) — FK
-		 * to PlatformCurrency. Promoted from the api#945 module augmentation
-		 * (app#1539 / ADR-0013).
+		 * catalogId (lowercase e.g. `'ars'`) — FK to PlatformCurrency (ADR-0013).
 		 *
-		 * DENOMINATION CONTRACT: this row's money values (`amount`/`credit`/
-		 * `debit`/`balance`) are denominated in the catalogId named here.
-		 * When `currency` is ABSENT — which is ≈all legacy/historical rows —
-		 * the row is denominated in `store.config.displayCurrency` as it was
-		 * at write time, and consumers MUST fall back to it. NEVER infer the
-		 * denomination from `customer.currencyId`: that field is a
-		 * display/pricing preference (passenger data server-side), and
-		 * mislabeling unstamped rows by it is the root cause of api#1333.
-		 *
-		 * 6 legacy rows carry a raw uppercase ISO `'ARS'` (pre-#1137);
-		 * being normalized to catalogId in api#1350.
+		 * DENOMINATION CONTRACT: this row's money values are denominated in the
+		 * catalogId named here. When ABSENT (≈all legacy rows), the row is
+		 * denominated in `store.config.displayCurrency` as of write time — NEVER
+		 * infer denomination from `customer.currencyId` (a display preference,
+		 * not a ledger fact; mislabeling by it is the root cause of the
+		 * denomination bug). 6 legacy rows carry a raw uppercase ISO `'ARS'`,
+		 * being normalized to catalogId.
 		 */
 		// TODO(api#1350): narrow `currency: string` → `CatalogId` once raw-ISO rows are normalized
 		currency?: string;
 		currencyValue?: number;
-		// Unix ms at which `currencyValue` was effective (app#1539 / ADR-0013).
+		// Unix ms at which `currencyValue` was effective (ADR-0013).
 		currencyValueAt?: number;
 		balance?: number;
-		// Optional: only some writers stamp it. The payment-link credit and the
-		// return credit do; the manual POST /account row and the order-delivery
-		// debit — the two highest-volume writers — do not, and no read path
-		// fabricates it. Render a fallback rather than assuming attribution.
+		// Optional: only some writers stamp `userId` (the payment-link credit and
+		// return credit do; the manual POST /account row and order-delivery debit
+		// — the two highest-volume writers — do not). No read path fabricates it;
+		// render a fallback rather than assuming attribution.
 		userId?: string;
 		deleted?: boolean;
 		/**
-		 * Provenance of a link-derived credit row (api#933 / PR#943, app#1344).
-		 * Set together ONLY when POST /payments/{source}/{paymentId}/link runs with
-		 * applyCredit:true and auto-creates this Account credit row. Manual PAGO
-		 * rows leave both undefined. The FE reads them to render the source chip
-		 * and dedup against the matching PaymentReceived projection row.
+		 * Provenance of a link-derived credit row, set together ONLY when
+		 * POST /payments/{source}/{paymentId}/link runs with applyCredit:true.
+		 * Manual PAGO rows leave both undefined. FE uses these to render the
+		 * source chip and dedup against the matching PaymentReceived row.
 		 */
 		paymentRefSource?: PaymentReceivedSource;
 		paymentRefId?: string;

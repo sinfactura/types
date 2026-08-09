@@ -1,12 +1,8 @@
 declare global {
-  // ───────────────────────────────────────────────────────────────
-  // OAuth wire shapes (epic #832 — per-tenant MercadoPago Connect)
-  // ───────────────────────────────────────────────────────────────
+  // OAuth wire shapes (per-tenant MercadoPago Connect)
 
-  // Response from MP's token endpoint:
-  //   POST https://api.mercadopago.com/oauth/token
-  // Used by both the initial code→token exchange (api#875) and the
-  // refresh-token flow (api#876).
+  // Response from MP's token endpoint (POST /oauth/token). Used by both the
+  // initial code→token exchange and the refresh-token flow.
   interface MpOauthTokenResponse {
     access_token: string;
     refresh_token: string;
@@ -18,12 +14,12 @@ declare global {
     live_mode?: boolean;
   }
 
-  // BE → FE response from POST /mercadopago/oauth/initiate (api#875).
+  // BE → FE response from POST /mercadopago/oauth/initiate.
   interface MpOauthInitiateResponse {
     authorizationUrl: string;
   }
 
-  // BE → FE response from GET /mercadopago/oauth/callback (api#875).
+  // BE → FE response from GET /mercadopago/oauth/callback.
   // The FE renders a confirmation, then redirects to the Integrations
   // hub which fetches the full status via GET /mercadopago/status.
   interface MpOauthCallbackResponse {
@@ -34,9 +30,8 @@ declare global {
     connectedAt: number;
   }
 
-  // FE-safe DTO returned by GET /mercadopago/status (api#878).
-  // Strips access/refresh tokens and any field that should never leave
-  // the BE. The FE renders the Integrations hub card from this shape.
+  // FE-safe DTO returned by GET /mercadopago/status — strips access/refresh
+  // tokens and any field that should never leave the BE.
   interface MercadopagoStatus {
     connected: boolean;
     status: MercadopagoConnectionStatus;
@@ -50,9 +45,7 @@ declare global {
     features?: Mercadopago["features"];
   }
 
-  // ───────────────────────────────────────────────────────────────
-  // Webhook / IPN shapes (api#880 — per-tenant payment notifications)
-  // ───────────────────────────────────────────────────────────────
+  // Webhook / IPN shapes (per-tenant payment notifications)
 
   // Envelope MP delivers to /mercadopago/oauth/webhook. The BE then
   // fetches the resource via the SDK and broadcasts a narrower
@@ -85,9 +78,7 @@ declare global {
     receivedAt: number;         // unix ms — when BE recorded the event
   }
 
-  // ───────────────────────────────────────────────────────────────
-  // Point / In-person QR (api#879)
-  // ───────────────────────────────────────────────────────────────
+  // Point / In-person QR
 
   // Device fetched from /point/integration-api/devices (BE → FE so the
   // admin can pick which physical device receives QR payments).
@@ -99,15 +90,11 @@ declare global {
     operatingMode: "PDV" | "STANDALONE";
   }
 
-  // ───────────────────────────────────────────────────────────────
-  // QR collection responses (api#879 static · api#884/#959 dynamic)
-  // ───────────────────────────────────────────────────────────────
+  // QR collection responses (static · dynamic)
 
-  // `data` payload of POST /mercadopago/qr — the static "QR Personal"
-  // (api#879): a persistent, printable POS QR the customer scans to pay
-  // over the counter. Mirrors the success `data` the handler returns in
-  // `api/stacks/lambdas/mercadopago/_qr.ts`. `null`s are the handler's
-  // explicit `?? null` fallbacks when MP omits the field.
+  // `data` payload of POST /mercadopago/qr — the static "QR Personal": a
+  // persistent, printable POS QR the customer scans to pay over the counter.
+  // `null`s are the handler's explicit `?? null` fallbacks when MP omits the field.
   interface MpStaticQrResponse {
     posId: string;                     // MP-issued POS numeric id (stringified).
     externalPosId: string;             // SINFACTURA-pinned external id (`SF{storeId}POS`).
@@ -118,12 +105,9 @@ declare global {
     isNew: boolean;                    // true when the POS was created on this call.
   }
 
-  // `data` payload of POST /mercadopago/qr/dynamic — the amount-bound
-  // EMVCo QR (api#884 → api#959 amount-bound consolidation): one per
-  // charge, minted from the order / cuenta-balance / ad-hoc surfaces.
-  // The FE renders `qrData` as an EMVCo QR the MP app interprets
-  // natively. Mirrors the amount-bound success `data` in
-  // `api/stacks/lambdas/mercadopago/_qrDynamic.ts`.
+  // `data` payload of POST /mercadopago/qr/dynamic — the amount-bound EMVCo
+  // QR, one per charge, minted from the order / cuenta-balance / ad-hoc
+  // surfaces. The FE renders `qrData` as an EMVCo QR the MP app interprets natively.
   interface MpDynamicQrResponse {
     qrData: string;             // EMVCo QR string.
     inStoreOrderId: string;     // MP in-store order id backing this QR.
@@ -137,12 +121,10 @@ declare global {
     isNew: boolean;             // false when a still-valid cached QR was returned.
   }
 
-  // ───────────────────────────────────────────────────────────────
-  // Super-ops forensic logs (api#970/#976) — operator OPERACIONES panels
-  // ───────────────────────────────────────────────────────────────
+  // Super-ops forensic logs — operator OPERACIONES panels
 
   // MP webhook forensic-log result. Mirrors the BE `MpHookLogResult` union
-  // in `api/stacks/services/mercadopago.ts` (api#970).
+  // in `api/stacks/services/mercadopago.ts`.
   type MpHookResult =
     | 'config-missing'
     | 'test-event'
@@ -153,7 +135,7 @@ declare global {
     | 'error';
 
   // Row shape from `MP_HOOK_LOG#{storeId}` (or `unresolved`). Field names match
-  // the BE `recordMpHookEvent` writer (api#970): `rawBodyB64` (not `rawBody`),
+  // the BE `recordMpHookEvent` writer: `rawBodyB64` (not `rawBody`),
   // `expectedPrefix` (not `computedExpectedPrefix`). `hookId` is the SK surfaced
   // by the read/WS-broadcast DTO (`data: { hookId: Item.SK }`).
   interface MpHookLogEntry {
@@ -180,10 +162,10 @@ declare global {
     ttl?: number;
   }
 
-  // Phase-2 IPN processing outcome (api#976), stamped on each MP_IPN_LOG row.
+  // Phase-2 IPN processing outcome, stamped on each MP_IPN_LOG row.
   // Mirrors the BE `MpIpnOutcome` union AND `ProcessIpnPaymentResult['outcome']`
   // in `api/stacks/lambdas/mercadopago/_ipnProcess.ts`. Optional on the row —
-  // Phase-1 (pre-#976) rows omit it.
+  // Phase-1 rows omit it.
   type MpIpnOutcome =
     | 'polled-online'
     | 'no-online-tenants'
@@ -193,7 +175,7 @@ declare global {
     | 'error';
 
   // Row shape from `MP_IPN_LOG#unresolved`. Field names match the BE
-  // `recordMpIpnEvent` writer (api#976). `ipnId` is the SK surfaced by the
+  // `recordMpIpnEvent` writer. `ipnId` is the SK surfaced by the
   // read/WS-broadcast DTO (`data: { ipnId: Item.SK }`). The BE always writes
   // `topic` (`topic || 'unknown'`) and `resourceId` (`resourceId || ''`), so
   // both are required here (corrects the app-local optional drift).
@@ -219,11 +201,11 @@ declare global {
 
   // MP money-movement classification. Mirrors `MoneyMovement['type']` in
   // `api/stacks/lambdas/mpMovementsPoller/_pollTenant.ts` and the read-path
-  // Zod enum in `api/stacks/lambdas/platform/_mpMovementLog.ts` (api#976).
+  // Zod enum in `api/stacks/lambdas/platform/_mpMovementLog.ts`.
   type MpMovementType = 'transfer_in' | 'qr_in' | 'transfer_out' | 'fee' | 'refund' | 'other';
 
   // Row shape from `MP_MOVEMENT#{storeId}`. Field names match the BE
-  // `claimAndPersistMovement` writer (api#976): `email` (not `payerEmail`),
+  // `claimAndPersistMovement` writer: `email` (not `payerEmail`),
   // `cuit` (not `payerCuit`); `operationId` is re-derived from the SK on read.
   // `source` is the literal 'transfer' the writer always stamps. The BE does
   // NOT persist `storeId` (it lives only in the PK) or `paymentId` on this row

@@ -82,13 +82,13 @@ declare global {
 		errors?: Error[]
 	}
 
+	// 131047: message failed to send because >24h have passed since the
+	// customer last replied, sent via a template.
 	interface Error {
 		code: 131047 | number;
 		title: string;
 		href: string;
 	}
-	// 131047 Message failed to send because more than 24 hours have passed since
-	// the customer last replied to this number, sent a message using template.
 
 	interface Conversation {
 		id: string;
@@ -104,12 +104,9 @@ declare global {
 		category: 'user_initiated' | string;
 	}
 
-	// ─────────────────────────────────────────────────────────────────
-	// WhatsApp Commerce (sinfactura/types#34, sinfactura/app#1072)
-	// Tenant-facing config, conversations, messaging, usage metering, and
-	// message templates. Distinct from the Meta webhook payload shapes
-	// above (Message / Status / etc.) — these are SINFACTURA-side entities.
-	// ─────────────────────────────────────────────────────────────────
+	// WhatsApp Commerce: tenant-facing config, conversations, messaging,
+	// usage metering, and message templates — distinct from the Meta webhook
+	// payload shapes above (SINFACTURA-side entities).
 
 	/** Per-tenant WhatsApp Business connection + plan tier. */
 	interface WhatsAppConfig {

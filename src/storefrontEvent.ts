@@ -1,6 +1,5 @@
 
-// Typed storefront events pipeline (types#69, api#1239/#1240,
-// storefront#425/#429, app#1638). Schema-validated discriminated union
+// Typed storefront events pipeline. Schema-validated discriminated union
 // emitted by `sinfactura/storefront` (via the `track()` wrapper in
 // `src/utils/track.ts`), validated and persisted by `sinfactura/api`
 // (Zod mirror in `stacks/helpers/storefrontEvents/schema.ts`), rendered
@@ -98,7 +97,7 @@ declare global {
 	}
 
 	/**
-	 * Customer self-cancelled their own order from the storefront (api#591).
+	 * Customer self-cancelled their own order from the storefront.
 	 *
 	 * Always carries `customer_id` — self-cancellation requires an authenticated
 	 * customerToken, so an anonymous variant is a contract violation. This is the
@@ -172,7 +171,7 @@ declare global {
 		| CustomerPasswordResetRequestedEvent;
 
 	// Anonymous-to-customer stitch row, written when an anonymous visitor
-	// authenticates (api#1240). Partition key on `(tenant_store_id, anonymous_id)`;
+	// authenticates. Partition key on `(tenant_store_id, anonymous_id)`;
 	// queried by the customer-activity feed to fan out across linked
 	// anonymous partitions, with `since: linked_at` so pre-stitch events
 	// on a shared device don't leak across customers (Ley 25.326).

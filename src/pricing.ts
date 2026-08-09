@@ -2,11 +2,9 @@ declare global {
 	/**
 	 * ADR-0013 self-describing money stamp — STRICT (frozen rate required).
 	 * Used ONLY on the new pricing-authoring shapes (PriceSlot[absolute] /
-	 * PriceBreak / PricePromo). An optional frozen rate would reopen the
-	 * live-rate hole (#1542). `currency` is bare `string` (catalogId) for parity
-	 * with `Product.currency` — do NOT half-narrow to `CatalogId` while the
-	 * entity stamps stay `string`. Do NOT retrofit this onto SupplierInvoice /
-	 * SupplierAccount (optional-currency by design — would break supplier writes).
+	 * PriceBreak / PricePromo). Do NOT half-narrow `currency` to `CatalogId`
+	 * while entity stamps stay `string`; do NOT retrofit onto SupplierInvoice /
+	 * SupplierAccount (optional-currency by design).
 	 */
 	interface CurrencyStamp {
 		currency: string;
@@ -15,12 +13,11 @@ declare global {
 	}
 
 	/**
-	 * A named, extensible price list. Split OUT of the shared `Method` blob
-	 * (`Method` is reused by 7 unrelated Store arrays — don't leak pricing into
-	 * paymentMethods / ivaTypes). A structural SUPERSET of `Method` (keeps
-	 * id / name / value? / removable? / editable?) so `store.priceLists:
-	 * Method[] → PriceList[]` is type-compatible. `id` is the stable FK target
-	 * for `Customer.priceList` + `PriceSlot.listId`.
+	 * A named, extensible price list, split OUT of the shared `Method` blob
+	 * (reused by 7 unrelated Store arrays — don't leak pricing into
+	 * paymentMethods/ivaTypes). Structurally a superset of `Method` so
+	 * `store.priceLists: Method[] → PriceList[]` stays type-compatible.
+	 * `id` is the FK target for `Customer.priceList` + `PriceSlot.listId`.
 	 */
 	interface PriceList {
 		id: number;
@@ -52,10 +49,9 @@ declare global {
 	}
 
 	/**
-	 * One price list's pricing for a product. Discriminated union — kills the
-	 * `{}`, both-set and neither-set invalid states; the `kind:'absolute' ⇒
-	 * stamp` invariant rides the discriminant. `listId` is an FK to
-	 * `PriceList.id`.
+	 * One price list's pricing for a product. A discriminated union kills the
+	 * `{}`/both-set/neither-set invalid states — `kind:'absolute'` implies a
+	 * `CurrencyStamp`. `listId` is an FK to `PriceList.id`.
 	 */
 	type PriceSlot =
 		| {

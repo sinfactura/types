@@ -34,6 +34,15 @@ This file provides types-specific guidance for the shared TypeScript types packa
 - Use deprecation warnings before removing types
 - Document migration paths for breaking changes
 
+## 🔖 Comments & Issue References
+
+Enforced by ESLint — the local `sinfactura/no-issue-refs-in-comments` rule (wired in `eslint.config.js` as `error`). Run `yarn lint`; CI blocks a PR that violates it.
+
+- **No issue references in code comments.** A bare `#1234` or a `repo#1234` token (`api#`, `app#`, `types#`, `print#`, …) is opaque to a reader and rots silently when the issue closes. A closed issue is archaeology: **strip the reference and keep the constraint** it encoded, written as prose. The knowledge stays in the comment — only the lookup goes.
+- **A genuinely live pointer belongs in a marker:** `TODO(<repo>#<n>): …` or `FIXME(<repo>#<n>): …` is the only sanctioned home for a reference, and only for open, actionable work.
+- **`ADR-NNNN` is exempt** — an ADR is in-repo and immutable, so citing one is a stable pointer, not a lookup.
+- **JSDoc must stand alone.** This package is consumed by every service, so its comments *are* the contract's documentation: state the rule/constraint inline rather than citing a cross-repo issue, which is meaningless from another repo.
+
 ## 📁 Type Modules Structure
 
 ```
