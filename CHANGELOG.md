@@ -7,6 +7,17 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.13
+
+- **fix(audit):** add `'mercadopago.dynamicQr.create'` to `OrderAuditAction`
+  (`audit.ts`). The api has written that literal into the `AUDIT#ORDER#…`
+  partition since before the union existed, so the closed union did not
+  describe the partition it claims to type — the order-audit read endpoint was
+  casting those rows onto the wire as if they were union members, and a
+  consumer keying a label map off the union renders a blank action for them.
+  Published as-written rather than renamed, so historical rows stay inside the
+  type. It is the one member not in the `snake_case` taxonomy.
+
 ## 1.10.12
 
 - **feat(mercadopago):** declare the QR-collection response DTOs that api had

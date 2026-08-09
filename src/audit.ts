@@ -65,7 +65,16 @@ declare global {
 		| 'delivery_method_changed'
 		| 'delivery_address_changed'
 		| 'invoice_created'
-		| 'credit_note_created';
+		| 'credit_note_created'
+		/**
+		 * MercadoPago dynamic-QR minted against an order. The ONE member not in
+		 * the `snake_case` taxonomy: the api has written this dotted literal into
+		 * the `AUDIT#ORDER#…` partition since before the union existed, so the
+		 * stored rows carry it verbatim. Publishing the value as-written is what
+		 * makes the union a faithful description of the partition — renaming it
+		 * would leave every historical row outside the type.
+		 */
+		| 'mercadopago.dynamicQr.create';
 
 	/** One ARCA fiscal SOAP interaction. Stored raw (CUIT unmasked) for 10y; masked at read. */
 	interface FiscalAuditEvent {
