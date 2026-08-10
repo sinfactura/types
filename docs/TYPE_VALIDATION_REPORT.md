@@ -1,383 +1,355 @@
-# Type Validation Report: `sinfactura-types` vs `api` + `app`
+# Cross-Repository Type Validation Report
 
 **Date:** 2026-08-10
-**Types version validated:** 1.10.16
-**Scope:** All 40+ type files in `types/src/` compared against the API's lambda handlers, services, and DynamoDB schema in `api/stacks/`, and against the app's consumption patterns in `app/src/`.
+**Types version:** `sinfactura-types@1.10.16` (audited); `1.10.17` landed and published mid-remediation, resolving Finding 5
+**Compared repositories:** `sinfactura/types`, `sinfactura/api`, `sinfactura/app`
+**Scope:** All 43 files in `types/src/`, their API producers/storage paths, and current app consumers.
 
-## Executive Summary
+## Executive summary
 
-The types package models the **read shape** (what the FE receives from GET endpoints), while the API's Zod schemas model the **write shape** (what the API accepts on POST/PATCH). This fundamental difference accounts for the majority of "required in types, optional in API" discrepancies — they are **by design**. However, there are also genuine mismatches that warrant action.
+The fresh audit found **20 shared-contract discrepancies**, **13 app integration/type-safety gaps**, and **4 forward-only or documentation observations**. This replaces the previous total of 34: that count included false positives, intentional storage/input differences, and a style-only item.
 
-### Findings by Severity
+An independent adversarial verification pass (2026-08-10) re-checked every claim below against api/app code (~100 sub-claims). None of the findings collapsed; four corrections were folded in (Findings 2, 3, 15 and app row A11), one previously removed item was restored as Finding 20, newly surfaced adjacent defects were folded into Findings 1, 2, 5, 6 and 19, and all validation gates were re-run and pass.
 
-| Severity | Count | Description |
-|----------|-------|-------------|
-| 🔴 Critical | 6 | Structural mismatches where the type fundamentally misrepresents the API's data model |
-| 🟡 Medium | 12 | Fields required in types that can legitimately be absent from DDB rows, plus dead fields |
-| 🟠 Low | 9 | Internal-only fields, phantom types, minor naming/style issues |
-| 🔵 App-only | 7 | App-local types that should be promoted, or untyped surfaces (A1–A7) |
-| **Total** | **34** | |
-| ✅ Aligned | 8 verified | userActivity, storefrontEvent, impersonation, mercadolibre, currency, print, audit, SupportMessage |
+| Category | Count | Meaning |
+|---|---:|---|
+| High | 3 | A core type or public response materially misrepresents the implemented contract |
+| Medium | 10 | Real optionality, projection, validation, or boundary mismatch |
+| Low | 7 | Dead/phantom fields or client-only fields mixed into shared entities |
+| App | 13 | Current app pin, stale local mirrors, or unshared wire DTOs |
+| Observation | 4 | Forward-only declarations or documentation drift, not runtime mismatches |
+| **Shared discrepancies** | **20** | High + medium + low only |
 
----
+The package does **not** consistently model one layer. It contains a mixture of:
 
-## 🔴 Critical Discrepancies
+1. request DTOs,
+2. DynamoDB/storage rows,
+3. REST projections,
+4. WebSocket payloads, and
+5. app-only/synthetic view fields.
 
-### 1. Subscription — Major Structural Divergence
+That distinction matters. A storage-only field is not missing from a public type if every read path strips it; conversely, an internal field is a wire mismatch when a raw-row projection leaks it. Findings below identify the affected layer explicitly.
 
-The `Subscription` type is fundamentally misaligned with the API's `SubscriptionRow`:
+## High-severity discrepancies
 
-| Issue | Types | API |
-|-------|-------|-----|
-| Naming | `tenantId` | `storeId` |
-| Billing cycle | Required | Optional (absent before checkout) |
-| Period dates | `currentPeriodStart`/`End` required | Optional |
-| Provider IDs | `stripeCustomerId`/`stripeSubscriptionId` | `externalCustomerId`/`externalSubscriptionId` (provider-agnostic) |
-| Overrides | `overrides?: Partial<Record<FeatureKey, Entitlement>>` (embedded) | Stored as SEPARATE DDB rows (`OVERRIDE#{key}` SK) |
-| Currency | Declared as persisted on subscription | Derived from `PlanTemplate.currency` at runtime |
-| Missing | — | `provider?`, `cancelAt?`, `canceledAt?`, `pastDueSince?` not in type |
+### 1. `Store` conflates storage, request, and wire shapes
 
-**Impact:** Any consumer using `Subscription` gets a model that doesn't match what the API stores or returns. Wire payload (`SubscriptionSyncPayload`) exposes `cancelAt`/`canceledAt` that the source type doesn't declare.
+`Store` is used as the app-facing `GET /store` shape, but it both omits returned fields and requires fields the endpoint deliberately no longer returns.
 
-**Recommendation:** Redesign `Subscription` to match `SubscriptionRow` + add provider-agnostic naming. Move `overrides` to a separate type or document the DDB-external storage.
+**Returned but undeclared:**
 
-### 2. Store — Missing Fields Written by API
+- `updatedAt`
+- top-level contact/payment fields `whatsapp`, `instagram`, `facebook`, and `cbu`
+- `priceListSeq` can leak through the raw `...store` spread on `GET /store` — and additionally through the shared write echo (`dynamoUpdate` returns the re-read row) on POST/PATCH responses and the admin WebSocket broadcast — although it is documented by the API as internal bookkeeping and should be stripped rather than publicized
 
-Fields the API writes/reads but the Store type doesn't declare:
+**Declared required but not guaranteed on the wire:**
 
-| Field | Written By | Purpose |
-|-------|------------|---------|
-| `updatedAt` | Every `_post.ts`/`_patch.ts` mutation | Timestamp |
-| `priceListSeq` | `reconcilePriceLists` | Monotonic counter for list-id assignment |
-| `whatsapp` (top-level string) | `removableFieldSchema` | Social contact (distinct from `integrations.whatsapp`) |
-| `instagram` | `removableFieldSchema` | Social contact |
-| `facebook` | `removableFieldSchema` | Social contact |
-| `cbu` (top-level) | `removableFieldSchema` | Bank CBU (distinct from `afip.cbu`) |
+- `appVersion` is retired and stripped on writes/wire boundaries
+- `fiscalConditions` is retired and omitted
+- `email`, `phone`, and `cuit` are required in `Store`, but the API allows all three to be removed
 
-**Impact:** FE consumers cannot type-safely access these fields even though the API serves them.
+`ivaTypes` is different: it remains required and `GET /store` injects it from the static `IVA_TYPES` catalog — but only there. `sanitizeStoreRow` deletes it, so the POST/PATCH `/store` response echo and the admin WebSocket broadcast omit this required field; it is aligned on GET only.
 
-### 3. Order + Invoice — Missing `search` Field
+The same interface also exposes request-only controls (`photoData`, `removePhotoURL`) and storage-only integration credentials that sanitizers never return: `Mercadopago.accessToken`, the Gmail encrypted tokens, and the AFIP `cert`/`key`/`accessTicket_*` fields. Two verification corrections: `Afip.csr` is persisted and deliberately public (returned to the operator; stripped by no sanitizer), and WhatsApp's required `accessToken` has no writer at all — no connect flow exists — so it is a phantom rather than a stripped secret. `GET /store` currently withholds `integrations.whatsapp` entirely.
 
-The API writes a `search: string` field to every order **and** invoice row, but neither type declares it. This is inconsistent — `Product` (`product.ts:10`) and `Customer` (`customer.ts:56`) both declare `search: string` as required.
+**Action:** split `StoreWriteInput`, `StoreRow`, and `StoreWire`; make removable contact fields optional; remove retired required fields; add legitimate wire fields; explicitly strip `priceListSeq` from responses.
 
-| Entity | API writer | Type status |
-|--------|-----------|-------------|
-| Order | `buildOrderSearch` in `orders/_post.ts` | ❌ not declared |
-| Invoice | `buildInvoiceSearch` in `invoices/_post.ts:789` and `:1323` | ❌ not declared |
-| Product | server-derived | ✅ `search: string` |
-| Customer | server-derived | ✅ `search: string` |
+### 2. `Subscription` is not the implemented DynamoDB row
 
-### 4. Account — `details` Required but Conditionally Written
+The `Subscription` comment explicitly says it is the stored row, but the API's `SubscriptionRow` uses a different model:
 
-`Account.details: string` is **required** in types, but `_post.ts` only writes it when non-empty:
-```typescript
-...(details ? { details } : {})
+| `Subscription` | API storage |
+|---|---|
+| `tenantId` | `storeId` |
+| required billing cycle/periods | optional before checkout |
+| `stripeCustomerId` / `stripeSubscriptionId` | provider-neutral `externalCustomerId` / `externalSubscriptionId` |
+| embedded `overrides` | separate `OVERRIDE#...` rows |
+| no provider/cancellation/past-due fields | `provider`, `cancelAt`, `canceledAt`, `pastDueSince` |
+
+This does **not** mean the frontend currently receives the wrong shape. `GET /subscription` serves `SubscriptionSyncPayload` — the builder is annotated `Promise<SubscriptionSyncPayload>` and a field-by-field comparison found zero mismatches. The WebSocket, however, never carries the payload: all five subscription pushes send a thin `{ action: 'subscription', data: { type, … } }` refetch nudge.
+
+Two adjacent defects surfaced by verification: the types `Subscription.currency` JSDoc documents a subscription-level snapshot that does not exist (`SubscriptionRow` has no `currency`; the snapshot reads the Plan row), and `GET /store` embeds a hand-built, unannotated subscription block that omits `currency` and `freeUntil`. That embed matches neither declared shape: `Store.subscription` is typed `StoreRowSubscriptionSummary`, which is the six-field `GET /tenants` supervisor summary — the `GET /store` embed is a ten-field near-`SubscriptionSyncPayload`, so the declared type actively contradicts the tenant-facing response.
+
+**Action:** replace or rename `Subscription` as an actual storage type (and drop its phantom `currency` snapshot claim). Keep `SubscriptionSyncPayload` as the public read contract, and annotate the `GET /store` subscription embed with it or a declared subset.
+
+### 3. Internal `search` fields leak inconsistently from Orders and Invoices
+
+Order, Invoice, Customer, Supplier and SupplierInvoice writers all persist a lower-cased `search` index.
+
+- Order service projections (`getOrderById`, `getOrdersByCustomerId`, `getOrdersByDate`) spread raw rows and return `search` on every affected REST path; the delivery endpoint's `...order` response echo leaks it too, and `getOrdersByCustomerId` declares a `ProjectionExpression` prop it never forwards.
+- Invoice search results delete `search`, but the customer-scoped and default/date branches return it through raw spreads, and get-one (`getInvoiceById`) returns the raw row.
+- Verification overturned the claim that Customer/Supplier reads already strip it — only some branches do. `GET /customers?customerId=` returns the unprojected row, the bare supplier list spreads raw rows (only the supplier *search* branch strips, with a comment claiming it mirrors customers), and supplier invoices both persist and leak it via `?mode=invoices`.
+- Neither `Order` nor `Invoice` declares `search` — but `Customer.search` is declared **required**, and `Supplier`, `Product` and `User` declare it too, codifying the internal index on shared entities.
+
+The API comments identify `search` as internal, and the central `stripSensitive` list covers only keys and credentials, so nothing catches these leaks centrally. Adding the field to more public types would codify a leak rather than fix the boundary.
+
+**Action:** strip `search` from every Order, Invoice, Customer, Supplier and SupplierInvoice REST/WS projection (print rules are Finding 12); deprecate the four `search` declarations already in the shared package rather than adding more.
+
+## Medium-severity discrepancies
+
+### 4. `Account.details` is required but conditionally written
+
+`Account.details: string` is required, while manual account creation omits it when empty. Existing rows can therefore lack the field.
+
+**Action:** make `details` optional, or make every writer stamp a value.
+
+### 5. Customer import warning fields are absent from `ImportCustomersResponse` — RESOLVED in 1.10.17
+
+`response()` injects `status`, so the old claim that `ImportResponse.status` is absent was false. Successful imports correctly return `status: true`.
+
+The real mismatch is that customer imports can additionally return:
+
+```ts
+skipped?: number;
+skippedRows?: Array<{
+  row: number;
+  email: string; // server-masked
+  reason: 'EMAIL_TAKEN' | 'DUPLICATE_IN_FILE' | 'EMAIL_CHECK_INCOMPLETE';
+}>;
+skippedRowIndexes?: number[];
 ```
-DDB rows can and do lack `details`. Should be `details?: string`.
 
-### 5. ImportResponse — `status` Field Never Returned
+`skippedRows` is a bounded sample (capped at 200 rows, emails masked server-side); `skippedRowIndexes` is the deliberately uncapped complete list. Both are also emitted on the all-rows-skipped early return. `constraintReseedFailed` is already declared in 1.10.16 and is not a gap.
 
-`ImportResponse.status: boolean` is required, but neither the product importer nor the customer importer returns a `status` field. The actual response is `{ message: string, unprocessed?: number }`.
+**Resolved:** `sinfactura-types@1.10.17` (commit `91d4fa6`, pushed and published during remediation) declares `skipped`, `skippedRows` and `skippedRowIndexes` with the cap/masking semantics, plus the `ImportSkipReason`/`ImportSkippedRow` vocabulary; the api already installs 1.10.17. Remaining work is app-side only (A5/A10).
 
-### 6. ImportCustomersResponse — Missing `skipped`/`skippedRows`
+### 6. `SupplierInvoice` overstates required fields
 
-The customers importer returns `skipped: number` and `skippedRows: Array<{ row: number; email: string; reason: string }>` that are not declared on the type.
+The API does not guarantee the following required properties on all persisted/read rows:
 
----
+- `neto`, `iva10`, `iva21`, `per_iibb`, `per_iva`
+- `file` (only when a PDF exists)
+- `currencyValue` (conditional currency stamping)
+- `supplierId` (verification addition: `.optional()` in the write schema and never defaulted)
 
-## 🟡 Medium Discrepancies
+`storeId` and `invoiceId` are correctly synthesized from keys on the public read path — though two internal read paths cast raw items to `SupplierInvoice` without synthesizing them (neither reaches a response body). `supplierId` is a normal persisted field and should not be described as key-derived. The API derives `currencyValueAt` on current writes, and its optional shared declaration remains safe for legacy rows.
 
-### 7. SupplierInvoice — Multiple Required Fields Should Be Optional
+**Action:** make only the genuinely non-guaranteed fields optional, or tighten the writer schema/migration.
 
-| Field | Line | Issue |
-|-------|------|-------|
-| `neto` | `supplier.ts:36` | Required in types, not validated/enforced by API |
-| `iva10` | `supplier.ts:37` | Same |
-| `iva21` | `supplier.ts:38` | Same |
-| `per_iibb` | `supplier.ts:40` | Same |
-| `per_iva` | `supplier.ts:41` | Same |
-| `file` | `supplier.ts:42` | Required in types, only present when a PDF was uploaded |
-| `currencyValue` | `supplier.ts:45` | Required in types, conditionally omitted on writes |
-| `storeId`, `invoiceId`, `supplierId` | — | Required in types, live in PK/SK only (not top-level DDB attributes) |
+### 7. Notification transport/storage/wire layers are mixed
 
-### 8. NotificationInterface — Undeclared Fields
+Every notification row receives `dated` and `ttl`; raw WebSocket/GET paths can expose them, but `NotificationInterface` omits both. Conversely, `TableName` is an SQS routing input that is removed before persistence but is declared on the entity.
 
-| Field | Issue |
-|-------|-------|
-| `dated` | Written to every notification row by the SQS consumer, **not declared** |
-| `ttl` | Written to every notification row (`getTTL(1)`), **not declared** |
-| `TableName` | Declared at `notification.ts:60` but never persisted — it's an SQS transport/routing field destructured out before the write |
+**Action:** define a notification queue input separately. Either add `dated`/`ttl` to a row/wire type or explicitly project them out at every public boundary.
 
-### 9. Plan — Required Fields Optional in API
+### 8. Basket has almost no runtime shape validation
 
-| Field | Types | API |
-|-------|-------|-----|
-| `isPopular` | Required (`boolean`) | Optional on `PlanTemplate` |
-| `bullets` | Required (`string[]`) | Optional on `PlanTemplate` |
-| `color` | `string \| null` | `string?` (optional, not nullable) — semantic `null` vs `undefined` divergence |
+The write schema validates `customerId` and passes the rest through `.loose()`. It does not enforce the shared `Basket` contract for `customer`, `quantity`, `currency`, `cost`, `total`, or `items`.
 
-### 10. Cash — `incomeByCurrency` Dead Field
+This is a runtime-guarantee gap rather than evidence that every stored basket is currently malformed.
 
-`cash.ts:24` declares `incomeByCurrency?: Record<string, number>` but **no API handler ever writes it**. Neither `cash/_post.ts` nor `cash/_get.ts` produces it. (Its sibling `balanceByCurrency?` at `:23` **is** written on BALANCE snapshot rows.)
+**Action:** validate the persisted Basket fields or introduce an explicit permissive input DTO and normalize it before storage.
 
-### 11. Account — `currencyValueAt` Dead Field
+### 9. Request controls are embedded in seven entity interfaces
 
-`account.ts:47` declares `currencyValueAt?: number` but it is **never written to Account rows**. The CAJA mirror (Cash row) writes `currencyValueAt: createdAt`, but the Account row itself doesn't.
+The following are request-only and stripped before persistence:
 
-### 12. Basket — Zero Server-Side Validation
+- `Brand.photoData` / `removePhotoURL`
+- `Category.photoData` / `removePhotoURL`
+- `Customer.photoData` / `removePhotoURL`
+- `Supplier.photoData` / `removePhotoURL`
+- `User.photoData` / `removePhotoURL`
+- `Store.photoData` / `removePhotoURL`
+- `Product.removePictures`
 
-The API's basket Zod schema validates only `customerId`. Every other field required by the `Basket` type passes through unchecked via `.loose()`:
+**Action:** move them to create/update input DTOs instead of public entity/read interfaces.
 
-| Field | Line |
-|-------|------|
-| `customer: Partial<Customer>` | `basket.ts:6` |
-| `quantity: number` | `basket.ts:9` |
-| `currency: string` | `basket.ts:11` |
-| `cost: number` | `basket.ts:15` |
-| `total: number` | `basket.ts:16` |
-| `items: BasketItem[]` | `basket.ts:17` |
+### 10. `Invoice.cbte_numero` is missing
 
-### 13. Supplier — Transient Fields on Entity Type
+The API persists `cbte_numero` on pending credit-note rows. `Invoice` does not declare it, although the app already carries a local request-side field.
 
-`Supplier.photoData?` (`supplier.ts:10`) and `Supplier.removePhotoURL?` (`:11`) are request-only control fields stripped before the DDB write. They should live on a separate input type, not the entity interface.
+**Action:** add `cbte_numero?: number` to the appropriate Invoice row/wire or pending-NC subtype.
 
-### 14. Product — `removePictures` Control Field on Read Type
+### 11. REST payments omit persisted `externalReference`
 
-`product.ts:20` declares `removePictures?: { url: string }[]`, which is destructured out of the body and used for S3 deletion — it never persists. Should be on a write/input type.
+`PaymentRow` stores `externalReference`, and `PaymentReceivedWsPayload` includes it. `projectRowToWire()` omits it from `GET /payments/received`. The service comment saying it is "surfaced on the wire" is satisfied only by the WebSocket live-tail — it is misleading for REST, where the projection is an allow-list without the field.
 
-### 15. Order — `dueDate` Dead Field
+`dated` is internal in practice (no comment or test documents the intent); REST already exposes `paidAt`, so it should not be added to `PaymentReceived`.
 
-`order.ts:32` declares `dueDate?: number` but **no writer exists** anywhere in the orders lambdas. (Note: `invoice.ts:175` has the same dead `dueDate?` — its JSDoc already flags it as "DECLARATIVE ONLY".)
+**Action:** project `externalReference` and add it to `PaymentReceived`.
 
-### 16. Invoice — `cbte_numero` Not in Type
+### 12. `PrintRule` leaks undeclared storage fields
 
-The API persists `cbte_numero` on pending NC rows (`...(pendingCause && cbte_numero ? { cbte_numero } : {})`), but the `Invoice` interface doesn't declare it.
+Print rules persist `search` and `createdAt`. `listStorePrintRules()` returns raw rows, and the generic response sanitizer does not remove either field. `PrintRule` declares neither.
 
-### 17. PaymentReceived — `dated`/`externalReference` Not on the REST Type
+**Action:** either project both out or add them to the public read type. They are not currently “intentionally stripped.”
 
-`PaymentRow` (API) stores `dated: number` and `externalReference?: string`. Neither is on `PaymentReceived` (`payment.ts:31-64`).
+## Low-severity discrepancies
 
-- `externalReference` **is** declared on `PaymentReceivedWsPayload` (`payment.ts:23`) but not on the REST `PaymentReceived` — an asymmetry between the WS and REST contracts for the same underlying row.
-- `dated` is on neither (the `dated: number` at `payment.ts:104` belongs to `OrderCandidate`, not a payment type).
+### 13. `Account.currencyValueAt` has no Account-row writer
 
-**Note — this type is exemplary about documenting its own gaps.** `PaymentReceived` carries explicit `⚠️` JSDoc on `currencyValue`/`currencyValueAt` ("NOT IMPLEMENTED on this row … undefined on 100% of GET rows") and on `reconciled`/`reconcileReason` ("Stamped ONLY on the MP row — GET never carries these"). That is the pattern other types should follow rather than a defect. The only real gap is the WS/REST `externalReference` asymmetry.
+The field is written to Cash mirror rows, not Account rows. No API writer was found for Account entities.
 
-### 18. Currency — `sourceId` Dead on Wire
+### 14. `Cash.incomeByCurrency` is an app-only synthetic field
 
-`Currency.sourceId?: string` is declared but `GET /currencies` never projects it in its response.
+The API neither stores nor returns it today, but this is decommissioned drift rather than app invention: the API used to emit a synthetic `cashStart` row carrying `incomeByCurrency` on `GET /cash`, a later commit removed it, and the app's opening `Cash` display row is a client-side reimplementation of that removed server behavior. It is therefore not dead; it is a client view field mixed into a shared entity.
 
----
+**Action:** introduce a display-row type before removing it from `Cash`.
 
-## 🟠 Low Severity
+### 15. `Order.dueDate` and `Invoice.dueDate` have no producer
 
-### 19. MpIpnLogEntry — `errorMessage` Dead Field
-`mercadopago.ts:195` (inside `MpIpnLogEntry`, lines 182-200). Declared optional, never written by `recordMpIpnEvent`. Note `MpHookLogEntry` also has `errorMessage?` at `:157` — that one **is** written.
+No API/app writer or consumer was found. Both fields document themselves as declarative-only — `Invoice.dueDate` explicitly, `Order.dueDate` with a weaker forward-only note that disclaims automatic computation but not population.
 
-### 20. MpOauthCallbackResponse / MlOauthCallbackResponse — Phantom Types
-`mercadopago.ts:25-31` and `mercadolibre.ts:26`. Both types exist but the corresponding endpoints return HTTP 302 redirects, never JSON. (`MlOauthDisconnectResponse` at `mercadolibre.ts:35` **is** returned as JSON and is correct.)
+### 16. `MpIpnLogEntry.errorMessage` is not written
 
-### 21. Mercadopago Store Integration — Dead Fields
-`store.ts:245-248` (inside the `Mercadopago` interface, lines 238-294): `tokenType?`, `scope?`, `liveMode?`, `publicKey?` are declared but never populated by the MP OAuth callback, which writes only `userId`, `accessToken`, `refreshToken`, `expiresAt`, `connectedAt`.
+`recordMpIpnEvent` never accepts or persists it. `MpHookLogEntry.errorMessage` is separate and valid.
 
-> Not to be confused with `mercadopago.ts:11` `scope?`, which belongs to `MpOauthTokenResponse` — that one is a genuine field of MP's token response.
+### 17. OAuth callback/status response types are phantom
 
-### 22. User `role` (singular) — Accepted by API, Not in Types
-`_post.ts` accepts `role: z.string().optional()` and normalizes to `roles` before write. Types declare only `roles: string` (`user.ts:12`).
+- Mercado Pago and Mercado Libre OAuth callbacks always return HTTP 302 with an empty body, not their declared callback JSON DTOs.
+- No `GET /mercadopago/status` route exists; root `GET /mercadopago` lists `MP#...` rows. `MercadopagoStatus` therefore has no producer.
 
-### 23. PrintRule — Internal Fields Not in Type
-API writes `search` and `createdAt` to `PRINT_RULE#` rows. `PrintRule` (`print.ts:254-263`) declares neither — intentionally stripped before response.
+### 18. Four Mercado Pago integration fields have no writer
 
-### 24. PrintPrinter — Internal Fields Not in Type
-API stores `storeId` and `inLatestReport` on printer rows. `PrintPrinter` (`print.ts:168-217`) declares neither — intentionally internal. (`PrintJobSummary` at `print.ts:331-367` correctly **does** declare `storeId`/`createdAt`.)
+The callback drops token-response `scope`, `token_type`, `public_key`, and `live_mode`; no other writer populates corresponding `Mercadopago.tokenType`, `scope`, `publicKey`, or `liveMode` fields. Tests that sanitize a hypothetical `publicKey` do not establish a writer.
 
-### 25. FiscalAuditEvent — `schema_version` Not in Input Schema
-`audit.ts:82` declares `schema_version: number`, but the API's Zod input schema omits it (server stamps it). Correct by design; noted for completeness.
+### 19. `Currency` is a storage sample, not the current GET wire DTO
 
-### 26. Support — `search`/`inboxKey` Internal Fields
-Written to DDB but explicitly deleted before response by `normalizeSupportHeader`. Correctly absent from types.
+`Currency.sourceId` is persisted by FX pollers and omitted by `GET /currencies` — the omission reads as unremediated drift rather than documented design (the commit introducing `sourceId` never touched the read handlers), but the field is not dead storage either way. The real design issue is that the package has no dedicated current GET projection (`currencyId` plus `createdAt`, `dated`, `value`, `variation?`, `source?`), encouraging the app to maintain a stale local interface. Relatedly, the `StoreCurrencySubscriptionView` JSDoc claims to be the wire shape for "`GET /store` and `GET /currencies`" — the `GET /currencies` half is false (its sole producer is called only from the store GET paths). See A13.
 
-### 27. Basket — Style Inconsistency
-`basket.ts:11` terminates `currency: string,` with a **comma** instead of a semicolon. Valid TypeScript, but inconsistent with every other member in the file and the rest of the package.
+### 20. Singular `User.role` persists and leaks (medium — restored)
 
----
-
-## ✅ Well-Aligned Entities
-
-The following entities showed no material discrepancies:
-
-- **userActivity** — All 70+ event variants exactly match between types and API Zod schemas (the API `satisfies UserActivityEntityType[]` ensures compile-time sync)
-- **storefrontEvent** — All 16 event variants fully aligned
-- **impersonation** — Wire contract matches perfectly
-- **mercadolibre** — Status/disconnect responses aligned; webhook envelope matches
-- **currency** (catalog, subscriptions, fx sources) — Fully aligned
-- **print** (PrintOptions, PrintUseCase) — Zod schemas match type definitions exactly
-- **audit** (OrderAuditEntry) — Aligned with appropriate narrowing
-- **SupportMessage** — All fields match `appendSupportMessage`
-
----
-
-## Cross-Cutting Patterns
-
-### 1. Read-Shape vs Write-Shape Misalignment (By Design)
-
-The vast majority of "required in types, optional in API Zod" issues stem from:
-- Types model the **complete read shape** (what GET returns after entity creation)
-- API Zod schemas model the **write shape** (POST/PATCH input where omission = "don't update")
-
-This is a **deliberate architectural choice** documented in the README: the types package models the wire contract consumers receive. However, it means the types package doesn't provide write/input types — consumers must construct partial payloads without type safety on which fields are required for creation vs optional for update.
-
-### 2. `.loose()` Passthrough Risk
-
-Several Zod schemas use `.loose()` (or `z.record()` passthrough) to allow undeclared fields through. This means:
-- Fields like `marketing`, `minBuy`, `currencyId` on Customer persist without validation
-- Any malformed data or typo silently writes to DDB
-- The types declare these fields but the API provides no runtime guarantee of their shape
-
-### 3. PK/SK-Derived Fields
-
-All entities have `storeId`/`entityId` fields that are "required" in types but live in DDB PK/SK, not as top-level attributes. GET handlers synthesize them from keys. This is correct architecture but means the raw DDB item shape differs from the type.
-
-### 4. Control-Only Fields on Read Types
-
-`Product.removePictures`, `Supplier.photoData`, `Supplier.removePhotoURL` are write-time control directives that never persist. They pollute the read interface. A clean separation would use `ProductCreateInput` / `ProductUpdateInput` types.
-
----
-
-## Recommended Actions
-
-### High Priority (Breaking Changes)
-
-1. **Redesign `Subscription` type** — align with provider-agnostic naming (`storeId`, `externalCustomerId`, `externalSubscriptionId`), make `billingCycle`/period dates optional, add `cancelAt`/`canceledAt`/`provider`, document that `overrides` live in separate DDB rows
-2. **Fix `ImportResponse`** — remove `status: boolean` (`imports.ts:46`) or make it optional; add `skipped`/`skippedRows` to `ImportCustomersResponse`
-3. **Make `Account.details` optional** (`account.ts:29`)
-4. **Add `updatedAt` to Store type** (plus `whatsapp`/`instagram`/`facebook`/`cbu`/`priceListSeq`)
-
-### Medium Priority (Non-Breaking Additions)
-
-5. **Add `search` to Order and Invoice types** — already present on Product (`product.ts:10`) and Customer (`customer.ts:56`)
-6. **Add `dated`/`ttl` to NotificationInterface** (or document them as internal-only)
-7. **Make SupplierInvoice fields optional** — `neto`, `iva10`, `iva21`, `per_iibb`, `per_iva`, `file`, `currencyValue` (`supplier.ts:36-45`)
-8. **Add `cbte_numero?` to Invoice** (for pending NC rows)
-9. **Add `externalReference?` to `PaymentReceived`** or document the WS/REST asymmetry
-
-### Cleanup (Dead Field Removal)
-
-10. **Remove `Order.dueDate`** (`order.ts:32`) — no writer exists
-11. **Remove `Cash.incomeByCurrency`** (`cash.ts:24`) — no writer exists
-12. **Remove `Account.currencyValueAt`** (`account.ts:47`) — never written to Account rows
-13. **Remove `MpIpnLogEntry.errorMessage`** (`mercadopago.ts:195`) — never written
-14. **Remove dead MP store-integration fields** — `tokenType`/`scope`/`liveMode`/`publicKey` (`store.ts:245-248`)
-15. **Remove `NotificationInterface.TableName`** (`notification.ts:60`) — transport field, not an entity field
-16. **Move control fields to input types** — `Product.removePictures`, `Supplier.photoData`/`removePhotoURL`
-17. **Resolve phantom OAuth callback types** — `MpOauthCallbackResponse`, `MlOauthCallbackResponse` (endpoints return 302, not JSON)
-18. **Fix `basket.ts:11`** — comma → semicolon
-
-### Documentation Pattern to Adopt
-
-`PaymentReceived` (`payment.ts:31-64`) is the model to follow: it carries explicit `⚠️` JSDoc marking which declared fields are **not** populated by the API and why. Applying that pattern to the remaining known-unimplemented fields would let them stay in the type (for forward-compatibility) without misleading consumers.
-
----
-
-## Methodology
-
-This comparison was performed by:
-1. Reading every type definition in `types/src/`
-2. Reading the corresponding API lambda handlers (`_get.ts`, `_post.ts`, `_patch.ts`) and service modules
-3. Comparing field-by-field: presence, optionality, naming, and data shapes
-4. Cross-referencing DynamoDB schema definitions for GSI attributes
-5. Checking for fields written by the API but not declared in types (and vice versa)
-
-The comparison focuses on the 20 most important entity domains. Utility types (api.ts, socket.ts), configuration types (pricing.ts, platform.ts), and purely FE-local types were excluded from entity-level comparison.
-
----
-
-## App-Side Findings (`sinfactura/app`)
-
-The app was compared for fields it accesses that aren't declared on the types, and for local type mirrors/duplicates that indicate the shared types package is lagging behind.
-
-### Confirmed API Findings (corroborated by app)
-
-| Finding | App Evidence |
-|---------|-------------|
-| **Store missing `whatsapp`/`instagram`/`facebook`/`cbu`** | `components/store/buildUpdatePayload.ts` hardcodes `STORE_REMOVABLE_FIELDS = ['email', 'phone', 'whatsapp', 'instagram', 'facebook', 'cbu', 'cuit']` — the app knows these top-level fields exist but the type doesn't declare them |
-| **Subscription `cancelAt`/`canceledAt`** | `SubscriptionSyncPayload` sends them; `slices/subscription.ts` silently drops them at the reducer boundary — no Redux state for them |
-
-### New Discrepancies (app-only)
-
-| # | Severity | Issue | Detail |
-|---|----------|-------|--------|
-| A1 | 🟡 Medium | **`deliveryOrder` mutation untyped** | `services/orders.ts` types the delivery body as `Record<string, string \| number \| boolean \| undefined>` — no structured interface anywhere |
-| A2 | 🟡 Medium | **WS payload types are app-local** | `CurrencyAutoUpdatedEvent` (and similar) defined in app with no canonical type in sinfactura-types. Only `PaymentReceivedWsPayload` is shared. |
-| A3 | 🟡 Medium | **Subscription local types should be promoted** | `BillingProvider`, `CheckoutPayload`, `CheckoutSession`, `PortalPayload`, `CancelSubscriptionPayload`, `CancelSubscriptionResponse`, `InvoiceSummary`, `PlanPatchPayload` — all app-local |
-| A4 | 🟠 Low | **`imports.ts` local mirrors** | App defines `ImportResponse`/`ImportCustomersResponse`/`ImportEmailConflict` locally (types HEAD has them but installed v1.10.15 doesn't). Delete local mirrors on next types bump. |
-| A5 | 🟠 Low | **`SubscriptionAuditEntry` duplicated** | App re-declares it identically to the global. Local shadows global. |
-| A6 | 🟠 Low | **`EditOrderResult` unshared** | App defines `{ orderId, items, total, cost, updatedAt }` locally — no types counterpart |
-| A7 | 🟠 Low | **`order.customer` unsound cast** | `useOrderScreen.tsx` casts `Partial<Customer>` to `Customer \| undefined` |
-
-### App Type-Safety Patterns (not discrepancies, but relevant)
-
-- **`updateUser` accepts `Record<string, string>`** — loose union bypasses compile-time checking
-- **`Account.createdAt`** — required in types but app uses `?? 0` fallback (defensive for legacy rows)
-- **`maintenance` slice** uses `as unknown as` cast on a field that already exists on `Store` (stale workaround)
-- **All email/print mutation responses** typed as `Record<string, string>` (overly loose)
-- **`ProductEnrichField` / `ProductEnrichResponse`** — AI enrichment types are app-local with no shared counterpart
-
----
-
-## Verification Evidence
-
-Every finding was re-verified field-by-field against `types/src/` on 2026-08-10. Line numbers below are from types v1.10.16.
-
-### Build Status
-- `types` package: `tsc --noEmit` → exit 0 (sinfactura-types@1.10.16)
-- `api` package: `tsc --noEmit` → exit 0 (consumes sinfactura-types@1.10.16)
-- No compile-time errors — discrepancies are semantic (what the code actually writes vs what types declare)
-
-### Re-Verification Results
-
-| Finding | Claim | Verified |
-|---------|-------|----------|
-| 1 | `Subscription.tenantId` / required `billingCycle` / `stripe*` ids / embedded `overrides` | ✅ `subscription.ts:253-283` vs API `services/subscriptions.ts:142-174` |
-| 2 | Store has no `updatedAt`/`whatsapp`/`instagram`/`facebook`/`cbu`/`priceListSeq` | ✅ `store.ts:71-180` — none present; API `store/_post.ts:98,439` writes them |
-| 3 | Order + Invoice have no `search` | ✅ Neither declares it; API `invoices/_post.ts:789,1323` writes it |
-| 4 | `Account.details` required | ✅ `account.ts:29` |
-| 5 | `ImportResponse.status` required, never returned | ✅ `imports.ts:46`; API `products/_import.ts:283` omits it |
-| 6 | `ImportCustomersResponse` lacks `skipped`/`skippedRows` | ✅ only `emailConflicts?`(:94), `constraintReseedRequired?`(:104), `constraintReseedFailed?`(:113) |
-| 7 | SupplierInvoice required fields | ✅ `supplier.ts:36,37,38,40,41,42,45` all non-optional |
-| 8 | Notification `TableName` present; `dated`/`ttl` absent | ✅ `notification.ts:60` only |
-| 9 | `Plan.isPopular`/`bullets` required, `color: string \| null` | ✅ read from `subscription.ts` Plan interface |
-| 10 | `Cash.incomeByCurrency` declared | ✅ `cash.ts:24` |
-| 11 | `Account.currencyValueAt` declared | ✅ `account.ts:47` |
-| 12 | Basket required fields | ✅ `basket.ts:6,9,11,15,16,17` |
-| 13 | `Supplier.photoData`/`removePhotoURL` | ✅ `supplier.ts:10,11` |
-| 14 | `Product.removePictures` | ✅ `product.ts:20` |
-| 15 | `Order.dueDate` dead | ✅ `order.ts:32` |
-| 16 | Invoice lacks `cbte_numero` | ✅ not present |
-| 17 | `externalReference` on WS but not REST payment type | ✅ `payment.ts:23` (`PaymentReceivedWsPayload`) vs `:31-64` (`PaymentReceived`) |
-| 18 | `Currency.sourceId` declared | ✅ `currency.ts:79` |
-| 19 | `MpIpnLogEntry.errorMessage` | ✅ `mercadopago.ts:195` within interface `:182-200` |
-| 20 | OAuth callback response types exist | ✅ `mercadopago.ts:25-31`, `mercadolibre.ts:26` |
-| 21 | MP store-integration dead fields | ✅ `store.ts:245-248` within `Mercadopago` `:238-294` |
-| 22 | User declares only `roles` | ✅ `user.ts:12` |
-| 23 | `PrintRule` lacks `search`/`createdAt` | ✅ `print.ts:254-263` |
-| 24 | `PrintPrinter` lacks `storeId`/`inLatestReport` | ✅ `print.ts:168-217` |
-| 25 | `FiscalAuditEvent.schema_version` | ✅ `audit.ts:82` |
-| 27 | `basket.ts:11` comma terminator | ✅ `currency: string,` |
-
-### Corrections Made In This Pass
-
-The following were **wrong in the initial report** and have been fixed:
-
-1. **Severity counts** — "15 Low" was inflated; the actual count is 9. "20+ Aligned" was an overstatement; 8 entities were actually verified as aligned.
-2. **Finding 3 was incomplete** — it flagged only `Order.search`. `Invoice` has the identical gap (API writes `search` at `invoices/_post.ts:789` and `:1323`).
-3. **Finding 17 was mischaracterized** — framed as a plain omission. `PaymentReceived` in fact carries explicit `⚠️` JSDoc documenting its unimplemented fields, which is the pattern the rest of the package should adopt. Only the WS/REST `externalReference` asymmetry is a genuine gap.
-4. **Finding 21 lacked precision** — the dead MP fields are at `store.ts:245-248` (the `Mercadopago` store-integration interface), not in `mercadopago.ts`. The `scope?` at `mercadopago.ts:11` belongs to `MpOauthTokenResponse` and is a legitimate field.
-5. **New finding 27 added** — `basket.ts:11` style inconsistency (comma instead of semicolon).
-6. **`Order.dueDate` context added** — `invoice.ts:175` carries the same dead `dueDate?`, but its JSDoc already flags it as declarative-only.
-
-### Why No Compile Errors
-The types package uses `declare global {}` blocks (ambient type declarations). The API:
-1. Has its own internal interfaces (`SubscriptionRow`) separate from the types' `Subscription`
-2. Uses `as unknown as T` casts when reading from DynamoDB
-3. Relies on `.loose()` Zod schemas that pass through undeclared fields without type checking
-4. Consumes types primarily for shared enums/unions (`PlanTier`, `SubscriptionStatus`, `FeatureKey`) not for entity row shapes
+Previously removed as a false positive; verification restored it. The write-alias half is real: the FE's singular `role` is normalized into canonical `roles` before the role guard. But the singular attribute is never deleted, so it persists on the row, and no read shaper strips it — it leaks on `POST /users`, `GET /users`, and every login/social/refresh/impersonation response for rows created via the FE payload. (Numbered 20, out of severity order, to keep the prior finding numbers stable.)
+
+**Action:** delete `role` after normalization on write and strip it on reads (api-side). The shared package never declared a singular `role` — the alias and the legacy-row caveat are documented on `User.roles`.
+
+## App integration and type-safety gaps
+
+The app currently declares, locks, and installs `sinfactura-types@1.10.15`, while this audit targets `1.10.16`.
+
+| ID | Finding |
+|---|---|
+| A1 | **Version lag:** `package.json`, `yarn.lock`, and installed `node_modules` all resolve 1.10.15. |
+| A2 | **Order delivery is untyped:** body and result use broad `Record` types; the API accepts `{ orderId, delivered?, sendSms? }` and returns an updated `Order`. |
+| A3 | **Currency WS event is local:** `CurrencyAutoUpdatedEvent` is locally declared and consumed through `as unknown as`. |
+| A4 | **Subscription wire DTOs are local:** `BillingProvider`, checkout/portal/cancel DTOs, invoice summary, plan patch/create/response types remain app-local. |
+| A5 | **Import mirrors are stale:** needed under 1.10.15, but the local customer response omits `constraintReseedFailed`, `skipped`, and `skippedRows`; the shared type is complete as of 1.10.17 — remove the mirror after bumping. |
+| A6 | **`SubscriptionAuditEntry` is duplicated:** it already exists in installed 1.10.15. |
+| A7 | **`EditOrderResult` is local:** the API returns a partial recomputed patch with no shared response type. |
+| A8 | **`Order.customer` is cast unsafely:** the shared field is `Partial<Customer>`, but `useOrderScreen` casts it to full `Customer`. |
+| A9 | **Subscription reducer drops fields:** it does not retain `currency`, `cancelAt`, or `canceledAt` from `SubscriptionSyncPayload`. |
+| A10 | **Customer import UI drops warnings:** `skipped`, `skippedRows`, and `constraintReseedFailed` are not handled and can fall through to the success path. |
+| A11 | **Sales report contract is split three ways (direction corrected):** the api emits only `{date, quantity, cost, total}` with numeric `YYYYMMDD` — the shared type is *ahead of the api*, declaring `returns`/`returnCount`/`returnCost`/`net`/`netCost` with no producer — while app-local `ReportSales` is behind both (`date: string`, missing fields). |
+| A12 | **Product enrichment DTOs are local:** field, request, suggestion, and response shapes cross the API boundary but are not shared — and they already diverge (the api's suggestion types `attributes` optional; the app requires it). |
+| A13 | **Currency service is stale:** it sends legacy `currencyId`, declares `createdAt: string`, and omits the required keyed query parameters `isoCode`/`variant`; the API hard-400s without them. Latent rather than live: the query hook has no call site. |
+
+## Removed false positives and intentional differences
+
+The following previous findings must not be counted. (Verification note: the singular User `role` item originally listed here did **not** survive re-checking — the alias intent is real, but the stray attribute persists and leaks, so it is restored as Finding 20.)
+
+- **Import `status`:** `response()` injects `status: code === 200`; both import endpoints return it.
+- **Plan `isPopular` / `bullets` / `color`:** every plan wire response normalizes to `false`, `[]`, and `null` respectively.
+- **PrintPrinter `storeId` / `inLatestReport`:** `toWirePrinter()` omits them via an explicit whitelist projection (`inLatestReport` named in the JSDoc; `storeId` dropped implicitly).
+- **Fiscal audit server fields:** `event_id`, `schema_version`, and `ts` are intentionally stamped after input validation.
+- **Support `search` / `inboxKey`:** `normalizeSupportHeader()` explicitly deletes them.
+- **Basket comma terminator:** valid TypeScript style, not a contract discrepancy.
+- **Currency `sourceId`:** persisted storage metadata omitted from the GET projection (unremediated drift rather than documented intent), not a dead writer field.
+- **Cash `incomeByCurrency`:** app-generated view data reimplementing a decommissioned server response row, not unused/dead.
+
+## Forward-only and documentation observations
+
+These are not included in the 20-discrepancy count:
+
+1. `ServiceOrder` and `ServiceTemplate` are Phase-1/forward-only declarations; no API or app implementation was found.
+2. `DemoClaims` is documented but not referenced by name in the checked API/app code.
+3. WhatsApp webhook shapes are active, and `WhatsAppConfig` is partially used for sanitization/supervisor projection; `WhatsAppConversation`, `WhatsAppUsage`, and `WhatsAppTemplate` remain forward-only.
+4. Documentation is stale:
+   - `storefrontEvent.ts` says 14 variants; the union and API schema contain 16.
+   - `socket.ts` says 48 server actions; `SOCKET_ACTIONS` contains 55.
+   - README says the package has no runtime code, but `socket.ts`, `userActivity.ts`, `notification.ts`, and `provinces.ts` export runtime values/functions.
+   - README's usage example imports nonexistent `IUser`, `IOrder`, `IInvoice`, and `IProduct` names.
+
+## Verified aligned areas
+
+Direct source comparison found no material mismatch in these areas:
+
+- `AfipHealth` / `PadronIdentity`
+- AI usage report
+- authentication request/error contracts checked
+- impersonation mint response
+- maintenance
+- Mercado Libre status/disconnect and integration shapes, excluding its phantom callback DTO
+- pricing discriminated unions
+- Returns and stock-return linkage
+- platform globals/provider health
+- PrintOptions, PrintUseCase, printer wire projection, and print-agent message contracts
+- Order audit and fiscal-audit stored/read shapes
+- SupportMessage and support-header normalization
+- currency catalog/subscription/FX-source contracts
+- `StorefrontEvent`: 16 type variants and 16 event schema branches
+- `UserActivityEvent`: 83 union arms; API schema coverage was directly compared
+- socket runtime vocabularies: 55 server actions, 7 declared client actions; the 6-entry live list is the backend's accept-list — the app currently emits 2 (`auth`, `logs`) plus a raw `ping` keepalive documented as not a `SocketMessage`
+
+## 43-file coverage matrix
+
+| File | Result |
+|---|---|
+| `account.ts` | Findings 4, 13 |
+| `afip.ts` | aligned |
+| `ai.ts` | aligned |
+| `api.ts` | valid full-envelope type; not universal because `response()` only guarantees `status` |
+| `audit.ts` | aligned; server-stamped input fields intentional |
+| `auth.ts` | aligned in checked flows |
+| `basket.ts` | Finding 8 |
+| `brands.ts` | Finding 9 |
+| `cash.ts` | Finding 14 |
+| `categories.ts` | Finding 9 |
+| `currency.ts` | Finding 19 (incl. the `StoreCurrencySubscriptionView` doc defect); catalog/FX-source types aligned |
+| `customer.ts` | Findings 3, 9; import response lives in `imports.ts` |
+| `demo.ts` | forward-only observation |
+| `impersonation.ts` | aligned |
+| `imports.ts` | Finding 5 |
+| `index.ts` | all 42 sibling modules exported |
+| `invoice.ts` | Findings 3, 10, 15 |
+| `log.ts` | aligned |
+| `maintenance.ts` | aligned |
+| `mercadolibre.ts` | callback DTO part of Finding 17; otherwise aligned |
+| `mercadopago.ts` | Findings 16, 17 |
+| `notification.ts` | Finding 7 |
+| `order.ts` | Findings 3, 15 |
+| `payment.ts` | Finding 11 |
+| `platform.ts` | aligned |
+| `pricing.ts` | aligned |
+| `print.ts` | Finding 12; printer/options/use-case contracts aligned |
+| `product.ts` | Finding 9 |
+| `provinces.ts` | aligned runtime export |
+| `report.ts` | types ahead of api (A11: return/net fields have no producer); app mirror stale |
+| `return.ts` | aligned |
+| `serviceOrder.ts` | forward-only observation |
+| `serviceTemplate.ts` | forward-only observation |
+| `socket.ts` | contracts aligned; stale action-count comment |
+| `stock.ts` | aligned |
+| `store.ts` | Findings 1, 18; WhatsApp forward-only observation |
+| `storefrontEvent.ts` | schema aligned; stale variant-count comment |
+| `subscription.ts` | Finding 2; sync wire aligned on GET (WS is a refetch nudge) |
+| `support.ts` | aligned |
+| `supplier.ts` | Findings 3, 6, 9 |
+| `user.ts` | Findings 9, 20 |
+| `userActivity.ts` | aligned; 83 union arms |
+| `whatsapp.ts` | webhook shapes active; commerce types partly forward-only |
+
+## Recommended order of work
+
+Execution is phased by repository:
+
+**Phase 1 — `types` (this repo):** correct shared DTOs additively (Invoice `cbte_numero`, `PaymentReceived.externalReference`, a dedicated currency GET projection — the import skip fields already landed in 1.10.17); make truthfully optional what no writer guarantees (Account `details`, the SupplierInvoice set including `supplierId`, Store's removable contact fields, `ReportSales` return/net fields, WhatsApp `accessToken`); add wire/input splits (`StoreWire`, `StoreUpdateInput`, a notification queue input) while deprecating what they replace (request controls on seven entities, `TableName`, retired Store fields, the four declared `search` fields, the phantom MP/OAuth/status DTOs, `Subscription`'s storage claim); repair README, count comments, and forward-only markers.
+
+**Phase 2 — `api` (own ticket):** strip internal fields (`search` across orders/invoices/customers/suppliers/supplier-invoices, `priceListSeq`, notification `dated`/`ttl`, print-rule `search`) at every REST/WS boundary; project `externalReference`; fix the `role` write/read leak; close the MP `z.unknown()` write-hole; annotate the `GET /store` subscription embed; decide the basket validation posture and the ivaTypes echo.
+
+**Phase 3 — `app` (own ticket):** bump to the corrected types version; delete stale local mirrors (imports envelope, `ReportSales`, `SubscriptionAuditEntry`, subscription and product-enrichment DTOs where now shared); fix the currency service, subscription reducer retention, import-warning UI, and the `Order.customer` casts.
+
+## Methodology and verification standard
+
+For every `types/src/*.ts` file, the audit checked the relevant combination of:
+
+- API Zod/input validation,
+- DynamoDB writers and key-derived fields,
+- REST read projection,
+- WebSocket projection,
+- sanitizers,
+- app service/reducer/UI consumption, and
+- repo-wide symbol references for apparently dead or forward-only fields.
+
+Comments were treated as claims, not evidence. A field was considered internal only when all public projections removed it. A field synthesized by the app was not called dead. The report distinguishes storage, request, REST, WebSocket, and app-view contracts rather than comparing every interface directly to every write schema.
+
+A second, adversarial verification pass (2026-08-10) independently re-derived every finding from code, spot-checked each reversal directly, and re-ran the build/lint/typecheck gates in all three repos. Its corrections are folded into Findings 1, 2, 3, 5, 6, 11, 14, 15, 19 and 20 and rows A11–A13 above.
