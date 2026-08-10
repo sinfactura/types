@@ -77,6 +77,36 @@ declare global {
 		attemptedOwner: string;
 	}
 
+	/** Why the customers importer refused a row BEFORE writing it. */
+	type ImportSkipReason =
+		/** The address already belongs to a live customer in this store. */
+		| 'EMAIL_TAKEN'
+		/** An earlier row of the SAME uploaded file already claimed the address. */
+		| 'DUPLICATE_IN_FILE'
+		/**
+		 * The incumbent row's state could not be read, so whether it is
+		 * soft-deleted is unknown. Refused fail-closed — re-uploading the row is
+		 * the fix, and unlike the other two reasons it needs no data change.
+		 */
+		| 'EMAIL_CHECK_INCOMPLETE';
+
+	/**
+	 * One row the customers importer refused on email uniqueness. Unlike
+	 * `ImportEmailConflict` (which reports a claim the reseed found AFTER the
+	 * write), these rows were never written at all.
+	 */
+	interface ImportSkippedRow {
+		/** 0-based index in the submitted array, so the operator can find the line. */
+		row: number;
+		/**
+		 * The colliding email, ALREADY MASKED backend-side (`a***@g***.com`) —
+		 * a plaintext address never leaves the api here (Ley 25.326). Safe to
+		 * render as-is; never `mailto:` it and never match it against a record.
+		 */
+		email: string;
+		reason: ImportSkipReason;
+	}
+
 	/**
 	 * `ImportResponse` as returned by the CUSTOMERS importer, which also
 	 * reseeds the per-store unique-email constraint for every email it just
@@ -93,13 +123,33 @@ declare global {
 		 */
 		emailConflicts?: ImportEmailConflict[];
 		/**
-		 * The reseed could not run AT ALL: it threw wholesale, so NO imported
-		 * email holds a uniqueness claim and the full reseed-constraints
+		 * How many rows were refused on email uniqueness BEFORE the write, so
+		 * these customers are absent from the store entirely. Absent, never `0`,
+		 * when every row was written.
+		 */
+		skipped?: number;
+		/**
+		 * A BOUNDED sample of the refused rows (currently up to 200) for display.
+		 * When `skipped` exceeds the cap this array is shorter than the count —
+		 * never treat `skippedRows.length` as the number of refused rows, and
+		 * never use it to decide what to re-upload. `skippedRowIndexes` is the
+		 * complete record.
+		 */
+		skippedRows?: ImportSkippedRow[];
+		/**
+		 * EVERY refused row's 0-based index, ascending and uncapped — the
+		 * complete list of lines to fix and re-upload. Present whenever `skipped`
+		 * is, and always `skipped` entries long.
+		 */
+		skippedRowIndexes?: number[];
+		/**
+		 * NO imported email holds a uniqueness claim: the reseed either could not
+		 * run at all or reserved nothing, so the full reseed-constraints
 		 * operation has to be run.
 		 *
-		 * Mutually exclusive with `constraintReseedFailed` — a reseed either
-		 * never happened (this field) or happened and partly failed (that one).
-		 * Literal `true`, never `false`; absent means the reseed did run.
+		 * Mutually exclusive with `constraintReseedFailed` — the reseed either
+		 * claimed nothing (this field) or claimed some and failed the rest (that
+		 * one). Literal `true`, never `false`; absent means claims were reserved.
 		 */
 		constraintReseedRequired?: true;
 		/**
