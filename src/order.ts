@@ -7,6 +7,14 @@ declare global {
 		customerId: string;
 		customer: Partial<Customer>;
 		createdAt: number;
+		/**
+		 * `YYYYMMDD` in Buenos Aires time (e.g. `20260810`), stamped at creation
+		 * and never rewritten — the sort key of the `PK-dated` index the per-day
+		 * order queries run on. Required rather than optional: rows predating the
+		 * field were backfilled, and that one-shot migration has since been
+		 * removed as spent.
+		 */
+		dated: number;
 		updatedAt?: number;
 		readyAt?: number;
 		deliveredAt?: number;

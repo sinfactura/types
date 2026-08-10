@@ -5,6 +5,24 @@ declare global {
     orderId?: string;
     createdAt: number; // timestamp
     dated: number; // 20220123
+    /**
+     * NOT a plain customer id — a composite index key, in one of two shapes:
+     *
+     * - `` `${customerId}#${createdAt}` `` — movement rows (`CUST000107#1786112946988`)
+     * - `` `BALANCE-${customerId}` ``      — carried-forward balance rows
+     *
+     * The listing query matches with `begins_with`, so passing a bare `CUST……`
+     * as a FILTER works and conveniently excludes the `BALANCE-` rows. What does
+     * not work is the obvious client-side equality test:
+     *
+     * ```ts
+     * rows.filter((row) => row.customerId === customerId) // never matches
+     * ```
+     *
+     * Compare on the prefix, or split on `#`. This has already cost real
+     * behaviour in a consumer: one code path stripped the suffix and another did
+     * not, and the one that did not returned an empty list rather than failing.
+     */
     customerId?: string;
     fullName?: string;
     subject?: string;

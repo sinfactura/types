@@ -7,6 +7,20 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.15
+
+- **fix(order):** declare `Order.dated` (`order.ts`) — a `YYYYMMDD` Buenos Aires
+  number the api has always stamped at creation and serialised, but which the
+  published type never declared, so consumers had to cast to read it. Declared
+  required, not optional: rows predating the field were backfilled and that
+  one-shot migration has since been removed as spent.
+- **docs(account):** document that `Account.customerId` is a composite index key
+  (`account.ts`), not a customer id. Two shapes reach the wire —
+  `` `${customerId}#${createdAt}` `` on movement rows and `` `BALANCE-${customerId}` ``
+  on carried-forward balance rows — and the listing query matches by
+  `begins_with`, so a bare id works as a filter while client-side equality
+  silently never matches. Type unchanged; the trap is what needed writing down.
+
 ## 1.10.14
 
 - **feat(audit):** `ImpersonationUiStartedEvent` gains an optional `return_to`
