@@ -1,6 +1,9 @@
 import type { NotificationTypeEnum } from "./notification";
 
 declare global {
+  /** Write shape for user create/update — carries the transient photo controls. */
+  type UserUpsertInput = Partial<User> & PhotoUploadControls;
+
   interface User {
     storeId: string;
     userId: string;
@@ -9,12 +12,26 @@ declare global {
     phone: string;
     email: string;
     password?: string;
+    /**
+     * Canonical role string. The api's write path also accepts a legacy
+     * singular `role` alias (not declared here) and normalizes it into this
+     * field — but legacy rows created through that alias may still carry a
+     * stray persisted `role` attribute until the api-side cleanup lands.
+     * Always read `roles`; never the alias.
+     */
     roles: string;
     photoURL: string;
-    photoData?: string; // transient base64 image upload (matches Brand/Category/Store)
+    /** @deprecated Request-only upload control, never persisted or returned — use `UserUpsertInput.photoData`. */
+    photoData?: string;
+    /** @deprecated Request-only control, never persisted or returned — use `UserUpsertInput.removePhotoURL`. */
     removePhotoURL?: string;
     disabled: boolean;
-    search: string;
+    /**
+     * @deprecated Lowercase WRITE-SIDE index for backend filtering. Internal —
+     * not part of the read contract, even where legacy responses still include
+     * it; never consume it.
+     */
+    search?: string;
     accessToken: string;
     roleSeller?: boolean;
     roleProducts?: boolean;

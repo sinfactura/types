@@ -19,37 +19,35 @@ This repository is part of the SINFACTURA monorepo — an integrated e-commerce,
 
 `sinfactura-types` is the single source of truth for cross-repo TypeScript interfaces. Rather than duplicating domain shapes (e.g. `User`, `Order`, `Invoice`) in each client, every consumer imports them from this package so that a change to a server-side contract propagates to all clients at build time.
 
-The package contains only TypeScript type declarations — no runtime code. Zod schemas for validation stay co-located in the repos that need them (e.g. `app/` keeps its Zod schemas local; see the root `CLAUDE.md`).
+The package is declarations-first, with a handful of deliberate runtime exports — the socket action vocabularies (`socket.ts`), `NotificationTypeEnum` (`notification.ts`), the UI-only user-activity variant list (`userActivity.ts`), and the provinces catalog (`provinces.ts`); everything else is type-only and erased at build time. Zod schemas for validation stay co-located in the repos that need them (e.g. `app/` keeps its Zod schemas local; see the root `CLAUDE.md`).
 
 ## Installation
 
 Two distribution channels:
 
-### Git (preferred — no NPM publish step)
-
-Consumers reference the auto-built `dist` branch directly:
-
-```jsonc
-// app/package.json (and api, web, landing)
-{
-  "devDependencies": {
-    "sinfactura-types": "github:sinfactura/types#dist"
-  }
-}
-```
-
-The [`build-dist`](.github/workflows/build-dist.yml) GitHub Actions workflow runs on every push to `main`, builds `dist/`, and force-pushes a clean orphan commit to the `dist` branch. Consumers fetch a ready-to-use package — no build step required at install time.
-
-### npm (legacy — being phased out)
+### npm (primary)
 
 ```bash
-yarn add --dev sinfactura-types
+yarn add sinfactura-types
 ```
+
+The [`publish-npm`](.github/workflows/publish-npm.yml) workflow (npm Trusted Publishing / OIDC) runs on every push to `main` and publishes automatically whenever `package.json`'s version is not on the registry yet — never run `npm publish` locally (see `PUBLISHING.md`). Both `api` and `app` pin registry versions today.
+
+### Git dist branch (alternative)
+
+The [`build-dist`](.github/workflows/build-dist.yml) workflow also builds `dist/` on every `main` push and force-pushes a clean orphan commit to the `dist` branch, installable as `"sinfactura-types": "github:sinfactura/types#dist"`. Maintained, but no current consumer uses it.
 
 ## Usage
 
+Domain interfaces are ambient (`declare global`) — once the package is visible
+to the compiler (consumers add `./node_modules/sinfactura-types` to their
+tsconfig `include`), `User`, `Order`, `Invoice`, `Product`, … are available
+with no import. The runtime vocabularies are real named exports:
+
 ```typescript
-import type { IUser, IOrder, IInvoice, IProduct } from "sinfactura-types";
+const order: Order = { /* … */ }; // ambient — no import needed
+
+import { NotificationTypeEnum, SOCKET_ACTIONS } from "sinfactura-types";
 ```
 
 ## Updating Types

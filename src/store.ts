@@ -71,6 +71,8 @@ declare global {
   interface Store {
     storeId: string;
     createdAt: number;
+    /** Unix ms — BE-stamped on every `POST`/`PATCH /store` write. Always present on written rows. */
+    updatedAt?: number;
     // Tenant kind. Absent / 'production' = real tenant; 'demo' = demo/showcase
     // store (guarded from real email/SMS/surveys).
     type?: 'production' | 'demo';
@@ -83,12 +85,36 @@ declare global {
       city: string;
       province: string;
     };
-    cuit: string;
-    phone: string;
-    email: string;
+    /**
+     * Optional: removable via `StoreUpdateInput.removeFields` (DynamoDB REMOVE),
+     * so rows — and every wire object built from them — may lack it.
+     */
+    cuit?: string;
+    /** Optional: removable via `StoreUpdateInput.removeFields`. */
+    phone?: string;
+    /** Optional: removable via `StoreUpdateInput.removeFields`. */
+    email?: string;
+    /**
+     * Flat contact / social-media leaves the store-settings form writes at the
+     * top level of the STORE row (NOT under `integrations`, and distinct from
+     * `Afip.cbu`). Settable and removable via `StoreUpdateInput.removeFields`;
+     * returned by `GET /store` whenever stored.
+     */
+    whatsapp?: string;
+    instagram?: string;
+    facebook?: string;
+    /** Payment CBU contact leaf (22 digits), shown to customers. */
+    cbu?: string;
     acknowledgedSharedCuit?: boolean; // recorded when registered past the shared-CUIT gate
-    // SUPERVISOR-readable subscription summary — response-time join, not a persisted Store attribute.
-    subscription?: StoreRowSubscriptionSummary;
+    /**
+     * Response-time join, not a persisted Store attribute — and TWO different
+     * shapes depending on the endpoint: `GET /tenants` (SUPERVISOR) attaches the
+     * compact `StoreRowSubscriptionSummary`; the tenant's own `GET /store`
+     * embeds a near-`SubscriptionSyncPayload` (today still missing `currency`
+     * and `freeUntil` — treat both as possibly absent until the api aligns the
+     * embed). Discriminate structurally (`'entitlements' in subscription`).
+     */
+    subscription?: StoreRowSubscriptionSummary | SubscriptionSyncPayload;
     // Functional config, not a feature-flag bag.
     config: {
       priceDecimals: 0 | 1 | 2 | 3;
@@ -123,7 +149,9 @@ declare global {
     };
     ecommerce?: Ecommerce;
     photoURL: string;
+    /** @deprecated Request-only upload control, never persisted or returned — use `StoreUpdateInput.photoData`. */
     photoData?: string;
+    /** @deprecated Request-only upload control, never persisted or returned — use `StoreUpdateInput.removePhotoURL`. */
     removePhotoURL?: string;
     // STORE row reverse-lookup by tenant MP user_id — hot path for the
     // per-tenant payment webhook. Sparse (only active MP connections carry it);
@@ -157,8 +185,16 @@ declare global {
     };
     integrations?: StoreIntegrations;
     fxAutoUpdate?: StoreFxAutoUpdate;
-    appVersion: number;
-    fiscalConditions: FiscalCondition[];
+    /** @deprecated Retired — stripped on writes and on every wire boundary; no reader should depend on it. */
+    appVersion?: number;
+    /** @deprecated Retired — stripped on writes and omitted from responses; the FE has no consumer. */
+    fiscalConditions?: FiscalCondition[];
+    /**
+     * Injected on `GET /store` from the static platform `IVA_TYPES` catalog —
+     * never persisted per-store. ⚠️ Present on GET only: the `POST`/`PATCH
+     * /store` response echo and the admin WS broadcast currently omit it, so
+     * treat it as guaranteed only on a fresh GET.
+     */
     ivaTypes: Method[];
     globals?: StoreGlobals;
     maintenance?: MaintenanceInfo;
@@ -242,10 +278,14 @@ declare global {
     refreshToken?: string; // V1 plaintext; KMS-encrypted since.
     expiresAt?: number; // unix ms when accessToken expires.
     connectedAt?: number; // unix ms when OAuth flow completed.
-    tokenType?: string; // 'bearer'.
-    scope?: string; // granted scopes, e.g. 'offline_access read write'.
-    liveMode?: boolean; // true when connected to MP production credentials.
-    publicKey?: string; // MP public key — safe to expose to the FE for SDK use.
+    /** @deprecated Never populated: the OAuth callback drops the token response's `token_type` and no other writer exists. */
+    tokenType?: string;
+    /** @deprecated Never populated: the OAuth callback drops the token response's `scope` and no other writer exists. */
+    scope?: string;
+    /** @deprecated Never populated: the OAuth callback drops the token response's `live_mode` and no other writer exists. */
+    liveMode?: boolean;
+    /** @deprecated Never populated: the OAuth callback drops the token response's `public_key` and no other writer exists (sanitizers deliberately treat it as non-secret, but nothing writes it). */
+    publicKey?: string;
 
     // STATUS / OPS — written by refresh + disconnect.
     status?: MercadopagoConnectionStatus;
@@ -423,8 +463,15 @@ declare global {
     // Narrowed to `CatalogId` so comparisons against the AFIP wire codes
     // fail at compile time; wire-boundary DDB readers may still `as CatalogId`.
     currency: CatalogId;
+    /** Certificate PEM — persisted, stripped from every public read (only the derived `hasCert` flag crosses the wire). */
     cert?: string;
+    /**
+     * CSR PEM — persisted and, unlike `cert`/`key`, PUBLIC BY DESIGN: the
+     * cert endpoint returns it so the operator can paste it into ARCA, and no
+     * sanitizer strips it. A CSR contains only the public key + subject.
+     */
     csr?: string;
+    /** Private-key PEM — persisted, stripped from every public read (only `hasKey` crosses the wire). */
     key?: string;
     accessTicket_EB?: string;
     accessTicket_RSF?: string;
@@ -480,6 +527,32 @@ declare global {
   }
 
   type StoreAttributeNames = keyof Store;
+
+  /**
+   * The flat leaves `POST /store` accepts in `removeFields` (compiled into a
+   * DynamoDB REMOVE). Strictly allowlisted BE-side: integration umbrellas,
+   * platform flags, identity and `address` are deliberately NOT removable.
+   */
+  type StoreRemovableField = 'email' | 'phone' | 'whatsapp' | 'instagram' | 'facebook' | 'cbu' | 'cuit';
+
+  /**
+   * Write shape for `POST /store` (and the PATCH merge) — the home of the
+   * request-only controls that do NOT belong on the read-side `Store`.
+   * Server-owned keys riding in via `Partial<Store>` (`storeId`, `createdAt`,
+   * `updatedAt`, `subscription`, `globals`) are ignored or overwritten by the
+   * BE; `afip`/`mercadopago` bodies are re-routed to per-leaf integration
+   * writes rather than SET wholesale.
+   */
+  interface StoreUpdateInput extends Partial<Omit<Store, 'photoData' | 'removePhotoURL'>> {
+    /** Transient base64 image upload; the BE stores the derived `photoURL`, never this. */
+    photoData?: string;
+    /** Request-only: asks the BE to delete the current photo. */
+    removePhotoURL?: string;
+    /** FE follow-up contract for a freshly uploaded photo URL. */
+    newPhotoURL?: string;
+    /** Leaves to REMOVE from the row — see `StoreRemovableField`. */
+    removeFields?: StoreRemovableField[];
+  }
 
   interface Method {
     id: number;

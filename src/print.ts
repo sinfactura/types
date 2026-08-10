@@ -258,6 +258,8 @@ declare global {
     /** Applied to every job on this route; merged under any per-job options. */
     options?: PrintOptions;
     updatedAt: number;
+    /** Unix ms — `if_not_exists`-stamped on first upsert, then stable. Optional: rows written before the stamp existed lack it. */
+    createdAt?: number;
     /** userId that last changed it — feeds the audit trail. */
     updatedBy?: string;
   }

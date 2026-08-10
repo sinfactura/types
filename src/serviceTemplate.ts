@@ -6,6 +6,9 @@
  * stages are mandatory, default pricing model / rates, QA checklists, and
  * common parts auto-populated on intake. Shares the ServiceType / ServiceStatus
  * / PricingModel unions defined in serviceOrder.ts.
+ *
+ * FORWARD-ONLY: declarations only — no api or app implementation consumes
+ * these yet.
  */
 
 declare global {

@@ -26,7 +26,12 @@ declare global {
     customerId?: string;
     fullName?: string;
     subject?: string;
-    details: string;
+    /**
+     * Optional: the manual account-creation endpoint drops the key entirely
+     * when the operator text (and any FX suffix) is empty, so persisted rows —
+     * and every read built from them — may lack it. Render a fallback.
+     */
+    details?: string;
     debit?: number;
     credit?: number;
     amount?: number;
@@ -43,7 +48,12 @@ declare global {
      */
     currency?: string;
     currencyValue?: number;
-    // Unix ms at which `currencyValue` was effective (ADR-0013).
+    /**
+     * @deprecated Unix ms at which `currencyValue` was effective (ADR-0013) —
+     * but NO writer stamps it on ACCOUNT rows: only the parallel Cash mirror
+     * row receives it. Undefined on 100% of Account reads today; keep reading
+     * `currencyValue` alone until an Account writer exists.
+     */
     currencyValueAt?: number;
     balance?: number;
     // Optional: only some writers stamp `userId` (the payment-link credit and

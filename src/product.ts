@@ -1,13 +1,24 @@
 
 declare global {
 
+	/** Write shape for product create/update — carries the transient picture-removal control. */
+	type ProductUpsertInput = Partial<Product> & {
+		/** Request-only: pictures to delete; the BE removes them from storage and from `pictures[]`. */
+		removePictures?: { url: string }[];
+	};
+
 	interface Product {
 		storeId: string;
 		productId: string;
 		createdAt: number;
 		updatedAt: number;
 		disabled: boolean;
-		search: string;
+		/**
+		 * @deprecated Lowercase WRITE-SIDE index for backend filtering. Internal —
+		 * not part of the read contract, even where legacy responses still include
+		 * it; never consume it.
+		 */
+		search?: string;
 		// BASE
 		sku: string;
 		name: string;
@@ -17,6 +28,7 @@ declare global {
 			base64?: string;
 			primary?: boolean;
 		}[];
+		/** @deprecated Request-only control, never persisted or returned — use `ProductUpsertInput.removePictures`. */
 		removePictures?: {
 			url: string;
 		}[];

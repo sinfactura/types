@@ -108,12 +108,21 @@ declare global {
 	// usage metering, and message templates — distinct from the Meta webhook
 	// payload shapes above (SINFACTURA-side entities).
 
-	/** Per-tenant WhatsApp Business connection + plan tier. */
+	/**
+	 * Per-tenant WhatsApp Business connection + plan tier. Partially live:
+	 * the api sanitizes and projects it (supervisor integrations view), but NO
+	 * connect flow writes it yet — treat every member as potentially absent on
+	 * real rows until that flow ships.
+	 */
 	interface WhatsAppConfig {
 		wabaId: string;
 		phoneNumberId: string;
-		/** Meta access token — encrypted at rest. */
-		accessToken: string;
+		/**
+		 * Meta access token — encrypted at rest and stripped from every read by
+		 * the api sanitizer. Optional: no writer exists yet (no connect flow),
+		 * so no row carries it today.
+		 */
+		accessToken?: string;
 		verifiedName: string;
 		qualityRating: 'GREEN' | 'YELLOW' | 'RED';
 		status: 'connected' | 'disconnected' | 'suspended';

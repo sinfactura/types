@@ -22,7 +22,11 @@ declare global {
     authorizationUrl: string;
   }
 
-  // BE → FE response from GET /mercadolibre/oauth/callback.
+  /**
+   * @deprecated PHANTOM — the OAuth callback never returns JSON: every branch
+   * answers HTTP 302 with an empty body and a redirect `Location`. No producer
+   * exists; nothing should consume this. (Status/disconnect DTOs below are real.)
+   */
   interface MlOauthCallbackResponse {
     connected: true;
     storeId: string;

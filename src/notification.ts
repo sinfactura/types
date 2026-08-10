@@ -57,8 +57,20 @@ declare global {
 		severity?: 'info' | 'warning' | 'critical';
 		details?: string;
 		total?: number;
+		/** @deprecated SQS routing input, destructured out before persistence — it never exists on stored rows or reads. Belongs on `NotificationQueueInput`. */
 		TableName?: string;
 	}
+
+	/**
+	 * What a producer enqueues on the notification SQS queue. The consumer
+	 * destructures `TableName` for routing (it is never persisted), derives the
+	 * row key, and stamps `createdAt` plus BE bookkeeping (`dated` YYYYMMDD and
+	 * a DynamoDB `ttl`); `notificationId` is synthesized from the SK on reads —
+	 * producers never send either.
+	 */
+	type NotificationQueueInput = Omit<NotificationInterface, 'notificationId' | 'createdAt' | 'TableName'> & {
+		TableName: string;
+	};
 
 	// `Currency` (FX-rate time-series sample) moved to `currency.ts` and
 	// renamed `currencyId` → `catalogId`.

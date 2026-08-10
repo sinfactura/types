@@ -8,6 +8,9 @@
  *
  * Companion: ServiceTemplate (serviceTemplate.ts) defines
  * per-type default configuration that seeds new orders.
+ *
+ * FORWARD-ONLY: declarations only — no api or app implementation consumes
+ * these yet.
  */
 
 declare global {

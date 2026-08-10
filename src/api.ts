@@ -1,6 +1,21 @@
 
 declare global {
 
+	/**
+	 * Transient photo controls accepted by the entity create/update endpoints
+	 * (Brand, Category, Customer, Supplier, User, Store). REQUEST-ONLY: the api
+	 * destructures them out before persistence and stores only the derived
+	 * `photoURL` — they never exist on rows or reads. Compose them into write
+	 * DTOs (`CustomerUpsertInput`, `SupplierUpsertInput`, …) instead of reading
+	 * them off entity interfaces.
+	 */
+	interface PhotoUploadControls {
+		/** Base64 image upload; the BE stores the derived `photoURL`, never this. */
+		photoData?: string;
+		/** Asks the BE to delete the entity's current photo. */
+		removePhotoURL?: string;
+	}
+
 	interface ResponseApi<T = Record<string, string>> {
 		status: boolean;
 		error: string | null;

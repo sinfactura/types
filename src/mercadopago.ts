@@ -19,9 +19,11 @@ declare global {
     authorizationUrl: string;
   }
 
-  // BE → FE response from GET /mercadopago/oauth/callback.
-  // The FE renders a confirmation, then redirects to the Integrations
-  // hub which fetches the full status via GET /mercadopago/status.
+  /**
+   * @deprecated PHANTOM — the OAuth callback never returns JSON: every branch
+   * (success and failure) answers HTTP 302 with an empty body and a redirect
+   * `Location`. No producer exists; nothing should consume this.
+   */
   interface MpOauthCallbackResponse {
     connected: true;
     storeId: string;
@@ -30,8 +32,12 @@ declare global {
     connectedAt: number;
   }
 
-  // FE-safe DTO returned by GET /mercadopago/status — strips access/refresh
-  // tokens and any field that should never leave the BE.
+  /**
+   * @deprecated PHANTOM — no `GET /mercadopago/status` route exists (the root
+   * `GET /mercadopago` lists `MP#…` payment rows instead), so this DTO has no
+   * producer. Its MercadoLibre twin (`MercadolibreStatus`) IS real and served
+   * by an implemented status handler.
+   */
   interface MercadopagoStatus {
     connected: boolean;
     status: MercadopagoConnectionStatus;
@@ -192,6 +198,7 @@ declare global {
     processingMs?: number;
     createdAt: number;
     ttl?: number;
+    /** @deprecated Never populated: the IPN recorder neither accepts nor persists it (unlike `MpHookLogEntry.errorMessage`, which is real). */
     errorMessage?: string;
     outcome?: MpIpnOutcome;
     tenantsScanned?: number;

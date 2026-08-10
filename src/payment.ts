@@ -54,6 +54,13 @@ declare global {
     accountId?: string;
     linkedAt?: number;
     linkSource?: "auto" | "manual";
+    /**
+     * MP/Stripe-side `external_reference`, persisted on the row and already
+     * carried by `PaymentReceivedWsPayload`. Optional here because the REST
+     * projection of older api builds omits it — treat absence as "not
+     * projected", not "no reference".
+     */
+    externalReference?: string;
     // Same-day refund ledger reconciliation, stamped on the `MP#{storeId}/{paymentId}`
     // row when the auto-reversal path runs but can't complete. `reconciled: false`
     // means the operator must reconcile manually.

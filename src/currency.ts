@@ -52,9 +52,10 @@ declare global {
 		order?: number; // display ordering on the FE
 	}
 
-	// Wire shape for `GET /store` and `GET /currencies` — denormalized catalog
+	// Wire shape for `GET /store`'s `currencies[]` — denormalized catalog
 	// projection so the FE can render display strings without a separate fetch.
-	// BE projects on read; never stored.
+	// BE projects on read; never stored. (NOT the `GET /currencies` shape —
+	// that endpoint serves the keyed time series as `CurrencySampleView`.)
 	interface StoreCurrencySubscriptionView extends StoreCurrencySubscription {
 		isoCode: string;
 		variant: CurrencyVariant;
@@ -76,7 +77,27 @@ declare global {
 		// Absent when the provider reports none.
 		variation?: string;
 		source?: string; // 'ambito' | 'dolarapi' | 'bluelytics' | 'bcra'
-		sourceId?: string; // FX-source registry id the sample came from
+		sourceId?: string; // FX-source registry id the sample came from — omitted by the GET /currencies projection
+	}
+
+	/**
+	 * Wire shape of one `GET /currencies?isoCode=…&variant=…` item — the read
+	 * projection of `Currency` (both query parameters are REQUIRED; the api
+	 * 400s without them). Notes:
+	 * - `currencyId` is the row's raw sort key — numerically the same Unix ms
+	 *   as `createdAt`. A vestigial alias, NOT a catalog FK: never confuse it
+	 *   with `PlatformCurrency.catalogId`.
+	 * - `sourceId` is deliberately not projected.
+	 */
+	interface CurrencySampleView {
+		/** Raw row sort key (Unix ms, equals `createdAt`). Vestigial — prefer `createdAt`. */
+		currencyId: number;
+		createdAt: number; // Unix ms
+		dated: number; // YYYYMMDD, America/Argentina/Buenos_Aires
+		value: number;
+		/** Provider-supplied change indicator, verbatim (e.g. '+1,2%'). */
+		variation?: string;
+		source?: string;
 	}
 
 	// ───────────────────────────────────────────────────────────────

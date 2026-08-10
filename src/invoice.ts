@@ -98,6 +98,12 @@ declare global {
     // (V1.0 implicit happy path). BE sets `pending_cae` on WSFEv1 network failure,
     // `rejected` on business validation errors. See ADR-0012 for the CAEA states.
     fiscalStatus?: FiscalStatus;
+    /**
+     * ARCA voucher number carried on PENDING credit-note rows: sent request-side
+     * on NC creation and persisted only when the row is written with a pending
+     * cause. Distinct from `invoiceNumber`; absent on every other row.
+     */
+    cbte_numero?: number;
     // Structured ARCA rejection detail, present when fiscalStatus === 'rejected';
     // supersedes regex-parsing the legacy `observations` string above.
     arcaError?: ArcaError;

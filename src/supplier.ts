@@ -1,13 +1,18 @@
 
 declare global {
 
+	/** Write shape for supplier create/update — carries the transient photo controls. */
+	type SupplierUpsertInput = Partial<Supplier> & PhotoUploadControls;
+
 	interface Supplier {
 		storeId: string;
 		userId: string;
 		supplierId: string;
 		createdAt: number;
 		photoURL: string;
-		photoData?: string; // transient base64 image upload (matches Brand/Category/Store)
+		/** @deprecated Request-only upload control (transient base64), never persisted or returned — use `SupplierUpsertInput.photoData`. */
+		photoData?: string;
+		/** @deprecated Request-only control, never persisted or returned — use `SupplierUpsertInput.removePhotoURL`. */
 		removePhotoURL?: string;
 		company: string;
 		cuit: string;
@@ -23,30 +28,46 @@ declare global {
 	}
 
 	interface SupplierInvoice {
+		// Synthesized from the DynamoDB keys on the public read path (`PK` →
+		// storeId, `SK` → invoiceId), so both are reliably present on responses.
 		storeId: string;
-		userId: string;
 		invoiceId: string;
-		supplierId: string;
+		userId: string;
+		/**
+		 * Optional in the write schema and never defaulted — a row CAN persist
+		 * without it (normal persisted attribute, NOT key-derived).
+		 */
+		supplierId?: string;
 		createdAt: number;
 		type: 'FAC' | 'ND' | 'NC';
 		dated: number;
 		number: string;
 		razonSocial: string;
 		cuit: string;
-		neto: number;
-		iva10: number;
-		iva21: number;
+		/** Optional: unmodeled by the write schema and never defaulted — legacy and partial rows lack it. */
+		neto?: number;
+		/** Optional in the write schema; readers must default to 0. */
+		iva10?: number;
+		/** Optional in the write schema; readers must default to 0. */
+		iva21?: number;
 		total: number;
-		per_iibb: number;
-		per_iva: number;
-		file: string;
+		/** Optional: unmodeled by the write schema; readers must default to 0. */
+		per_iibb?: number;
+		/** Optional: unmodeled by the write schema; readers must default to 0. */
+		per_iva?: number;
+		/** Present only when a PDF was actually stored for the row (and cleared when removed). */
+		file?: string;
 		// catalogId — FK to PlatformCurrency (ADR-0013).
 		currency?: string;
-		currencyValue: number;
+		/** Optional: stamped only when an FX resolution was available at write time; absence preserves any stored rate. */
+		currencyValue?: number;
 		// Unix ms at which `currencyValue` was effective (ADR-0013).
 		currencyValueAt?: number;
-		// Lowercase '#'-joined search index, written by
-		// `buildSupplierInvoiceSearch` on every insert/update.
+		/**
+		 * @deprecated Lowercase '#'-joined WRITE-SIDE index, stamped on every
+		 * insert/update. Internal — not part of the read contract, even where
+		 * legacy responses still include it; never consume it.
+		 */
 		search?: string;
 		// Per-alícuota IVA discrimination required by the Libro IVA
 		// Digital COMPRAS records (docs/LIBRO_IVA_DIGITAL.md §3–4). Mirrors the

@@ -17,16 +17,21 @@ declare global {
 		cost: number;
 		/** GROSS revenue of those delivered orders (post-order-discount). */
 		total: number;
-		/** Positive sum of credited return totals dated this day. */
-		returns: number;
-		/** Count of returns dated this day. */
-		returnCount: number;
-		/** Positive cost of the returned units. */
-		returnCost: number;
-		/** `total - returns`. */
-		net: number;
-		/** `cost - returnCost`. */
-		netCost: number;
+		/**
+		 * Positive sum of credited return totals dated this day.
+		 * ⚠️ FORWARD-ONLY: no api producer emits the return/net quintet yet —
+		 * `GET /reports?mode=sales` currently returns only `date`/`quantity`/
+		 * `cost`/`total`, so all five are absent on every current response.
+		 */
+		returns?: number;
+		/** Count of returns dated this day. Forward-only — see `returns`. */
+		returnCount?: number;
+		/** Positive cost of the returned units. Forward-only — see `returns`. */
+		returnCost?: number;
+		/** `total - returns`. Forward-only — see `returns`. */
+		net?: number;
+		/** `cost - returnCost`. Forward-only — see `returns`. */
+		netCost?: number;
 	}
 
 	/**

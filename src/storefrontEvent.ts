@@ -9,7 +9,7 @@
 // for event names; snake_case for properties so the GA4 / Segment
 // vocabulary on the wire maps without translation.
 //
-// 14 variants — the 4 storefront-only events (`Page Viewed`,
+// 16 variants — the 4 storefront-only events (`Page Viewed`,
 // `Favorite Toggled`, `Whatsapp Clicked`, `Error Captured`) currently
 // emitted by storefront are NOT in this taxonomy yet; they ride the
 // legacy `Log` path and are tracked for a follow-up types release.

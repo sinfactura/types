@@ -247,8 +247,17 @@ declare global {
 	// Subscription state
 
 	/**
-	 * A tenant's current subscription row. One per `tenantId`.
-	 * Stored in DynamoDB; mirrored to Stripe when `stripeSubscriptionId` is present.
+	 * @deprecated LEGACY DECLARATION — this does NOT match the api's stored
+	 * subscription row, and no api code references it. The real row keys on
+	 * `storeId` (not `tenantId`), leaves `billingCycle`/`currentPeriodStart`/
+	 * `currentPeriodEnd` unset until checkout completes, uses provider-neutral
+	 * `externalCustomerId`/`externalSubscriptionId` (not the Stripe-named pair),
+	 * stores overrides as separate `OVERRIDE#…` rows (not an embedded map), and
+	 * additionally carries `provider`, `cancelAt`, `canceledAt` and
+	 * `pastDueSince`. Storage stays api-internal; read subscription state
+	 * through `SubscriptionSyncPayload` (`GET /subscription`), and expect the
+	 * WebSocket to deliver only `{ action: 'subscription', data: { type } }`
+	 * refetch nudges, never this object.
 	 */
 	interface Subscription {
 		tenantId: string;
@@ -256,10 +265,10 @@ declare global {
 		status: SubscriptionStatus;
 		billingCycle: BillingCycle;
 		/**
-		 * Currency this subscription was billed in at checkout time. Snapshotted
-		 * from the Plan's `currency` so it survives platform-wide currency
-		 * switches — a customer who signed up on ARS keeps being charged in ARS.
-		 * Required for accurate historical reporting + AFIP invoices.
+		 * Declared here but NEVER stored on the subscription row — the api's row
+		 * has no `currency` member. The wire `currency` in
+		 * `SubscriptionSyncPayload` is read from the Plan template at
+		 * response-build time, not snapshotted onto the subscription.
 		 */
 		currency?: 'ARS' | 'USD';
 		/** Current period window (Unix ms). */

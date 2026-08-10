@@ -136,9 +136,10 @@ export const isSocketAction = (value: unknown): value is SocketAction =>
 /**
  * A server→client data frame. `data` is action-specific and intentionally left
  * open here: each action carries its own entity shape (an `orders` frame
- * carries an `Order`, a `products` frame a `Product`, …), and encoding all 48
- * payloads as a discriminated union would couple this contract to every entity
- * in the package. Narrow at the call site after switching on `action`.
+ * carries an `Order`, a `products` frame a `Product`, …), and encoding every
+ * action's payload as a discriminated union would couple this contract to
+ * every entity in the package. Narrow at the call site after switching on
+ * `action`.
  */
 export interface SocketMessage<T = unknown> {
 	action: SocketAction;

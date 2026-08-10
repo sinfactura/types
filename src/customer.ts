@@ -18,6 +18,9 @@ declare global {
     whatsapp?: boolean;
   }
 
+  /** Write shape for customer create/update — carries the transient photo controls. */
+  type CustomerUpsertInput = Partial<Customer> & PhotoUploadControls;
+
   interface Customer {
     storeId: string;
     customerId: string;
@@ -33,6 +36,7 @@ declare global {
     email: string;
     favorites?: Partial<Product>[];
     fullName: string;
+    /** Storage-only credential hash — stripped from every response by the api's central sanitizer; never present on reads. */
     hash?: string;
     lastBuy?: number;
     lastLog?: number;
@@ -41,7 +45,9 @@ declare global {
     paymentMethod: number;
     phone: string;
     photoURL: string;
-    photoData?: string; // transient base64 image upload (matches Brand/Category/Store)
+    /** @deprecated Request-only upload control, never persisted or returned — use `CustomerUpsertInput.photoData`. */
+    photoData?: string;
+    /** @deprecated Request-only control, never persisted or returned — use `CustomerUpsertInput.removePhotoURL`. */
     removePhotoURL?: string;
     postalCode: string;
     /**
@@ -52,8 +58,14 @@ declare global {
      */
     priceList: number;
     province: string;
+    /** Storage-only credential salt — stripped from every response by the api's central sanitizer; never present on reads. */
     salt?: string;
-    search: string;
+    /**
+     * @deprecated Lowercase WRITE-SIDE index for backend `contains` filtering.
+     * Internal — not part of the read contract, even where legacy responses
+     * still include it; never consume it.
+     */
+    search?: string;
     updatedAt?: number;
     /**
      * catalogId — FK to PlatformCurrency.

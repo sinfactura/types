@@ -16,12 +16,28 @@ declare global {
     currencyValue?: number;
     // Unix ms at which `currencyValue` was effective.
     currencyValueAt?: number;
-    // Per-currency totals. On CASH movements this is unused
-    // (`income`/`outcome` + `currency` are sufficient). On the
-    // CASH#BALANCE snapshot and the synthetic cashStart opening row,
-    // these carry the bucketed accumulator.
+    // Per-currency balance accumulator. On CASH movements this is unused
+    // (`income`/`outcome` + `currency` are sufficient); the api writes it on
+    // the CASH#BALANCE snapshot row.
     balanceByCurrency?: Record<string, number>;
+    /**
+     * @deprecated The api neither stores nor returns this on any Cash path —
+     * the server-side synthetic `cashStart` opening row that once carried it
+     * was decommissioned. It survives only as an app-view field on the
+     * client-synthesized opening row: see `CashOpeningDisplayRow`.
+     */
     incomeByCurrency?: Record<string, number>;
+  }
+
+  /**
+   * The client-synthesized opening row prepended to the cash listing — carries
+   * the per-currency opening accumulator (from the response envelope's
+   * `openingBalanceByCurrency`) that the api once emitted as a server-side
+   * `cashStart` row and no longer does. A display shape only: never a stored
+   * entity, never sent to the api.
+   */
+  interface CashOpeningDisplayRow extends Cash {
+    incomeByCurrency: Record<string, number>;
   }
 
   // Cash-drawer shift management.
