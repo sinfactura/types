@@ -7,6 +7,74 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.18
+
+Contract-correction release: truth-aligns the package against the audited api
+behavior (`docs/TYPE_VALIDATION_REPORT.md`, findings 1–20). Upgrading may
+surface new strict-null errors in consumers — those errors expose latent bugs
+the old declarations hid; nothing was removed or renamed.
+
+- **fix(store):** declare `updatedAt` and the flat contact/social leaves
+  (`whatsapp`/`instagram`/`facebook`/`cbu`); make `email`/`phone`/`cuit`
+  optional (all removable via `removeFields`); retire `appVersion`/
+  `fiscalConditions` to deprecated-optional; document `ivaTypes` as
+  GET-injected only (absent on the write echo/WS broadcast); type
+  `Store.subscription` as the `GET /tenants` summary OR the `GET /store`
+  near-sync-payload embed; document `Afip.csr` as public-by-design (unlike
+  `cert`/`key`); deprecate the four writer-less `Mercadopago` OAuth-metadata
+  fields; add `StoreRemovableField` + `StoreUpdateInput`.
+- **fix(subscription):** deprecate `Subscription` as a legacy declaration that
+  never matched the stored row (storeId key, pre-checkout-optional billing,
+  provider-neutral external ids, separate `OVERRIDE#…` rows, missing lifecycle
+  fields) and correct its `currency` snapshot claim. `SubscriptionSyncPayload`
+  remains the read contract — served by `GET /subscription` only; the socket
+  sends `{type}` refetch nudges, never the payload.
+- **fix(account,supplier):** make `Account.details` optional (the manual
+  writer drops it when empty) and deprecate `Account.currencyValueAt` (only
+  the Cash mirror row ever receives it); make the un-guaranteed
+  `SupplierInvoice` fields optional (`neto`, `iva10`, `iva21`, `per_iibb`,
+  `per_iva`, `file`, `currencyValue`, `supplierId`) and mark its `search`
+  index internal-deprecated.
+- **feat(api):** declare `PhotoUploadControls` plus per-entity upsert inputs
+  (`BrandUpsertInput`, `CategoryUpsertInput`, `CustomerUpsertInput`,
+  `SupplierUpsertInput`, `UserUpsertInput`, `ProductUpsertInput`,
+  `StoreUpdateInput`), deprecating the request-only controls embedded on the
+  entity interfaces.
+- **fix(customer,user,product):** deprecate + optionalize the internal
+  `search` indexes; document `Customer.hash`/`salt` as storage-only; document
+  the api's legacy singular `role` write alias (and its stray-attribute
+  caveat) on `User.roles`.
+- **feat(notification):** declare `NotificationQueueInput` (the SQS producer
+  shape) and deprecate `TableName` on the entity.
+- **feat(payment,invoice,currency,print,cash):** declare
+  `PaymentReceived.externalReference` (persisted + WS-carried; REST projection
+  pending), `Invoice.cbte_numero` (pending credit-note voucher number),
+  `CurrencySampleView` (the real `GET /currencies` projection — and scope
+  `StoreCurrencySubscriptionView` to `GET /store`), `PrintRule.createdAt`,
+  and `CashOpeningDisplayRow` (deprecating `Cash.incomeByCurrency`, a
+  decommissioned server field that survives as app-view data).
+- **fix(report,whatsapp):** make the `ReportSales` return/net quintet optional
+  forward-only (no api producer emits it); make `WhatsAppConfig.accessToken`
+  optional (no connect-flow writer exists) and mark the config partially-live.
+- **fix(mercadopago,mercadolibre):** deprecate the phantom OAuth callback
+  DTOs (both callbacks 302-redirect with empty bodies), the phantom
+  `MercadopagoStatus` (no route serves it), and the never-written
+  `MpIpnLogEntry.errorMessage`.
+- **docs:** README — name the real runtime exports, describe npm as the
+  primary (auto-published) channel, and fix the usage example to ambient
+  reality; correct the stale `storefrontEvent` variant count; drop the
+  rot-prone socket action count; mark `serviceOrder`/`serviceTemplate`
+  forward-only.
+
+## 1.10.17
+
+- **feat(imports):** declare the customers-import skip list —
+  `ImportCustomersResponse.skipped`, `skippedRows` (a ≤200-row, email-masked
+  sample) and `skippedRowIndexes` (the uncapped complete index list), with the
+  `ImportSkipReason`/`ImportSkippedRow` vocabulary — and restate the
+  reseed-required semantics. _(Entry added retroactively with 1.10.18 — the
+  release itself shipped without one.)_
+
 ## 1.10.16
 
 - **feat(imports):** declare `ImportResponse`, `ImportEmailConflict` and
