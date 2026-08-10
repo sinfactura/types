@@ -7,6 +7,29 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.16
+
+- **feat(imports):** declare `ImportResponse`, `ImportEmailConflict` and
+  `ImportCustomersResponse` (`imports.ts`) — the envelope the bulk CSV import
+  endpoints have always returned and no published type described, so consumers
+  were hand-maintaining a local mirror of it. `ImportResponse` is the products
+  importer's whole shape; `ImportCustomersResponse` adds the email-uniqueness
+  warnings. Three traps are encoded as doc comments because each is easy to get
+  wrong from the consumer side, and one already was: this is **not**
+  `ResponseApi<T>` (these handlers emit neither `data` nor `error`, so a
+  `ResponseApi<Customer[]>` annotation makes `res.data` look readable when it is
+  always `undefined`); every warning field is **absent** on a clean import,
+  never `0` and never an empty array, so presence is the test; and
+  `ImportEmailConflict.email` arrives **already masked** backend-side on both
+  the intra-file and cross-owner paths (Ley 25.326), so it renders without a
+  session-replay mask class and is not a usable address.
+- **feat(imports):** `ImportCustomersResponse.constraintReseedFailed`
+  (`imports.ts`) — a count of individual uniqueness claims that errored while
+  the rest succeeded, distinguishing a partial reseed failure from
+  `constraintReseedRequired`, which means the reseed could not run at all. The
+  two are mutually exclusive; the type says so, because an operator reading only
+  the pre-existing flag could not tell "no claim was reserved" from "most were".
+
 ## 1.10.15
 
 - **fix(order):** declare `Order.dated` (`order.ts`) — a `YYYYMMDD` Buenos Aires
