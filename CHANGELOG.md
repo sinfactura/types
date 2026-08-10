@@ -7,6 +7,31 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.14
+
+- **feat(audit):** `ImpersonationUiStartedEvent` gains an optional `return_to`
+  (`userActivity.ts`) — the destination inside the impersonated tenant where a
+  support session landed, recorded so an audit reader can see *where* the
+  operator went, not just that a session opened. The value is a rooted,
+  same-origin path; the api resolves it against a sentinel origin and persists
+  the **pathname alone**, so the query string and hash the app's guard appends
+  are dropped before the row is written — a target picked off a filtered list
+  would otherwise carry an operator-typed email or CUIT into a row that lives
+  three months hot and indefinitely in the archive (Ley 25.326). Optional
+  because emitters predating the field, and sessions with no resolvable
+  destination, simply omit it. `ImpersonationUiEndedEvent` is deliberately
+  unchanged: the destination is emitted once, at session start.
+- **feat(audit):** `CustomerPasswordResetInitiatedEvent` joins the
+  `UserActivityEvent` union (`userActivity.ts`), graduating out of the local
+  augmentation bridge the api had been carrying — the operator-initiated
+  customer storefront password reset. `customer_id` follows the customer-scoped
+  convention rather than `target_customer_id`, since `target_*` is reserved for
+  users and stores in this union; the operator identity rides on
+  `UserActivityEventBase`. `email_sent` records whether the mail actually went
+  out, so a suppressed send cannot read as a delivered one. BE-emitted, so it is
+  **not** in `UI_ONLY_USER_ACTIVITY_VARIANTS` — the FE-ingest gate must keep
+  rejecting it.
+
 ## 1.10.13
 
 - **fix(audit):** add `'mercadopago.dynamicQr.create'` to `OrderAuditAction`

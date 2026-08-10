@@ -477,6 +477,14 @@ declare global {
 	interface ImpersonationUiStartedEvent extends UserActivityEventBase {
 		event: 'Impersonation UI Started';
 		target_store_id: string;
+		// Where the support session landed inside the impersonated tenant — a
+		// rooted, same-origin path (`/invoices/INV000042`). The api stores the
+		// resolved pathname ALONE: query string and hash are stripped before
+		// persistence, so a target picked off a filtered list cannot carry an
+		// operator-typed email or CUIT into a row that outlives the session
+		// (Ley 25.326). Started only — the destination is emitted once, at
+		// session start, so the Ended arm has no counterpart field.
+		return_to?: string;
 	}
 
 	interface ImpersonationUiEndedEvent extends UserActivityEventBase {
@@ -647,6 +655,19 @@ declare global {
 		active: boolean;
 	}
 
+	// Operator-initiated customer storefront password reset. BE-emitted, so it is
+	// NOT in `UI_ONLY_USER_ACTIVITY_VARIANTS`. Field naming follows the
+	// customer-scoped convention (`customer_id`), NOT `target_customer_id` — in
+	// this union `target_*` is reserved for users and stores. The operator
+	// identity comes from `UserActivityEventBase`. `email_sent` records the
+	// demo-store suppression honestly: a row claiming an email went out when the
+	// send was swallowed would be worse than no row at all.
+	interface CustomerPasswordResetInitiatedEvent extends UserActivityEventBase {
+		event: 'Customer Password Reset Initiated';
+		customer_id: string;
+		email_sent: boolean;
+	}
+
 	// Discriminated union. Count in this comment has drifted before — recount
 	// the arms before trusting any number stated here.
 	type UserActivityEvent =
@@ -741,7 +762,9 @@ declare global {
 		| PrintRuleEditedEvent
 		| PrintRuleDeletedEvent
 		// Per-printer `active` pause toggle
-		| PrinterActiveToggledEvent;
+		| PrinterActiveToggledEvent
+		// Operator-initiated customer storefront password reset (BE-emitted)
+		| CustomerPasswordResetInitiatedEvent;
 
 }
 
