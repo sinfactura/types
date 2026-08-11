@@ -14,9 +14,13 @@ declare global {
 		updatedAt: number;
 		disabled: boolean;
 		/**
-		 * @deprecated Lowercase WRITE-SIDE index for backend filtering. Internal —
-		 * not part of the read contract, even where legacy responses still include
-		 * it; never consume it.
+		 * Lowercase '#'-joined index the api maintains on every write.
+		 *
+		 * UNLIKE the same-named field on the other entities (where it is internal
+		 * and stripped at the wire boundary), this one is genuinely part of the
+		 * product read contract: `GET /products` returns it and the app filters
+		 * its product pickers on it client-side, so stripping it empties every
+		 * local product search. Optional because legacy rows predate it.
 		 */
 		search?: string;
 		// BASE

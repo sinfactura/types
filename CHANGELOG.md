@@ -7,6 +7,16 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.19
+
+- **fix(product):** un-deprecate `Product.search`. 1.10.18 deprecated the
+  lowercase index on every entity that carries it, but products are the one
+  place it is genuinely public: `GET /products` returns it and the app filters
+  its product pickers on it client-side, so treating it as internal (and
+  stripping it at the api boundary, as the sibling entities now do) empties
+  every local product search. The field stays optional; the JSDoc now states
+  the asymmetry so the next reader does not "fix" it back.
+
 ## 1.10.18
 
 Contract-correction release: truth-aligns the package against the audited api
