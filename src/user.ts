@@ -103,20 +103,26 @@ declare global {
   };
 
   /**
-   * Wire error codes for the `POST /users` write path (create AND update —
-   * one handler serves both). They ride `data.error`; `data.message` carries
-   * human copy the FE never discriminates on, because the FE owns the
-   * operator-facing wording via its own literals.
+   * Wire error codes for the paths that create or update a USER row:
+   * `POST /users` (create AND update — one handler serves both) and
+   * `POST /auth?mode=register` (self-registration). They ride `data.error`;
+   * `data.message` carries human copy the FE never discriminates on, because
+   * the FE owns the operator-facing wording via its own literals.
    *
-   * `EMAIL_IN_USE` is returned from two places for one reason: the
-   * `email-PK` precheck, and the email-uniqueness constraint losing a
-   * concurrent write. `USER_ID_COLLISION` means the freshly minted `userId`
-   * was taken between the probe and the write — never a duplicate address,
-   * which is why it needs its own code rather than being folded in.
+   * **The two codes carry different HTTP statuses, deliberately:**
    *
-   * NOT emitted by the self-registration path (`POST /auth?mode=register`),
-   * which still answers with prose — see `LoginErrorCode` for that flow's
-   * own codes.
+   * - `EMAIL_IN_USE` — **400**. The address already belongs to another
+   *   account. Raised from the `email-PK` probe and, when a concurrent write
+   *   wins the race, from the global email-uniqueness constraint. The caller
+   *   must change the address; retrying as-is cannot succeed.
+   * - `USER_ID_COLLISION` — **409**. The server-minted `userId` was taken
+   *   between the probe and the write. Nothing the caller typed is wrong and
+   *   the operation is retryable, so it must not share 400 with the above — a
+   *   client treating 4xx-except-409 as "surface a field error, do not retry"
+   *   would pin an unactionable message to a form field. Never a duplicate
+   *   address, which is why it is not folded into `EMAIL_IN_USE`.
+   *
+   * Distinct from `LoginErrorCode`, which covers the sign-in lockout flow.
    */
   type UserWriteErrorCode = "EMAIL_IN_USE" | "USER_ID_COLLISION";
 
