@@ -102,6 +102,24 @@ declare global {
     packOrder?: boolean;
   };
 
+  /**
+   * Wire error codes for the `POST /users` write path (create AND update —
+   * one handler serves both). They ride `data.error`; `data.message` carries
+   * human copy the FE never discriminates on, because the FE owns the
+   * operator-facing wording via its own literals.
+   *
+   * `EMAIL_IN_USE` is returned from two places for one reason: the
+   * `email-PK` precheck, and the email-uniqueness constraint losing a
+   * concurrent write. `USER_ID_COLLISION` means the freshly minted `userId`
+   * was taken between the probe and the write — never a duplicate address,
+   * which is why it needs its own code rather than being folded in.
+   *
+   * NOT emitted by the self-registration path (`POST /auth?mode=register`),
+   * which still answers with prose — see `LoginErrorCode` for that flow's
+   * own codes.
+   */
+  type UserWriteErrorCode = "EMAIL_IN_USE" | "USER_ID_COLLISION";
+
   interface UserGoogle extends User {
     displayName: string;
   }
