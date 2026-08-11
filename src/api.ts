@@ -17,7 +17,6 @@ declare global {
 	}
 
 	interface ResponseApi<T = Record<string, string>> {
-		status: boolean;
 		error: string | null;
 		message: string | null;
 		data: T;

@@ -7,6 +7,20 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.22
+
+- **refactor(api):** remove `ResponseApi.status`. The api's `response()` helper
+  derived it as `code === 200`, so it carried no information the HTTP status
+  line didn't — and it was wrong for any non-200 success (a 201/202/204 got
+  `status: false` inside a response that succeeded). Verified unread before
+  removal: across `app`, `storefront`, `landing`, `qa` and `cloudprint` every
+  `ResponseApi` reference is a type position (RTK Query generics,
+  `transformResponse` destructuring) with zero object-literal constructions, and
+  nothing branches on the field — the FE discriminates on RTK Query's HTTP
+  status and on `data.error` / `data.message`. Shipped as a patch per the
+  next-patch-always convention; consumers pinning exact versions are unaffected
+  until they bump.
+
 ## 1.10.19
 
 - **fix(product):** un-deprecate `Product.search`. 1.10.18 deprecated the
