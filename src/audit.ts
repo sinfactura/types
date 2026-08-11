@@ -113,6 +113,24 @@ declare global {
 		/** Full request args + response body (raw), for the regulator record. */
 		requestPayload: Record<string, unknown>;
 		responsePayload: Record<string, unknown>;
+		/**
+		 * Set ONLY when the interaction was triggered from inside a MANAGER
+		 * support-impersonation session. Absent means the tenant acted for itself,
+		 * which is the overwhelming majority — so absence is the normal case and
+		 * must never be read as "unknown actor".
+		 *
+		 * These records are retained 10 years and are the tenant's due-diligence
+		 * defence: an ARCA review reads them as proof the tenant checked a CUIT at
+		 * the time of the transaction. Without this field a platform operator's
+		 * lookups are indistinguishable from the tenant's own, so the tenant either
+		 * claims diligence it never performed or cannot account for the entry.
+		 */
+		actedBy?: {
+			/** Operator (MANAGER) user id — the impersonation JWT's `act.sub`. */
+			operatorId: string;
+			/** Impersonation session id — the JWT `sid`; correlates to the `IMPERSONATION#{operatorId}` registry row. */
+			sessionId: string;
+		};
 	}
 
 	/** APOC ("facturas apócrifas") CUIT check request. Source is ARCA's public registry snapshot imported daily into the api's `APOC` DDB partition (no per-check ARCA call). */
