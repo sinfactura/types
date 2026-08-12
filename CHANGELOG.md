@@ -7,6 +7,17 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.27
+
+- **feat(stock):** add `StockSale.serviceOrderId`. Service-order part
+  consumption writes to the same `SALE#` partition as an order sale — on-hand is
+  `Σ INCOME − Σ SALE`, so a part fitted to a repair should deplete stock through
+  the path that already exists rather than a parallel one. That left the two
+  kinds of outflow indistinguishable on the row. Presence of `serviceOrderId` is
+  now the discriminator, exactly mirroring `StockIncome.returnId`: any view that
+  attributes revenue to ORDERS must exclude rows carrying it, or the same money
+  is counted twice. Optional and additive; no existing writer or reader changes.
+
 ## 1.10.26
 
 - **feat(service):** correct the `ServiceOrder` / `ServiceTemplate` contract and

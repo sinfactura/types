@@ -34,6 +34,18 @@ declare global {
     fullName?: string;
     ivaType?: number;
     orderId?: string;
+    /**
+     * Set when the outflow is a PART consumed on a service order rather than a
+     * product sold on an order. Rides the `SALE#` partition deliberately —
+     * on-hand is `Σ INCOME − Σ SALE`, so a part fitted to a repair depletes
+     * stock through the path that already exists and needs no reader change.
+     *
+     * Presence of `serviceOrderId` is the discriminator, mirroring
+     * `StockIncome.returnId`: a row carrying it has no `orderId`, and any view
+     * that attributes revenue to ORDERS must exclude it or the same money is
+     * counted under both.
+     */
+    serviceOrderId?: string;
     price?: number;
   }
 }
