@@ -118,7 +118,15 @@ export const SOCKET_ACTIONS = [
 	'agent_command',
 
 	// Operations / operator surfaces.
-	'logs',
+	//
+	// ⚠️ `'logs'` is deliberately ABSENT here and must not be re-added. It is a
+	// CLIENT→SERVER action only (`SocketLogsMessage`, telemetry ingestion) and
+	// appears in `CLIENT_SOCKET_ACTIONS` / `LIVE_CLIENT_SOCKET_ACTIONS` below.
+	// It was listed here as well, with no backend producer behind it: the api
+	// never broadcasts it, and `registerLog` writes rows through raw `put` paths
+	// that cannot auto-broadcast at all. The only consequence was a consumer in
+	// `app` written against a frame that is never sent. Log deletion DOES
+	// broadcast, under `'log-delete'` above.
 	'maintenance',
 	'currency_auto_updated',
 	'drain_progress',
@@ -145,6 +153,47 @@ export interface SocketMessage<T = unknown> {
 	action: SocketAction;
 	data: T;
 }
+
+/**
+ * `data` of a **single** `log-delete` frame — one row, removed by id.
+ *
+ * `mode` is the mode the row was read under (`'error'`, `'customer'`, `'user'`,
+ * …). It is present so a consumer knows WHICH mode-scoped cache the removal
+ * applies to: `/logs` reads are mode-scoped, so without it a client would have
+ * to invalidate every mode to drop one row.
+ *
+ * Correct handling: remove that id from the `mode` cache. The deletion is exact
+ * and total, so a targeted patch is safe.
+ */
+export interface LogDeleteOneData {
+	logId: string;
+	mode: string;
+}
+
+/**
+ * `data` of a **bulk** `log-delete` frame — every row of one mode, purged.
+ *
+ * Carries no id, and that absence is the discriminator against
+ * `LogDeleteOneData`.
+ *
+ * ⚠️ Correct handling is **refetch that mode, never clear it**. The backend
+ * purge is capped per invocation, so the delete can be PARTIAL: clearing the
+ * cache would show an empty list while rows are still on the server, and
+ * nothing arrives later to correct it.
+ */
+export interface LogDeleteAllData {
+	mode: string;
+}
+
+/**
+ * Either `log-delete` payload. Discriminate on the presence of `logId`.
+ *
+ * Audience for both: MANAGER connections, ACROSS stores (`wsPostSuperAdmin`).
+ * The backing `PK: 'ERROR'` partition is a single global one and deletion is
+ * MANAGER-gated, so no tenant owns these frames and a store-scoped view should
+ * not expect them.
+ */
+export type LogDeleteData = LogDeleteOneData | LogDeleteAllData;
 
 /* -------------------------------------------------------------------------- */
 /*  Agent diagnostic commands                                                 */
