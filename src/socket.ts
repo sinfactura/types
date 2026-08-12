@@ -155,34 +155,43 @@ export interface SocketMessage<T = unknown> {
 }
 
 /**
- * `data` of a **single** `log-delete` frame — one row, removed by id.
+ * The `/logs` read mode a `log-delete` frame can refer to.
  *
- * `mode` is the mode the row was read under (`'error'`, `'customer'`, `'user'`,
- * …). It is present so a consumer knows WHICH mode-scoped cache the removal
- * applies to: `/logs` reads are mode-scoped, so without it a client would have
- * to invalidate every mode to drop one row.
+ * Exactly one value today, and deliberately a union rather than `string`: both
+ * delete endpoints target the backend's single global `ERROR` partition, read
+ * back as `GET /logs?mode=error`. Declaring it open invited the bug this
+ * replaced — the api echoed the REQUEST's `mode` onto the frame, so a body that
+ * omitted it published `'unknown'`, and the bulk path published the router's
+ * `'errors-all'` discriminator, which `GET /logs?mode=` does not even accept.
+ */
+export type LogDeleteMode = 'error';
+
+/**
+ * `data` of a **single** `log-delete` frame — one row, removed by id.
  *
  * Correct handling: remove that id from the `mode` cache. The deletion is exact
  * and total, so a targeted patch is safe.
  */
 export interface LogDeleteOneData {
 	logId: string;
-	mode: string;
+	/** Names the cache to patch. Not caller-controlled — see `LogDeleteMode`. */
+	mode: LogDeleteMode;
 }
 
 /**
- * `data` of a **bulk** `log-delete` frame — every row of one mode, purged.
+ * `data` of a **bulk** `log-delete` frame — the whole `ERROR` partition purged.
  *
  * Carries no id, and that absence is the discriminator against
  * `LogDeleteOneData`.
  *
- * ⚠️ Correct handling is **refetch that mode, never clear it**. The backend
- * purge is capped per invocation, so the delete can be PARTIAL: clearing the
- * cache would show an empty list while rows are still on the server, and
- * nothing arrives later to correct it.
+ * Correct handling: refetch that mode's list. It is NOT a mode-scoped purge —
+ * the backend query carries no mode predicate, so this can only ever mean the
+ * `error` view; there is no way to purge just the tenant `user` or `customer`
+ * logs.
  */
 export interface LogDeleteAllData {
-	mode: string;
+	/** Names the cache to refetch. Not caller-controlled — see `LogDeleteMode`. */
+	mode: LogDeleteMode;
 }
 
 /**
