@@ -48,6 +48,13 @@ export const SOCKET_ACTIONS = [
 	// `orders` — carries the committed `Return` row itself (stock/account/credit-note
 	// effects), not just the order's bumped `updatedAt`.
 	'returns',
+	// BE → all store users on any service-order mutation. Operator-only by
+	// construction: a `ServiceOrder` carries internal diagnosis notes, per-part
+	// `unitCost`, work logs and technician ids, and `scrubForCustomer` strips
+	// none of them (it only knows about `cost` / `items[].cost`), so producers
+	// MUST send this with `excludeCustomers`. Anything a customer should see
+	// goes out as a separately field-projected `wsPostCustomer` frame.
+	'services',
 	'shifts',
 	'stores',
 	'suppliers',

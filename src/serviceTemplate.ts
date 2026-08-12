@@ -4,11 +4,12 @@
  *
  * A ServiceTemplate seeds defaults onto a new ServiceOrder: which workflow
  * stages are mandatory, default pricing model / rates, QA checklists, and
- * common parts auto-populated on intake. Shares the ServiceType / ServiceStatus
- * / PricingModel unions defined in serviceOrder.ts.
+ * common parts auto-populated on intake. Shares the ServiceType /
+ * ServiceStageStatus / PricingModel unions defined in serviceOrder.ts.
  *
- * FORWARD-ONLY: declarations only — no api or app implementation consumes
- * these yet.
+ * Consumed by the api's `/services` endpoints (Services feature, Wave 1). The
+ * previous FORWARD-ONLY marker is gone deliberately: these declarations are no
+ * longer free to reshape.
  */
 
 declare global {
@@ -41,9 +42,23 @@ declare global {
 		categoryId?: string;
 
 		// Workflow configuration
-		/** Which workflow stages are mandatory for orders using this template. */
-		requiredStages: ServiceStatus[];
-		/** Auto-proceed without quote approval. */
+		/**
+		 * Which workflow stages are mandatory for orders using this template.
+		 *
+		 * `ServiceStageStatus`, not `ServiceStatus`: the terminal statuses are
+		 * outcomes, not stages, and a template declaring `cancelled` mandatory is
+		 * nonsense the old type admitted.
+		 */
+		requiredStages: ServiceStageStatus[];
+		/**
+		 * Auto-proceed without quote approval.
+		 *
+		 * Overlaps `requiredStages` — omitting `'quoted'` there says the same
+		 * thing. `skipQuote` wins where they disagree, because it is the explicit
+		 * statement of intent; a template that sets `skipQuote` while listing
+		 * `'quoted'` in `requiredStages` should be rejected at write time rather
+		 * than silently resolved.
+		 */
 		skipQuote: boolean;
 		/** Whether equipment intake is needed. */
 		requiresEquipment: boolean;

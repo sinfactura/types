@@ -7,6 +7,42 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.26
+
+- **feat(service):** correct the `ServiceOrder` / `ServiceTemplate` contract and
+  publish the `services` socket action, ahead of the api implementing them.
+  Both files carried "FORWARD-ONLY: declarations only — no api or app
+  implementation consumes these yet"; that was verified true (zero code matches
+  in `api` and `app`, and no PR in either repo had ever touched them), which
+  made this the last moment the shape could be corrected for free. Fourteen
+  changes, of which the load-bearing ones: `currency` is now required and joined
+  by `currencyValue` / `currencyValueAt` (ADR-0013 parity with `Order` — without
+  a stamped rate a months-old order silently reconverts at today's rate); a
+  required `dated: number` so the sparse `PK-dated` index actually returns
+  service rows instead of an empty list with no error; a required `disabled` so
+  the soft-delete mode has a field to write; `onHold: boolean` becomes
+  `hold?: ServiceHold` carrying a reason, since blocked-on-parts and
+  blocked-on-customer are operationally unrelated; a `custody` axis independent
+  of `status`, because a cancelled order can still have the device on the shelf;
+  the terminal set widens to `returned_unrepaired` (with an `outcome`) and
+  `abandoned_disposed`, which is what makes quote-rejection rate computable;
+  `testing` is dropped as a substate of `in_progress`; `quote` becomes a
+  versioned collection with per-version status, `expiresAt` and an approval
+  event, because Ley 24.240 art. 22 makes mid-repair re-quoting a legal
+  obligation a single embedded quote cannot represent; plus `deposits[]` with an
+  explicit `freezesPrice` (Ley de IVA art. 5 turns on it and software cannot
+  infer it), `PartUsed.condition` (art. 20 presumes new materials), `readyAt` /
+  `notifiedAt[]` for the unclaimed-equipment clock, warranty-rework linkage, and
+  a `faultFound` distinct from internal `diagnosis.notes`.
+  `ServiceTemplate.requiredStages` is now `ServiceStageStatus[]`, so a template
+  can no longer declare a terminal status mandatory. The new `services` action
+  is documented operator-only: a `ServiceOrder` carries internal notes, per-part
+  `unitCost` and technician ids that `scrubForCustomer` does not strip, so
+  producers must broadcast it with `excludeCustomers`.
+  Technically a reshape, shipped as a **patch** per the next-patch-always
+  convention (as 1.10.22's removal was): every consumer pins exactly, and this
+  release has no consumers of these types at all to break.
+
 ## 1.10.22
 
 - **refactor(api):** remove `ResponseApi.status`. The api's `response()` helper
