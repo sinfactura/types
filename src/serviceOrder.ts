@@ -130,6 +130,16 @@ declare global {
 		quantity: number;
 		/** Merchant cost. Operator-only — never broadcast to a customer socket. */
 		unitCost: number;
+		/**
+		 * The extended line amount CHARGED to the customer — `quantity` × the sell
+		 * price, not `quantity` × {@link PartUsed.unitCost}.
+		 *
+		 * Stated because the two are easy to conflate and the line carries no
+		 * explicit sell price: `unitCost` is what the part cost the shop, `total`
+		 * is what the customer pays for it. The api sums `total` into
+		 * `ServiceOrder.partsCost`, so reading it as a cost makes every service
+		 * order bill parts at zero markup and reports 0% margin on them.
+		 */
 		total: number;
 		condition: PartCondition;
 	}
@@ -333,17 +343,34 @@ declare global {
 
 		// Financials
 		/**
-		 * The FINAL ACTUAL pricing, server-recomputed on every write that touches
-		 * parts or work logs and never accepted from a request body.
+		 * The FINAL ACTUAL pricing.
 		 *
 		 * Precedence against `quote[]`: a quote version is what the customer
 		 * AGREED to; these header fields are what the job actually came to. They
 		 * are expected to differ — that gap is the thing a shop needs to see.
+		 *
+		 * Ownership is split, and the split is the part worth reading. The three
+		 * DERIVED fields — `laborCost`, `partsCost`, `total` — are server-recomputed
+		 * on every write that touches work logs, parts, `laborRate` or `discount`,
+		 * and are never accepted from a request body. The three INPUTS they are
+		 * derived from — `pricingModel`, `laborRate`, `discount` — ARE operator-set
+		 * and do arrive from the request body; there is nothing to recompute them
+		 * from. Treating an input as server-owned is how a consumer ends up
+		 * believing an operator cannot correct a wrong hourly rate.
 		 */
 		pricingModel: PricingModel;
 		laborRate?: number;
 		laborCost?: number;
 		partsCost?: number;
+		/**
+		 * An absolute AMOUNT subtracted from the job, in `currency` — **not** a
+		 * percentage.
+		 *
+		 * This is the opposite of `Order.discount`, which is a percentage the api
+		 * applies as `1 - discount / 100`. Same field name, sibling entities,
+		 * opposite units: reusing an order-discount control here turns a 10% intent
+		 * into 10 pesos off a 50,000 job.
+		 */
 		discount?: number;
 		total?: number;
 		/**
