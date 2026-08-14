@@ -7,6 +7,18 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.32
+
+- **feat(serviceTemplate):** declare `createdAt` / `updatedAt` on
+  `ServiceTemplate`, and correct the header comment to name the
+  `/service-templates` endpoints it is actually consumed by. The api stamps both
+  timestamps centrally on every write, so rows already carried them — but the
+  interface omitted them while `ServiceOrder` and `Customer` both declare them,
+  and the omission is load-bearing rather than cosmetic: the repo's FK-existence
+  idiom probes `createdAt` to tell a missing row from a defaulted one, so
+  validating a service order's `templateId` meant reading a field the contract
+  did not admit existed. Additive.
+
 ## 1.10.31
 
 - **feat(audit):** add `service_period_changed` to `OrderAuditAction`. The three

@@ -7,9 +7,10 @@
  * common parts auto-populated on intake. Shares the ServiceType /
  * ServiceStageStatus / PricingModel unions defined in serviceOrder.ts.
  *
- * Consumed by the api's `/services` endpoints (Services feature, Wave 1). The
- * previous FORWARD-ONLY marker is gone deliberately: these declarations are no
- * longer free to reshape.
+ * Consumed by the api's `/service-templates` endpoints, and read by
+ * `/services` when it validates a service order's `templateId`. The previous
+ * FORWARD-ONLY marker is gone deliberately: these declarations are no longer
+ * free to reshape.
  */
 
 declare global {
@@ -75,6 +76,18 @@ declare global {
 
 		// Common parts
 		commonParts: ServiceCommonPart[];
+
+		// Dates (Unix ms)
+		/**
+		 * Stamped by the api on insert and never rewritten. Declared rather than
+		 * left implicit because it is the field an existence probe reads: a
+		 * point-read of a template that was never written returns an empty object,
+		 * so `createdAt` is what separates "no such template" from "a template with
+		 * every field defaulted".
+		 */
+		createdAt: number;
+		/** Stamped on every write. */
+		updatedAt: number;
 
 		disabled: boolean;
 	}
