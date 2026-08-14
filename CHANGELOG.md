@@ -7,6 +7,16 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.31
+
+- **feat(audit):** add `service_period_changed` to `OrderAuditAction`. The three
+  order fields that now reach ARCA — `serviceStartDate` / `serviceEndDate` /
+  `dueDate` — were changeable with no audit row at all, while `readyAt`, a purely
+  operational flag on the same handler, wrote one. Given its own action rather
+  than folded into `order_edited` because changing one of these changes what the
+  next comprobante declares to the tax authority, and a timeline that renders
+  that as a generic edit is hiding the part that matters. Additive.
+
 ## 1.10.30
 
 - **docs(order):** correct the write boundary on `serviceStartDate` /

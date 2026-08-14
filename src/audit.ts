@@ -60,6 +60,15 @@ declare global {
 		| 'order_returned'
 		/** Customer (or operator) cancellation — distinct from `order_disabled`. */
 		| 'order_cancelled'
+		/**
+		 * The AFIP service period or payment term on the order changed —
+		 * `serviceStartDate` / `serviceEndDate` / `dueDate`. Its own action rather
+		 * than `order_edited` because these three reach ARCA on the next
+		 * comprobante (`FchServDesde` / `FchServHasta` / `FchVtoPago`), so an
+		 * operator changing one is changing what a fiscal document will declare,
+		 * and the timeline should say so rather than render a generic edit.
+		 */
+		| 'service_period_changed'
 		| 'discount_changed'
 		| 'payment_method_changed'
 		| 'delivery_method_changed'
