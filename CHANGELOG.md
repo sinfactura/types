@@ -7,6 +7,23 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.30
+
+- **docs(order):** correct the write boundary on `serviceStartDate` /
+  `serviceEndDate`. 1.10.29 documented them as "settable only at order CREATION
+  … the edit path is strict, so the window cannot drift after the fact". The
+  second half is true and the conclusion does not follow: `mode: 'edit'` is
+  indeed `.strict()`, but `orderPostSchema` gates BOTH legs of `POST /orders`
+  and the update leg spreads the body into the row, so a later POST carrying an
+  existing `orderId` revises the window. That is not a hole this pair opened —
+  `orderPostSchema` is `.loose()` and every `Order` key outside
+  `SERVER_OWNED_ORDER_FIELDS` behaves the same way (already documented for
+  `comments`, `dueDate` and the print trio) — and it is safe here because the
+  same `superRefine` validates both legs, so both-or-neither and the ordering
+  hold on every accepted write. Documented as revisable-before-invoicing, with
+  the reason it cannot rewrite an issued voucher: the invoice stamps its own
+  copy at issue time. Comment-only; no shape change.
+
 ## 1.10.29
 
 - **feat(order,invoice):** move the AFIP service period onto `Order` and retire

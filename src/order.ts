@@ -46,10 +46,16 @@ declare global {
 		 * then reports same-day exactly as before — the fields are additive and
 		 * change nothing for a sale that has no service period.
 		 *
-		 * Operator-declared and settable only at order CREATION: `POST /orders`
-		 * validates them, and the edit path is strict, so the window cannot drift
-		 * after the fact. `serviceEndDate` may not precede `serviceStartDate` —
-		 * ARCA rejects that, so the api rejects it first (400).
+		 * Operator-declared, and validated on every write that can carry them:
+		 * `POST /orders` (both its insert and its update leg) rejects a
+		 * half-declared window and an end preceding its start, with a 400.
+		 * `mode: 'edit'` is strict and cannot carry them at all.
+		 *
+		 * They are therefore revisable before invoicing, which is what an operator
+		 * correcting a mistyped intake date needs. Revising them AFTER an invoice
+		 * exists does not rewrite it: the invoice stamps its own copy of the window
+		 * at issue time, so the issued voucher and the order can legitimately
+		 * disagree once someone edits the order.
 		 *
 		 * These are the SOURCE. `Invoice.serviceStartDate`/`serviceEndDate` are
 		 * the copy stamped at issue time; the ARCA drain rebuilds a pending
