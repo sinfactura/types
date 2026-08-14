@@ -26,10 +26,38 @@ declare global {
 		currencyValueAt?: number;
 		paymentMethod: number;
 		/**
-		 * Expected payment due date, Unix ms. Optional and forward-only —
-		 * purely declarative in v1, nothing computes it from payment terms.
+		 * Expected payment due date, Unix ms. Nothing computes it from payment
+		 * terms — it is operator-declared.
+		 *
+		 * Feeds AFIP `FchVtoPago` at invoice time, which ARCA requires on every
+		 * service voucher (Concepto 2/3) and on every FCE regardless of Concepto
+		 * (code 10163). The FCE request's own `fchVtoPago` outranks it; absent
+		 * both, the voucher falls back to the invoice date, which is the
+		 * behaviour every goods order has always had.
 		 */
 		dueDate?: number;
+		/**
+		 * The service period this order bills for, Unix ms — the window that
+		 * reaches ARCA as `FchServDesde` / `FchServHasta`.
+		 *
+		 * Exists because a repair received in March and delivered in June is a
+		 * genuine multi-month service, and reporting it as a same-day June
+		 * service misstates the invoice. Absent on an ordinary goods order, which
+		 * then reports same-day exactly as before — the fields are additive and
+		 * change nothing for a sale that has no service period.
+		 *
+		 * Operator-declared and settable only at order CREATION: `POST /orders`
+		 * validates them, and the edit path is strict, so the window cannot drift
+		 * after the fact. `serviceEndDate` may not precede `serviceStartDate` —
+		 * ARCA rejects that, so the api rejects it first (400).
+		 *
+		 * These are the SOURCE. `Invoice.serviceStartDate`/`serviceEndDate` are
+		 * the copy stamped at issue time; the ARCA drain rebuilds a pending
+		 * voucher from the live Order, so anything that must survive a
+		 * contingency drain belongs here rather than on the invoice.
+		 */
+		serviceStartDate?: number;
+		serviceEndDate?: number;
 		deliveryMethod: number;
 		invoiceMethod?: {
 			condFiscal: number;

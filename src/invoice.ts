@@ -126,9 +126,13 @@ declare global {
     caeaPeriod?: string; // "202608#1" -- links to CAEAPeriod.period
     // Frozen FECAEADetRequest-shaped snapshot captured at CAEA-stamp time. The
     // plain Invoice row is LOSSY for Inform replay (only 10.5%/21% alicuotas
-    // survive as neto10/21+iva10/21; MonId, ImpTotConc, FchServ*, CanMisMonExt,
+    // survive as neto10/21+iva10/21; MonId, ImpTotConc, CanMisMonExt,
     // CondicionIVAReceptorId are dropped), so the deferred FECAEARegInformativo
     // step replays THIS snapshot verbatim. Absent on non-CAEA/pre-snapshot rows.
+    // `FchServ*` used to be in that dropped list and no longer is — the row now
+    // carries the window as `serviceStartDate`/`serviceEndDate` — but the
+    // snapshot stays authoritative for replay: it holds what was STAMPED, and
+    // recomputing yyyymmdd from ms would re-derive rather than replay.
     caeaDet?: CaeaInformDet;
     // ARCA WSFEXV1 export invoicing. Present only when invoiceType is an
     // export voucher (19/20/21, Factura E).
@@ -136,11 +140,21 @@ declare global {
     // ARCA WSFECRED FCE MiPyME credit invoices. Present only when invoiceType
     // is an FCE voucher (201/202/203, 206/207/208, 211/212/213).
     fce?: FceFields;
-    // Service order integration. AFIP concept=2 service invoices carry the
-    // service period + payment due date. All Unix ms.
+    /**
+     * The service period actually declared to ARCA, frozen at issue time. Unix ms.
+     *
+     * These are a STAMPED COPY, not an input: the voucher is built from the
+     * `Order` (`Order.serviceStartDate` / `serviceEndDate`), which is what the
+     * live submission, the CAEA snapshot and the ARCA drain all read — the drain
+     * re-reads the live Order and rebuilds, so the Order is the single source.
+     * Present only on a service invoice (AFIP Concepto 2 or 3); absent means the
+     * voucher reported same-day, which is correct for a goods sale.
+     *
+     * Payment due rides `dueDate` below, NOT a field of its own — an earlier
+     * `paymentDueDate` here duplicated it and never had a reader.
+     */
     serviceStartDate?: number; // AFIP FchServDesde
     serviceEndDate?: number; // AFIP FchServHasta
-    paymentDueDate?: number; // AFIP FchVtoPago
     serviceOrderId?: string; // link to the originating ServiceOrder
     // ARCA contingency reconciliation. When a FECAESolicitar submit dies
     // mid-call and retry-on-query can't settle whether the voucher landed, the
@@ -174,9 +188,11 @@ declare global {
      * boundary) and to `caeExpiration` (an ARCA authorization window) — this is
      * a commercial payment term.
      *
-     * ⚠️ DECLARATIVE ONLY — nothing populates it. No invoice creation path
-     * writes `dueDate`, and `invoicePostSchema` strips it from the request
-     * body. Reserved for pending dunning work, deliberately blocked.
+     * Feeds AFIP `FchVtoPago`, which ARCA requires on every service voucher
+     * (Concepto 2/3) AND on every FCE regardless of Concepto (code 10163).
+     * Precedence at build time: the FCE request's own `fchVtoPago`, else the
+     * ORDER's `dueDate`, else the invoice date. Stamped here from the order at
+     * issue time, so this row records what was actually declared.
      */
     dueDate?: number;
   }

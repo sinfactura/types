@@ -7,6 +7,36 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.29
+
+- **feat(order,invoice):** move the AFIP service period onto `Order` and retire
+  the duplicate payment-due field. `Order` gains `serviceStartDate` /
+  `serviceEndDate`; `Invoice.paymentDueDate` is **removed** and `Invoice.dueDate`
+  becomes the live source of `FchVtoPago`. The window had been declared on
+  `Invoice` alone and read by nobody, which could not work: the api builds the
+  voucher from the `Order` — the Invoice row does not exist yet at that point —
+  and the ARCA contingency drain rebuilds a pending voucher by re-reading the
+  live Order, so a window stored only on the invoice would be lost exactly when a
+  repair was invoiced during an outage. On the Order, one read serves the live
+  submission, the CAEA snapshot and the drain alike. `paymentDueDate` duplicated
+  `dueDate` ("expected payment due date, Unix ms") with a second name; both were
+  dead, verified 0 readers and 0 writers across api, app, storefront, landing,
+  cloudprint, qa and mobile, so the duplicate goes rather than gets revived.
+  Removing it is why this is not purely additive — nothing consumed it.
+  `Invoice.serviceStartDate` / `serviceEndDate` remain as the copy stamped at
+  issue time, recording what was actually declared to ARCA.
+
+## 1.10.28
+
+- **docs(service):** state what the money fields on a `ServiceOrder` actually
+  mean (entry backfilled — the release shipped without one). `PartUsed.total` is
+  the extended amount CHARGED, not `quantity` × `unitCost`; reading it as a cost
+  bills every repair's parts at zero markup. `ServiceOrder.discount` is an
+  absolute amount while `Order.discount` is a percentage — same name, sibling
+  entities, opposite units. And only the three DERIVED pricing fields are
+  server-recomputed; `pricingModel`, `laborRate` and `discount` are the
+  operator-set inputs they derive from. Comment-only; no shape change.
+
 ## 1.10.27
 
 - **feat(stock):** add `StockSale.serviceOrderId`. Service-order part
