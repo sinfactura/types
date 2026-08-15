@@ -31,7 +31,12 @@ declare global {
 		required: boolean;
 	}
 
-	/** A commonly-used part auto-populated onto orders created from the template. */
+	/**
+	 * A part this kind of job commonly consumes.
+	 *
+	 * Declarative — nothing copies it onto an order. See the file header: the
+	 * api proves `ServiceOrder.templateId` and stores it, and seeds nothing.
+	 */
 	interface ServiceCommonPart {
 		productId: string;
 		name: string;

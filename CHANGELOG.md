@@ -7,6 +7,15 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.35
+
+- **docs(serviceTemplate):** `ServiceCommonPart` still said "auto-populated onto
+  orders created from the template" — the exact promise 1.10.34 removed from the
+  file header one interface above it. Fixing the header and leaving the field
+  comment made the contract contradict itself, which is worse than the original
+  error: a consumer reading the field it would actually build against saw the
+  stale claim. Comment only.
+
 ## 1.10.34
 
 - **feat(socket):** add `'service-templates'` to `SOCKET_ACTIONS`. `dynamoUpdate`'s
