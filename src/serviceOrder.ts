@@ -490,6 +490,17 @@ declare global {
 		deliveredAt?: number;
 
 		// Invoice integration
+		/**
+		 * The `Order` minted for this service order, set on the
+		 * `ready` → `delivered` transition. An invoice is built from an order and
+		 * never from a service order, so this is the join that makes the work
+		 * billable at all.
+		 *
+		 * Absent while the job is still open, and absent forever on a ticket that
+		 * ends `cancelled`, `returned_unrepaired` or `abandoned_disposed` — none of
+		 * those deliver anything to bill.
+		 */
+		orderId?: string;
 		invoiceId?: string;
 
 		// Warranty & rework
@@ -505,7 +516,21 @@ declare global {
 		 */
 		parentServiceOrderId?: string;
 		isWarrantyRework?: boolean;
-		/** False on a warranty rework. Absent is treated as billable. */
+		/**
+		 * False on a warranty rework. Absent is treated as billable.
+		 *
+		 * This is the INVOICING gate, and it is the only one: a non-billable order
+		 * still mints its `Order` at delivery — at zero — so the parts consumed,
+		 * the technician hours and the `parentServiceOrderId` link all survive and
+		 * the free redo stays visible in reporting. What it refuses is the fiscal
+		 * document: `POST /invoices` rejects an order whose service order is not
+		 * billable, so no voucher is issued and no metered quota is burnt.
+		 *
+		 * Independent of `isWarrantyRework`, deliberately — a rework can be
+		 * goodwill-billed and a non-rework can be free, so neither implies the
+		 * other. Independent of `pricingModel: 'warranty'` too, which is the
+		 * PRICING intent (it drives the total to zero); this is the gate.
+		 */
 		billable?: boolean;
 
 		// Soft delete

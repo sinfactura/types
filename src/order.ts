@@ -64,6 +64,24 @@ declare global {
 		 */
 		serviceStartDate?: number;
 		serviceEndDate?: number;
+		/**
+		 * The `ServiceOrder` this order bills for, set when a delivered service
+		 * order mints its order. Absent on every ordinary goods order.
+		 *
+		 * An order carrying this holds the repair as two `isService: true` product
+		 * lines — labour and parts — priced from the service order's own
+		 * `laborCost` / `partsCost`. Those lines are already-consumed work: the
+		 * parts left the shelf when the technician fitted them, so the order's
+		 * stock deduction skips a service line rather than moving inventory a
+		 * second time.
+		 *
+		 * `Order.discount` is a percentage and does NOT reach those lines. The
+		 * service order is the sole owner of its own total (its own `discount` is
+		 * an absolute amount already taken off), so the figure invoiced is the
+		 * figure the customer agreed to. The percentage still applies normally to
+		 * any goods bought in the same visit.
+		 */
+		serviceOrderId?: string;
 		deliveryMethod: number;
 		invoiceMethod?: {
 			condFiscal: number;
