@@ -261,6 +261,55 @@ declare global {
 	// Service order
 
 	/**
+	 * Which end of the job a photo was taken at.
+	 *
+	 * Present from the first release even though only intake has a UI: the
+	 * discriminator is cheap to declare now and expensive to retrofit onto
+	 * stored rows later, and a before/after comparison is unbuildable without
+	 * it. `intake` is the evidentiary one — the state of someone else's
+	 * property at the moment the shop took custody of it.
+	 */
+	type ServiceOrderPictureStage = 'intake' | 'delivery';
+
+	/**
+	 * One photo on a service order. Same mechanism as `Product.pictures`: an
+	 * entry carrying `base64` is an UPLOAD and gets a server-minted key, so a
+	 * client-supplied `url` never reaches storage; an entry resent without
+	 * bytes is a pointer and triggers no storage call, which is what lets a
+	 * client echo the whole array back on every save.
+	 */
+	interface ServiceOrderPicture {
+		url: string;
+		base64?: string;
+		primary?: boolean;
+		stage: ServiceOrderPictureStage;
+	}
+
+	/**
+	 * The customer fields a service-order consumer needs to render a ticket,
+	 * RESOLVED AT READ TIME and never stored on the row.
+	 *
+	 * Deliberately a named minimal shape rather than `Partial<Customer>` (which
+	 * `Order.customer` is): a partial invites the whole row onto the wire and
+	 * tells a consumer nothing about which keys are actually present. Every
+	 * field here except `disabled` is guaranteed.
+	 *
+	 * Read-time resolution, not a stored snapshot, is the point — a service
+	 * order can sit open for months, so a customer who corrects their name or
+	 * phone is correct on every ticket immediately, including last March's.
+	 * That also means there is nothing to migrate, nothing to keep in sync, and
+	 * the `search` index is untouched.
+	 */
+	interface ServiceOrderCustomer {
+		customerId: string;
+		fullName: string;
+		phone: string;
+		email: string;
+		/** Present when the customer has since been deactivated, so a UI can flag the ticket. */
+		disabled?: boolean;
+	}
+
+	/**
 	 * Core service-order entity. Parallel to `Order` but with a multi-stage
 	 * workflow, equipment intake, technician assignment, and service-specific
 	 * pricing. Stored in its own DynamoDB partition.
@@ -272,6 +321,16 @@ declare global {
 		/** Human-facing sequential ticket number shown to the customer. */
 		ticketNumber: string;
 		customerId: string;
+		/**
+		 * Resolved from the CUSTOMER row on every read — **never an attribute of
+		 * the stored row**, so a writer must not send it and a mock built from a
+		 * table scan will not carry it.
+		 *
+		 * Absent only when the referenced customer could not be read (a deleted
+		 * row, a throttled batch). Consumers render the id alone in that case
+		 * rather than treating it as a load failure.
+		 */
+		customer?: ServiceOrderCustomer;
 
 		// Classification
 		serviceType: ServiceType;
@@ -309,6 +368,30 @@ declare global {
 			/** Customer-reported fault, in the customer's own words at intake. */
 			reportedIssue?: string;
 		};
+
+		/**
+		 * Equipment photos — **deliberately top-level rather than a member of
+		 * `equipment`**, and that placement is load-bearing.
+		 *
+		 * `equipment` is written as a WHOLE-OBJECT replacement (an absent
+		 * sub-field means "cleared", so that editing a ticket to drop a wrong
+		 * serial number cannot leave the old one in the `search` index). Photos
+		 * need the opposite convention — the `Product.pictures` one, where an
+		 * absent array means "don't touch" and `[]` means "clear" — because a
+		 * client that edits the model name must not silently destroy the intake
+		 * photos, which are the shop's only evidence in a dispute over
+		 * pre-existing damage. Two opposite rules cannot live inside one object,
+		 * so the photos live beside it.
+		 *
+		 * `[]` and absent are NOT interchangeable. Collapsing them was a real
+		 * regression on the product side.
+		 */
+		pictures?: ServiceOrderPicture[];
+		/**
+		 * @deprecated Request-only control, never persisted or returned — the
+		 * transient removal list, mirroring `ProductUpsertInput.removePictures`.
+		 */
+		removePictures?: { url: string }[];
 
 		// Diagnosis
 		diagnosis?: {
