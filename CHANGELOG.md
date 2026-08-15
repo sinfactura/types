@@ -7,6 +7,19 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.34
+
+- **feat(socket):** add `'service-templates'` to `SOCKET_ACTIONS`. `dynamoUpdate`'s
+  `action` is not socket-only — it is interpolated into the REST success message
+  and the cross-tenant audit label, and `silent: true` gates neither. A writer
+  with no action of its own must borrow one, which then answers the client with
+  the wrong entity name. Additive.
+- **docs(serviceTemplate):** stop promising that a template seeds a new
+  ServiceOrder. `templateId` is proven and stored; no field is copied onto the
+  order and `commonParts` is not auto-populated. The old comment described
+  intent, and a consumer building a pre-filled intake UI on it would have been
+  wrong. Comment only.
+
 ## 1.10.33
 
 - **docs(serviceTemplate):** correct `createdAt`'s rationale. 1.10.32 justified

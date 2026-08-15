@@ -55,6 +55,20 @@ export const SOCKET_ACTIONS = [
 	// MUST send this with `excludeCustomers`. Anything a customer should see
 	// goes out as a separately field-projected `wsPostCustomer` frame.
 	'services',
+	/**
+	 * BE → all store users on a service-template mutation.
+	 *
+	 * Declared even though the api currently writes templates with
+	 * `silent: true` and emits no frame. `dynamoUpdate`'s `action` is not
+	 * socket-only — it is interpolated into the REST success message and into
+	 * the cross-tenant guard's audit label, neither of which `silent` gates. So
+	 * a writer with no action of its own has to borrow one, and the borrowed
+	 * name then surfaces as the wrong entity in a client's response body and
+	 * sends anyone grepping the audit log into the wrong handler. Publishing the
+	 * string is what lets the producer be honest on those two surfaces; turning
+	 * the broadcast on later is a one-line change with no contract move.
+	 */
+	'service-templates',
 	'shifts',
 	'stores',
 	'suppliers',

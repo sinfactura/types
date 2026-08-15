@@ -2,10 +2,20 @@
  * Service template types — pre-defined per-service-type configuration for the
  * Services Feature.
  *
- * A ServiceTemplate seeds defaults onto a new ServiceOrder: which workflow
- * stages are mandatory, default pricing model / rates, QA checklists, and
- * common parts auto-populated on intake. Shares the ServiceType /
- * ServiceStageStatus / PricingModel unions defined in serviceOrder.ts.
+ * A ServiceTemplate describes the intended defaults for a service type: which
+ * workflow stages are mandatory, the default pricing model / rates, QA
+ * checklists, and the parts such a job commonly consumes. Shares the
+ * ServiceType / ServiceStageStatus / PricingModel unions defined in
+ * serviceOrder.ts.
+ *
+ * ⚠️ Nothing is applied automatically today. `ServiceOrder.templateId` is
+ * PROVEN against a real, non-disabled template at write time and then stored —
+ * no field on this interface is copied onto the order, and `commonParts` in
+ * particular is not auto-populated on intake. An earlier version of this
+ * comment promised that seeding; it described intent, never behaviour, and a
+ * consumer building a pre-filled intake UI on it would have been wrong.
+ * Auto-population reaches the stock-deducting parts path, so it is deliberately
+ * its own change.
  *
  * Consumed by the api's `/service-templates` endpoints, and read by
  * `/services` when it validates a service order's `templateId`. The previous
