@@ -7,6 +7,17 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.33
+
+- **docs(serviceTemplate):** correct `createdAt`'s rationale. 1.10.32 justified
+  declaring it as "the field an existence probe reads", on the premise that a
+  point-read of an absent row returns an empty object. That is true of
+  `getCustomerById`, which spreads `...Item` with no guard — it is NOT true of
+  the template getter the same release was written for, which returns
+  `undefined` outright, so the FK check tests the row and never the field. The
+  real reason to declare it is that the list read filters on `createdAt > 0`.
+  Comment only; no shape change.
+
 ## 1.10.32
 
 - **feat(serviceTemplate):** declare `createdAt` / `updatedAt` on

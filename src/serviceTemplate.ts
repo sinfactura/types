@@ -80,10 +80,9 @@ declare global {
 		// Dates (Unix ms)
 		/**
 		 * Stamped by the api on insert and never rewritten. Declared rather than
-		 * left implicit because it is the field an existence probe reads: a
-		 * point-read of a template that was never written returns an empty object,
-		 * so `createdAt` is what separates "no such template" from "a template with
-		 * every field defaulted".
+		 * left implicit because the list read filters on `createdAt > 0`, so a
+		 * row that somehow reached storage without it would be permanently
+		 * invisible to search — the field is load-bearing, not bookkeeping.
 		 */
 		createdAt: number;
 		/** Stamped on every write. */
