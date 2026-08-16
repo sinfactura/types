@@ -156,6 +156,13 @@ declare global {
     serviceStartDate?: number; // AFIP FchServDesde
     serviceEndDate?: number; // AFIP FchServHasta
     serviceOrderId?: string; // link to the originating ServiceOrder
+    /**
+     * The ServiceOrder the originating ticket was a rework OF. A STAMPED COPY of
+     * `Order.parentServiceOrderId`, taken by the same route and at the same
+     * instant as `serviceOrderId` above, on both the domestic and the
+     * WSFEX/export branch. Absent unless the ticket is itself a rework.
+     */
+    parentServiceOrderId?: string;
     // ARCA contingency reconciliation. When a FECAESolicitar submit dies
     // mid-call and retry-on-query can't settle whether the voucher landed, the
     // pending_cae row records the targeted voucher number + as-submitted date

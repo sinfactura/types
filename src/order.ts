@@ -82,6 +82,26 @@ declare global {
 		 * any goods bought in the same visit.
 		 */
 		serviceOrderId?: string;
+		/**
+		 * The `ServiceOrder` the ticket in `serviceOrderId` was a rework OF, copied
+		 * forward verbatim at mint. Absent unless that ticket is itself a rework.
+		 *
+		 * It is the parent SERVICE ORDER, not the parent order — a ticket-to-ticket
+		 * pointer, exactly as `ServiceOrder.parentServiceOrderId` stores it. The
+		 * resolved order was considered and rejected: the parent SERVICE# row
+		 * already carries its own `orderId` and `invoiceId`, so this is one point
+		 * read from the parent's money either way, and resolving at mint would add
+		 * a read inside the delivery transaction plus a "parent never delivered, so
+		 * it has no order" branch on a path whose only failure maps to
+		 * `409 SERVICE_ORDER_STATUS_CHANGED`.
+		 *
+		 * A statutory warranty rework (Ley 24.240 art. 23) deliberately does NOT
+		 * reopen the parent — that would destroy the parent's cycle time and its
+		 * invoice linkage. This field is what keeps the rework's paperwork joined
+		 * to the original repair without reopening anything. Forward pointer only:
+		 * no index answers "every rework of parent X".
+		 */
+		parentServiceOrderId?: string;
 		deliveryMethod: number;
 		invoiceMethod?: {
 			condFiscal: number;
