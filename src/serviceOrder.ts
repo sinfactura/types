@@ -144,7 +144,15 @@ declare global {
 		condition: PartCondition;
 	}
 
-	/** A technician work session logged against a service order (manual hours at V1). */
+	/**
+	 * A technician work session logged against a service order (manual hours at V1).
+	 *
+	 * Deliberately carries NO parts. Parts live exclusively on the top-level
+	 * `ServiceOrder.partsUsed` signed ledger, which is what stock movement is
+	 * derived from; a per-work-log copy would be a second source of truth for
+	 * the same movement and the two would drift. Log the hours here, post the
+	 * parts to the ledger.
+	 */
 	interface WorkLog {
 		workLogId: string;
 		technicianId: string;
@@ -153,7 +161,6 @@ declare global {
 		/** Hours worked in this session. */
 		hours: number;
 		description: string;
-		partsUsed?: PartUsed[];
 	}
 
 	/** One entry in a service order's status history (append-only audit trail). */
@@ -180,7 +187,18 @@ declare global {
 	 */
 	type ServiceQuoteStatus = 'draft' | 'sent' | 'approved' | 'rejected' | 'expired' | 'superseded';
 
-	/** How the customer's decision on a quote reached the shop. */
+	/**
+	 * How the customer's decision on a quote reached the shop.
+	 *
+	 * ⚠️ `'portal'` is RESERVED and must not be offered to an operator. The other
+	 * four are things an operator records second-hand; `'portal'` means the
+	 * customer approved it themselves, and no customer-facing service endpoint
+	 * exists on any gateway yet — so an operator selecting it would be recording
+	 * an event that did not happen. The api rejects it: it is excluded from the
+	 * `POST /services` quote-resolve enum and returns 400. It stays in the union
+	 * so rows already carrying it still read back, and so the value is ready the
+	 * day a customer portal ships. Filter it out of any channel picker.
+	 */
 	type ServiceQuoteChannel = 'in_person' | 'phone' | 'whatsapp' | 'email' | 'portal';
 
 	/**
@@ -281,6 +299,12 @@ declare global {
 	interface ServiceOrderPicture {
 		url: string;
 		base64?: string;
+		/**
+		 * Which photo leads its stage's gallery — a CLIENT affordance, exactly as
+		 * on `Product.pictures`. The server accepts, stores and returns it and
+		 * deliberately never branches on it, so finding no server-side reader is
+		 * the expected result and not grounds to retire the field.
+		 */
 		primary?: boolean;
 		stage: ServiceOrderPictureStage;
 	}
@@ -499,8 +523,23 @@ declare global {
 		 * Absent while the job is still open, and absent forever on a ticket that
 		 * ends `cancelled`, `returned_unrepaired` or `abandoned_disposed` — none of
 		 * those deliver anything to bill.
+		 *
+		 * ⚠️ Deliberately has NO reader inside the api, and that is correct — see
+		 * `invoiceId` below. Do not retire it for want of one.
 		 */
 		orderId?: string;
+		/**
+		 * The fiscal document issued for this service order, stamped when
+		 * `POST /invoices` actually draws the voucher — in the same transaction as
+		 * the `Invoice` put, so the join can never commit half-formed.
+		 *
+		 * ⚠️ Like `orderId`, NOTHING server-side branches on this, by design. Both
+		 * exist so the row is self-describing on `GET`: their consumer is the
+		 * client's linked-order card, where `invoiceId` alone answers "was this
+		 * invoiced?" with no second fetch and `orderId` is the navigation target.
+		 * An audit that finds no reader has found the intended state, not dead
+		 * fields — do not remove them on that basis.
+		 */
 		invoiceId?: string;
 
 		// Warranty & rework
