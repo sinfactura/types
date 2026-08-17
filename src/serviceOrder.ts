@@ -6,8 +6,11 @@
  * multi-stage workflow, technician assignment, equipment intake, parts
  * consumption, and AFIP concept=2 service invoicing.
  *
- * Companion: ServiceTemplate (serviceTemplate.ts) defines
- * per-type default configuration that seeds new orders.
+ * Companion: ServiceTemplate (serviceTemplate.ts) declares per-type default
+ * configuration. ⚠️ It does NOT seed anything: `ServiceOrder.templateId` is
+ * PROVEN against a real, non-disabled template at write time and then stored,
+ * and no field is copied onto the order. See serviceTemplate.ts, which has said
+ * so correctly while this line said the opposite.
  *
  * Consumed by the api's `/services` endpoints (Services feature, Wave 1),
  * stored at `PK: SERVICE#{storeId}` / `SK: {serviceOrderId}`. The previous
@@ -32,8 +35,10 @@ declare global {
 	/**
 	 * Workflow stage of a service order. The canonical full repair pipeline is
 	 * received → diagnosing → quoted → approved → in_progress → ready →
-	 * delivered. Simpler service types skip stages (configured per
-	 * `ServiceTemplate.requiredStages`).
+	 * delivered. Simpler service types skip stages — the transition table is a
+	 * single global adjacency map that permits it, NOT something
+	 * `ServiceTemplate.requiredStages` configures; nothing reads that field at
+	 * transition time.
 	 *
 	 * There is no `testing` stage: it is a substate of `in_progress` that nobody
 	 * outside the workshop distinguishes, and is expressed through
@@ -202,6 +207,57 @@ declare global {
 	type ServiceQuoteChannel = 'in_person' | 'phone' | 'whatsapp' | 'email' | 'portal';
 
 	/**
+	 * Why the customer turned a presupuesto down.
+	 *
+	 * Recorded so a shop can compute WHY it loses work, not merely how often —
+	 * the two commonest answers point at opposite fixes. A high `price` rate is
+	 * a signal about the shop's own pricing; a high `not_worth_it` rate is a
+	 * signal about what it accepts at intake. Collapsing them makes both
+	 * uncomputable, exactly as collapsing the four terminal statuses would make
+	 * quote-rejection rate uncomputable.
+	 *
+	 * ⚠️ Deliberately NOT a widening of `ServiceQuoteApproval`. A rejection
+	 * creates no approval, so a field about an approval that never happened has
+	 * nowhere honest to live.
+	 *
+	 * Two members were considered and rejected. `declined_repair` shadows
+	 * `ServiceOutcome.declined`, which is a different axis — that one ends the
+	 * TICKET, this one refuses ONE VERSION and the expected next step is a
+	 * re-quote. `no_response` duplicates the `expired` status, giving an
+	 * operator two legal ways to record silence and polluting the very split
+	 * this enum exists for; it is also something a shop infers rather than
+	 * knows.
+	 */
+	type ServiceQuoteRejectionReason = 'price' | 'not_worth_it' | 'timeline' | 'other';
+
+	/**
+	 * A customer's REFUSAL of a quote version — the mirror of
+	 * `ServiceQuoteApproval`, and recorded for the same reason: who and when
+	 * must survive a re-quote.
+	 *
+	 * ⚠️ `by` and `at` are the load-bearing half, not `reason`. Before this
+	 * existed a rejection wrote a bare status flip — no actor, no timestamp —
+	 * while an approval recorded all three, so a quote history could show who
+	 * approved a version and nothing at all for a rejected one.
+	 *
+	 * No `channel`: a channel describes how an APPROVAL reached the shop, and
+	 * there is no approval here.
+	 */
+	interface ServiceQuoteRejection {
+		/** userId of the operator who recorded it. Server-stamped, never from the body. */
+		by: string;
+		/** Unix ms. Server-stamped. */
+		at: number;
+		reason: ServiceQuoteRejectionReason;
+		/**
+		 * Free text the operator adds. The enum is required BECAUSE this cannot
+		 * be rendered in a stable language on the printed presupuesto and
+		 * constancia — those are statutory documents that go to a customer.
+		 */
+		note?: string;
+	}
+
+	/**
 	 * A customer decision on a quote version, recorded as an event rather than a
 	 * boolean so that who/when/how survives a re-quote.
 	 */
@@ -246,6 +302,13 @@ declare global {
 		/** Unix ms the offer lapses (Ley 24.240 art. 21(g)). */
 		expiresAt?: number;
 		approval?: ServiceQuoteApproval;
+		/**
+		 * Set when `status` is `rejected`. ⚠️ NOT set on `expired`: a lapse is
+		 * not a customer decision, so there is no reason to classify — even
+		 * though nothing auto-expires and an operator records `expired` by the
+		 * same manual act as `rejected`.
+		 */
+		rejection?: ServiceQuoteRejection;
 		/** `quoteId` of the version that replaced this one. */
 		supersededBy?: string;
 	}

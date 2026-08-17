@@ -69,17 +69,22 @@ declare global {
 		 * order mints its order. Absent on every ordinary goods order.
 		 *
 		 * An order carrying this holds the repair as two `isService: true` product
-		 * lines — labour and parts — priced from the service order's own
-		 * `laborCost` / `partsCost`. Those lines are already-consumed work: the
-		 * parts left the shelf when the technician fitted them, so the order's
-		 * stock deduction skips a service line rather than moving inventory a
-		 * second time.
+		 * lines — labour and parts — priced so the PAIR SUMS to the service
+		 * order's own `total`. ⚠️ They are NOT priced off `laborCost` /
+		 * `partsCost`: those stay GROSS, and the ticket's absolute `discount` is
+		 * netted proportionally across the two lines at mint, with the second
+		 * derived from the first so rounding cannot leave the pair a centavo off
+		 * a fiscal document. Those lines are already-consumed work: the parts left
+		 * the shelf when the technician fitted them, so the order's stock
+		 * deduction skips a service line rather than moving inventory a second
+		 * time.
 		 *
-		 * `Order.discount` is a percentage and does NOT reach those lines. The
-		 * service order is the sole owner of its own total (its own `discount` is
-		 * an absolute amount already taken off), so the figure invoiced is the
-		 * figure the customer agreed to. The percentage still applies normally to
-		 * any goods bought in the same visit.
+		 * `Order.discount` is a percentage and does NOT reach those lines — and
+		 * must not, since the two units cannot be added and converting between
+		 * them does not round-trip. The service order is the sole owner of its own
+		 * total (its own `discount` is already spent in the lines above), so the
+		 * figure invoiced is the figure the customer agreed to. The percentage
+		 * still applies normally to any goods bought in the same visit.
 		 */
 		serviceOrderId?: string;
 		/**
