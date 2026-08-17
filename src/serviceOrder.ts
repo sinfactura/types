@@ -269,9 +269,30 @@ declare global {
 		currencyValueAt?: number;
 		/** Unix ms the deposit was taken. */
 		at: number;
-		/** Payment-method code, same vocabulary as `Order.paymentMethod`. */
+		/**
+		 * Payment-method code — a bare FK into the tenant's OWN
+		 * `Store.paymentMethods[]`, not a platform-wide enum.
+		 *
+		 * It draws on the same catalog as `Order.paymentMethod`, but do not read
+		 * that as "both ends are checked": `Order.paymentMethod` is accepted
+		 * unvalidated and only resolved at invoice issuance, where an unknown id
+		 * freezes onto `Invoice.paymentCondition` as `''`. A deposit proves the
+		 * referent before it writes.
+		 */
 		method: number;
 		freezesPrice: boolean;
+		/**
+		 * The `userId` who accepted the money.
+		 *
+		 * Optional only because of the forward-only rule — deposits written before
+		 * this field existed cannot have it, and nothing backfills them. New
+		 * writes always stamp it: a seña is the one place in the service-order
+		 * domain where CASH changes hands, and a drawer that does not reconcile at
+		 * close is unattributable without it. `statusHistory` and
+		 * `ServiceQuoteApproval` already record `by` for decisions that move no
+		 * money at all.
+		 */
+		by?: string;
 		/** Set once the deposit is applied against the final invoice. */
 		appliedToInvoiceId?: string;
 	}
