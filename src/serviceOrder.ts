@@ -632,6 +632,32 @@ declare global {
 		 * have equipment here?".
 		 */
 		custody: ServiceCustody;
+		/**
+		 * When `custody` last changed — the moment the customer's property
+		 * physically moved, not the moment a status did.
+		 *
+		 * ⚠️ NOT the same fact as `deliveredAt`, which records the status
+		 * reaching `delivered`. The two coincide on that transition and DIVERGE
+		 * on the operator-set path: `returned_unrepaired` records the decision
+		 * not to repair, and the equipment can sit on the shelf for weeks
+		 * afterwards. Printing `deliveredAt`, or the `statusHistory` entry, as
+		 * the handback date puts a wrong date on a statutory document — worse
+		 * than printing none.
+		 *
+		 * One field rather than `returnedAt` + `disposedAt`, because
+		 * `custodyImpliedBy` moves custody on TWO terminals (`delivered` →
+		 * `returned`, `abandoned_disposed` → `disposed`) and disposing of
+		 * someone else's property is the event most likely to be disputed.
+		 * Paired with `custody` it answers both halves: which state the
+		 * property is in, and when it entered it.
+		 *
+		 * Server-written at all three custody writers — intake, the implied
+		 * terminals, and the operator-set edit. Absent on rows written before
+		 * this shipped; forward-only, nothing backfills them, and a reader must
+		 * tolerate absence by printing no date. A backfill would be a fabricated
+		 * record of when someone's property changed hands.
+		 */
+		custodyAt?: number;
 
 		// Equipment intake
 		equipment?: {
