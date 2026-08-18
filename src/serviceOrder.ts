@@ -102,7 +102,9 @@ declare global {
 	 * - `hourly`      — labor billed by the hour (`laborRate` × hours).
 	 * - `parts_labor` — parts at cost/markup + labor.
 	 * - `diagnostic`  — fixed diagnostic fee.
-	 * - `warranty`    — no charge (covered under warranty).
+	 * - `warranty`    — a warranty job. A LABEL recording WHY the work exists;
+	 *                  it prices nothing. `billable: false` is the only thing
+	 *                  that makes a job free — see `ServiceOrder.billable`.
 	 */
 	type PricingModel = 'flat' | 'hourly' | 'parts_labor' | 'diagnostic' | 'warranty';
 
@@ -827,10 +829,28 @@ declare global {
 		 *
 		 * Independent of `isWarrantyRework`, deliberately — a rework can be
 		 * goodwill-billed and a non-rework can be free, so neither implies the
-		 * other. Independent of `pricingModel: 'warranty'` too, which is the
-		 * PRICING intent (it drives the total to zero); this is the gate.
+		 * other. Independent of `pricingModel: 'warranty'` too, which is only a
+		 * LABEL recording why the job exists and prices nothing — it is not a
+		 * parameter of `computeServiceFinancials` and nothing branches on it.
+		 *
+		 * ⚠️ Up to 1.10.47 this docblock claimed `pricingModel: 'warranty'` was
+		 * "the PRICING intent (it drives the total to zero)". That was never true
+		 * at any point. A client trusting it would set `pricingModel: 'warranty'`,
+		 * leave this unset, and charge a customer in full for a statutory-warranty
+		 * repair on a ticket that says *warranty* on its face. This is the gate.
 		 */
 		billable?: boolean;
+		/**
+		 * Who last changed `billable`, and when. Written server-side from the
+		 * authorizer's `userId` and the server clock — never read from the body.
+		 *
+		 * This is the one field that zeroes a job's entire revenue, it is
+		 * correctable at plain `USER` role, and an edit is NOT journalled in
+		 * `statusHistory` — so without this the change leaves no trace of who made
+		 * it. Absent on rows written before this shipped, and on rows whose
+		 * `billable` was only ever set at intake.
+		 */
+		billableSetBy?: { by: string; at: number };
 
 		// Soft delete
 		disabled: boolean;
