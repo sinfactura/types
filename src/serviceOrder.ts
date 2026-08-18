@@ -413,16 +413,35 @@ declare global {
 		frozen: number;
 		unfrozen: number;
 		/**
-		 * `max(0, total - deposited)` — what is still to collect, floored at 0 so
-		 * an over-deposited job shows nothing owed rather than a negative.
+		 * The job total this balance was struck against — `ServiceOrder.total`
+		 * where the row carries one, and `max(0, laborCost + partsCost - discount)`
+		 * where it does not.
+		 *
+		 * ⚠️ The fallback is a LIVE case, not a projection guard: creation seeds
+		 * `deposits: []` but stamps no `total`, so an order that has had no work
+		 * logged, no part fitted and no edit genuinely has no stored total — and
+		 * intake, where a seña is taken, is exactly that moment. Its charge really
+		 * is 0 so far, which is why the identity is computed rather than treated as
+		 * missing data.
+		 *
+		 * Carried here so a consumer holding only this object can compare it
+		 * against `deposited` — see the warning on `balanceDue`, which that
+		 * comparison is the only way to act on.
+		 */
+		jobTotal: number;
+		/**
+		 * `max(0, jobTotal - deposited)` — what is still to collect, floored at 0
+		 * so an over-deposited job shows nothing owed rather than a negative.
 		 *
 		 * ⚠️ The floor DISCARDS the excess: a customer who left more than the job
 		 * came to is owed the difference, and this field will not tell you so.
-		 * Compare `deposited` against `total` for that; refunds are not modelled.
+		 * `deposited > jobTotal` is that case, and refunds are not modelled — at
+		 * intake it is also the ordinary state of every unpriced ticket carrying a
+		 * seña, so treat it as "not yet priced" rather than as an error.
 		 *
-		 * Anchored on `total` — the agreed price, `max(0, laborCost + partsCost -
-		 * discount)` — matching what the app already computed by hand, so the
-		 * server figure and the client figure agree rather than compete.
+		 * Anchored on the agreed price, matching what the app already computed by
+		 * hand, so the server figure and the client figure agree rather than
+		 * compete.
 		 */
 		balanceDue: number;
 		/**
