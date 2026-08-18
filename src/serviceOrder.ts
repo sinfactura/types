@@ -7,10 +7,17 @@
  * consumption, and AFIP concept=2 service invoicing.
  *
  * Companion: ServiceTemplate (serviceTemplate.ts) declares per-type default
- * configuration. ⚠️ It does NOT seed anything: `ServiceOrder.templateId` is
- * PROVEN against a real, non-disabled template at write time and then stored,
- * and no field is copied onto the order. See serviceTemplate.ts, which has said
- * so correctly while this line said the opposite.
+ * configuration. At INTAKE (`mode: "create"`) exactly four of its scalars are
+ * SNAPSHOTTED onto the order — `serviceType`, `pricingModel`, `laborRate?`,
+ * `warrantyDays?` — with `templateId` kept alongside as provenance. An explicit
+ * request value always wins over the template's. Nothing else is copied, and
+ * `mode: "edit"` still seeds nothing: it can attach or change `templateId` on an
+ * order that already carries a quote, parts and work logs.
+ *
+ * The copy never moves. Editing a template afterwards changes NEW orders only —
+ * a template is fully mutable, can be disabled, and has no version field, no
+ * history and no audit surface, so a reference would let a ticket taken in March
+ * silently re-describe itself.
  *
  * Consumed by the api's `/services` endpoints (Services feature, Wave 1),
  * stored at `PK: SERVICE#{storeId}` / `SK: {serviceOrderId}`. The previous
@@ -442,7 +449,15 @@ declare global {
 
 		// Classification
 		serviceType: ServiceType;
-		/** FK to the `ServiceTemplate` this order was created from, if any. */
+		/**
+		 * FK to the `ServiceTemplate` this order was created from, if any.
+		 *
+		 * PROVENANCE, not a live pointer. The four scalars it seeded at intake
+		 * (`serviceType`, `pricingModel`, `laborRate?`, `warrantyDays?`) are stored
+		 * on this row and are never re-read through this id — do not dereference it
+		 * to render them, or an edited template will silently rewrite closed
+		 * tickets. The template may since have been edited or disabled.
+		 */
 		templateId?: string;
 		priority: ServicePriority;
 

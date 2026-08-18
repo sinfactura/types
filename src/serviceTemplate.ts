@@ -8,14 +8,26 @@
  * ServiceType / ServiceStageStatus / PricingModel unions defined in
  * serviceOrder.ts.
  *
- * ⚠️ Nothing is applied automatically today. `ServiceOrder.templateId` is
- * PROVEN against a real, non-disabled template at write time and then stored —
- * no field on this interface is copied onto the order, and `commonParts` in
- * particular is not auto-populated on intake. An earlier version of this
- * comment promised that seeding; it described intent, never behaviour, and a
- * consumer building a pre-filled intake UI on it would have been wrong.
- * Auto-population reaches the stock-deducting parts path, so it is deliberately
- * its own change.
+ * ⚠️ Only FOUR fields are applied, and only at intake. `POST /services
+ * {mode:"create"}` proves `ServiceOrder.templateId` against a real, non-disabled
+ * template and then SNAPSHOTS `serviceType`, `pricingModel`, `laborRate?` and
+ * `warrantyDays?` onto the order — the only four with a same-shaped landing
+ * field on `ServiceOrder`. An explicit request value always wins.
+ *
+ * Everything else on this interface is declarative and copied by nothing:
+ * `requiredStages` and `skipQuote` would seed into a vacuum (the transition
+ * table is a single global adjacency map that reads neither), and
+ * `requiresEquipment` / `estimatedHours` / `basePrice` / `checklist` have no
+ * field on `ServiceOrder` to land in. `commonParts` in particular is NOT
+ * auto-populated on intake: it is a shape mismatch against `PartUsed`, and
+ * auto-consuming it reaches the stock-deducting parts path, which would move
+ * `Product.stock` before diagnosis, quote or customer approval. Deliberately its
+ * own change.
+ *
+ * The seeded values are a SNAPSHOT — editing a template moves NEW orders only.
+ * This interface carries no version field, no history and no audit surface, so
+ * its prior values are unrecoverable once edited; that is precisely why the api
+ * copies rather than dereferencing.
  *
  * Consumed by the api's `/service-templates` endpoints, and read by
  * `/services` when it validates a service order's `templateId`. The previous
@@ -34,8 +46,11 @@ declare global {
 	/**
 	 * A part this kind of job commonly consumes.
 	 *
-	 * Declarative — nothing copies it onto an order. See the file header: the
-	 * api proves `ServiceOrder.templateId` and stores it, and seeds nothing.
+	 * Declarative — nothing copies it onto an order. The intake seed is limited
+	 * to four scalars (see the file header) and deliberately excludes this one:
+	 * `PartUsed` requires `sku`, `unitCost`, `total` and `condition`, none of
+	 * which this shape carries, and auto-consuming would move `Product.stock`
+	 * before diagnosis, quote or customer approval.
 	 */
 	interface ServiceCommonPart {
 		productId: string;
