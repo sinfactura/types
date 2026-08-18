@@ -30,7 +30,25 @@ declare global {
     city: string;
     createdAt: number;
     cuit: string;
-    deliveryMethod: number;
+    /**
+     * FK into `Store.deliveryMethods`. OPTIONAL, because `POST /customers` has
+     * always modelled it that way (`z.number().optional()`) — a customer created
+     * through the API can genuinely carry neither this nor `paymentMethod`, and
+     * declaring them required made this contract disagree with its own validator.
+     * Only the CSV importer and web self-registration supply a value today.
+     *
+     * ⚠️ Do NOT read it as though it were populated. Resolve it against the
+     * store's catalog and tolerate a miss — `find(({ id }) => id === …)?.name ?? ''`
+     * — the way the invoice and PDF paths already do. An id here can also be
+     * RETIRED: the store reconciler never reissues a removed method id, precisely
+     * so a stale reference resolves to nothing rather than to someone else's
+     * method.
+     *
+     * ⚠️ The id carries no meaning. Method ids are per-catalog ORDINALS — the
+     * store seed uses id `1` for four different things in four different catalogs
+     * — so `deliveryMethod === 1` is not a pickup test.
+     */
+    deliveryMethod?: number;
     disabled: boolean;
     discount: number;
     email: string;
@@ -42,7 +60,13 @@ declare global {
     lastLog?: number;
     marketing?: CustomerMarketing;
     minBuy?: number;
-    paymentMethod: number;
+    /**
+     * FK into `Store.paymentMethods`. OPTIONAL for the same reason as
+     * `deliveryMethod` above, and with the same reader contract: resolve against
+     * the store's catalog and tolerate a miss rather than assuming presence, and
+     * do not read the id as semantic.
+     */
+    paymentMethod?: number;
     phone: string;
     photoURL: string;
     /** @deprecated Request-only upload control, never persisted or returned — use `CustomerUpsertInput.photoData`. */
