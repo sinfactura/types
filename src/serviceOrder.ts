@@ -159,6 +159,38 @@ declare global {
 	}
 
 	/**
+	 * One material a quote version PROPOSES to use.
+	 *
+	 * Deliberately **not** {@link PartUsed}. That is the fitted-parts ledger and
+	 * carries `unitCost` (merchant cost, operator-only) and `total` (the charged
+	 * line amount). A quote line is disclosed to the customer on the presupuesto
+	 * and rides a customer-visible entity, so it carries **no money at all** —
+	 * `wsPostStore` delivers a payload to that payload's own customer, so a
+	 * merchant cost on a quote version would sit one broadcast from a customer
+	 * socket. The priced figure stays the version's own `partsCost`.
+	 *
+	 * PROSPECTIVE, not derived. A presupuesto is an offer: at quote time the
+	 * parts have usually not been fitted, so `ServiceOrder.partsUsed` is empty or
+	 * partial. These are supplied on the create request instead.
+	 *
+	 * `sku` and `name` are SNAPSHOTS taken when the version is stamped and are
+	 * never re-resolved — the document's job is to show what the customer was
+	 * actually shown, so a later product rename must not rewrite a historical
+	 * presupuesto.
+	 */
+	interface ServiceQuotePart {
+		/** FK to Product. Never printed; this is what a future hold reserves against. */
+		productId: string;
+		/** Snapshot at stamp time, never re-resolved. */
+		sku: string;
+		/** Snapshot at stamp time — the name the customer was actually shown. */
+		name: string;
+		quantity: number;
+		/** Ley 24.240 art. 20 — a non-new material must be declared in writing. */
+		condition: PartCondition;
+	}
+
+	/**
 	 * A technician work session logged against a service order (manual hours at V1).
 	 *
 	 * Deliberately carries NO parts. Parts live exclusively on the top-level
@@ -351,6 +383,25 @@ declare global {
 		rejection?: ServiceQuoteRejection;
 		/** `quoteId` of the version that replaced this one. */
 		supersededBy?: string;
+		/**
+		 * The materials THIS version proposes, so a reprint of a superseded
+		 * version discloses the set that version offered rather than the order's
+		 * current parts.
+		 *
+		 * Optional forever: versions stored before this field existed have none,
+		 * and nothing backfills them. A backfilled list would be a fabricated
+		 * record of what was offered, which is worse than the gap it closes.
+		 *
+		 * ⚠️ **Absent and empty mean different things, and conflating them
+		 * reproduces the exact defect this field fixes.**
+		 *
+		 * - `undefined` → a legacy version. Fall back to the order's netted
+		 *   `partsUsed`, which is the behaviour that shipped before this field.
+		 * - `[]` → this version proposes **no** materials (labour-only).
+		 *   Disclose nothing. Falling back here would print materials onto the
+		 *   one quote that was honest about having none.
+		 */
+		parts?: ServiceQuotePart[];
 	}
 
 	// Deposits
