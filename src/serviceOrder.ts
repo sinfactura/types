@@ -164,15 +164,46 @@ declare global {
 	 * derived from; a per-work-log copy would be a second source of truth for
 	 * the same movement and the two would drift. Log the hours here, post the
 	 * parts to the ledger.
+	 *
+	 * ⚠️ `ServiceOrder.workLogs` is itself a SIGNED, append-only ledger, the same
+	 * shape as `partsUsed`: a mistaken entry is corrected by APPENDING a negated
+	 * one, never by mutating or deleting the original. Sum the array — do not
+	 * assume every entry adds, and do not read `length` as a count of sessions
+	 * actually worked.
 	 */
 	interface WorkLog {
 		workLogId: string;
 		technicianId: string;
 		/** Unix ms of the work session. */
 		date: number;
-		/** Hours worked in this session. */
+		/**
+		 * Hours worked in this session.
+		 *
+		 * ⚠️ SIGNED. Negative on a reversal entry — see {@link WorkLog.reverses}.
+		 * `ServiceOrder.laborCost` is derived from `laborRate` × the SUM of this
+		 * field across the whole array, so a reader that assumes positive
+		 * over-reports labour on any ticket whose entry has been corrected. The
+		 * shape did not change when reversals landed, so nothing in a consumer
+		 * fails to compile on this — it has to be checked by reading.
+		 */
 		hours: number;
 		description: string;
+		/**
+		 * Set only on a reversal entry: the `workLogId` of the entry this one
+		 * negates.
+		 *
+		 * Absent on every ordinary log, and on every entry written before
+		 * reversals existed — forward-only, nothing backfills it, so a reader
+		 * must tolerate both shapes.
+		 *
+		 * ⚠️ A reversal carries its OWN fresh `workLogId` and deliberately does
+		 * not reuse the target's. Consumers key list rows by `workLogId`, so a
+		 * duplicate id breaks rendering; this pointer is what lets the ledger be
+		 * netted per entry without that collision. An entry carrying it IS a
+		 * reversal; an entry whose id appears here on another entry HAS BEEN
+		 * reversed, and must not be reversed twice.
+		 */
+		reverses?: string;
 	}
 
 	/** One entry in a service order's status history (append-only audit trail). */
