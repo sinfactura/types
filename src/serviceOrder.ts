@@ -367,6 +367,74 @@ declare global {
 		appliedToInvoiceId?: string;
 	}
 
+	/**
+	 * READ-TIME-SYNTHESIZED settlement view of `deposits[]` — what the customer
+	 * has already handed over, and what is still to collect at handover. Same
+	 * class of field as `ServiceOrder.customer`: resolved on the way out, NEVER
+	 * stored, and never accepted from a request body.
+	 *
+	 * It exists because the subtraction was previously the client's to do, and a
+	 * client that forgot it asked the customer to pay the whole job a second time
+	 * at the counter — with the seña recorded only inside `deposits[]`, where no
+	 * document read it.
+	 *
+	 * ⚠️ **Presentation only. Nothing here moves money or touches a comprobante.**
+	 * `balanceDue` is what to collect at the counter; it is NOT a figure any
+	 * invoice may be reduced by. Reducing a `FAC`'s `ImpTotal` by a seña that
+	 * carried no comprobante of its own understates the operation to ARCA, and
+	 * nothing can emit a `REC` today. `deposits[].appliedToInvoiceId` stays
+	 * unwritten for the same reason — the fiscal treatment of applying a seña to
+	 * a final invoice is unsettled and needs an accountant, not a default.
+	 */
+	interface ServiceDepositBalance {
+		/**
+		 * The currency every figure below is denominated in — the ORDER's own
+		 * `currency`, which `mode: "deposit"` stamps onto each entry it writes.
+		 */
+		currency: string;
+		/**
+		 * Σ `deposits[].amount` — every seña taken against the job, regardless of
+		 * `freezesPrice`. Money received is money received; the flag changes what
+		 * may be DONE with it, never how much of it there is.
+		 */
+		deposited: number;
+		/**
+		 * The same sum split by `ServiceDeposit.freezesPrice` — `frozen` +
+		 * `unfrozen` === `deposited`, always.
+		 *
+		 * Published as a split rather than left to the consumer to re-derive
+		 * precisely because re-deriving it means reading `freezesPrice` per row,
+		 * which is the step a consumer unaware of Ley de IVA art. 5 gets wrong. A
+		 * `frozen` seña has ALREADY perfected the hecho imponible for its amount;
+		 * an `unfrozen` one has not perfected anything. They are interchangeable
+		 * for "how much cash came in" and interchangeable for nothing else, so the
+		 * breakdown travels with the total rather than behind it.
+		 */
+		frozen: number;
+		unfrozen: number;
+		/**
+		 * `max(0, total - deposited)` — what is still to collect, floored at 0 so
+		 * an over-deposited job shows nothing owed rather than a negative.
+		 *
+		 * ⚠️ The floor DISCARDS the excess: a customer who left more than the job
+		 * came to is owed the difference, and this field will not tell you so.
+		 * Compare `deposited` against `total` for that; refunds are not modelled.
+		 *
+		 * Anchored on `total` — the agreed price, `max(0, laborCost + partsCost -
+		 * discount)` — matching what the app already computed by hand, so the
+		 * server figure and the client figure agree rather than compete.
+		 */
+		balanceDue: number;
+		/**
+		 * How many entries were summed. Compare against `deposits.length`: a
+		 * shortfall means an entry was excluded for carrying a currency other than
+		 * the order's, which is unreachable today (`ServiceOrder.currency` is
+		 * written once at creation and no mode edits it) and is guarded against a
+		 * future writer rather than a live row.
+		 */
+		count: number;
+	}
+
 	// Service order
 
 	/**
@@ -537,6 +605,14 @@ declare global {
 
 		// Deposits (señas)
 		deposits?: ServiceDeposit[];
+
+		/**
+		 * Derived settlement view of `deposits[]`, resolved on the way out by the
+		 * point read and never persisted — see `ServiceDepositBalance`. Absent when
+		 * the order carries no deposits, and absent on list reads, which do not
+		 * compute it.
+		 */
+		depositBalance?: ServiceDepositBalance;
 
 		// Technician assignment
 		technicianId?: string;
