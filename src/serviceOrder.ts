@@ -368,6 +368,18 @@ declare global {
 	}
 
 	/**
+	 * Why a balance cannot be stated. Exactly one is set whenever `balanceDue` is
+	 * `undefined`, so a screen or a document can say WHICH silence this is instead
+	 * of leaving a gap the operator fills in wrongly.
+	 *
+	 * Deliberately the same three cases, the same names and the same precedence as
+	 * the app's own `DepositsBalanceWithheld` — this contract exists to REPLACE
+	 * that hand-rolled computation, so a server figure that disagreed with it
+	 * would be worse than none.
+	 */
+	type ServiceDepositBalanceWithheld = 'mixed_currency' | 'not_billable' | 'unpriced';
+
+	/**
 	 * READ-TIME-SYNTHESIZED settlement view of `deposits[]` — what the customer
 	 * has already handed over, and what is still to collect at handover. Same
 	 * class of field as `ServiceOrder.customer`: resolved on the way out, NEVER
@@ -385,6 +397,17 @@ declare global {
 	 * nothing can emit a `REC` today. `deposits[].appliedToInvoiceId` stays
 	 * unwritten for the same reason — the fiscal treatment of applying a seña to
 	 * a final invoice is unsettled and needs an accountant, not a default.
+	 *
+	 * ⚠️ **Attached by the POINT READ only** (`GET /services/{id}`). List reads do
+	 * not compute it, and — this is the part that bites — neither the 200 nor the
+	 * WebSocket frame of ANY write mode carries it, `mode: "deposit"` included.
+	 * That is uniform on purpose: `worklog`, `parts` and `edit` all move `total`
+	 * and therefore the balance, so a field present on one write surface and
+	 * absent on three would be worse than one that is never on a write at all.
+	 * **A client must refetch the ticket after any mutation** rather than merging
+	 * a write response over a previously-read balance — spreading keeps a stale
+	 * figure and OVERSTATES what is owed, which is the very defect this exists to
+	 * fix, arriving through the write path.
 	 */
 	interface ServiceDepositBalance {
 		/**
@@ -393,14 +416,14 @@ declare global {
 		 */
 		currency: string;
 		/**
-		 * Σ `deposits[].amount` — every seña taken against the job, regardless of
+		 * Σ `deposits[].amount` over the entries stamped in the order's OWN
+		 * currency — every seña taken against the job, regardless of
 		 * `freezesPrice`. Money received is money received; the flag changes what
 		 * may be DONE with it, never how much of it there is.
 		 */
 		deposited: number;
 		/**
-		 * The same sum split by `ServiceDeposit.freezesPrice` — `frozen` +
-		 * `unfrozen` === `deposited`, always.
+		 * The same sum split by `ServiceDeposit.freezesPrice`.
 		 *
 		 * Published as a split rather than left to the consumer to re-derive
 		 * precisely because re-deriving it means reading `freezesPrice` per row,
@@ -409,49 +432,61 @@ declare global {
 		 * an `unfrozen` one has not perfected anything. They are interchangeable
 		 * for "how much cash came in" and interchangeable for nothing else, so the
 		 * breakdown travels with the total rather than behind it.
+		 *
+		 * ⚠️ The two reconstitute `deposited` **to the centavo, not to the bit**:
+		 * `unfrozen` is derived as `round2(deposited - frozen)`, so
+		 * `round2(frozen + unfrozen) === deposited` holds, while a bare
+		 * `frozen + unfrozen === deposited` fails on roughly one ticket in six —
+		 * IEEE-754 re-introduces the error on re-addition (`54456.69 + 2215.30`
+		 * gives `56671.990000000005`). Do not write that strict check.
 		 */
 		frozen: number;
 		unfrozen: number;
 		/**
-		 * The job total this balance was struck against — `ServiceOrder.total`
-		 * where the row carries one, and `max(0, laborCost + partsCost - discount)`
-		 * where it does not.
+		 * `ServiceOrder.total` where the row carries one, `0` where it does not —
+		 * the shop's own final price for the job, never the approved presupuesto,
+		 * which is only what was offered before the work was done.
 		 *
-		 * ⚠️ The fallback is a LIVE case, not a projection guard: creation seeds
-		 * `deposits: []` but stamps no `total`, so an order that has had no work
-		 * logged, no part fitted and no edit genuinely has no stored total — and
-		 * intake, where a seña is taken, is exactly that moment. Its charge really
-		 * is 0 so far, which is why the identity is computed rather than treated as
-		 * missing data.
-		 *
-		 * Carried here so a consumer holding only this object can compare it
-		 * against `deposited` — see the warning on `balanceDue`, which that
-		 * comparison is the only way to act on.
+		 * Meaningless when `withheld` is `'unpriced'`: creation stamps no `total`,
+		 * so a ticket with nothing logged, nothing fitted and no edit genuinely has
+		 * none, and intake — where a seña is taken — is exactly that ticket.
 		 */
 		jobTotal: number;
 		/**
-		 * `max(0, jobTotal - deposited)` — what is still to collect, floored at 0
-		 * so an over-deposited job shows nothing owed rather than a negative.
+		 * What the customer still owes: `jobTotal - deposited`.
 		 *
-		 * ⚠️ The floor DISCARDS the excess: a customer who left more than the job
-		 * came to is owed the difference, and this field will not tell you so.
-		 * `deposited > jobTotal` is that case, and refunds are not modelled — at
-		 * intake it is also the ordinary state of every unpriced ticket carrying a
-		 * seña, so treat it as "not yet priced" rather than as an error.
+		 * ⚠️ **`undefined` in exactly the three cases `withheld` names — an absent
+		 * balance is honest, a wrong one is not.** Check `withheld` first; do not
+		 * substitute `0` for the absence.
 		 *
-		 * Anchored on the agreed price, matching what the app already computed by
-		 * hand, so the server figure and the client figure agree rather than
-		 * compete.
+		 * NOT floored at 0. A negative figure means the customer is in credit —
+		 * they left more than the job came to — and refunds are not modelled here.
+		 * Flooring would silently discard that, and the unpriced case that would
+		 * otherwise dominate it is refused outright rather than clamped.
+		 *
+		 * ⚠️ `jobTotal` is not reliably what gets billed at delivery and must not
+		 * be described as if it were: goods bought in the same visit bill more. A
+		 * discount does not diverge — the delivery mint nets it across the two
+		 * service lines so they sum to `total`. This stays on `total` regardless:
+		 * it is the number the shop agreed with the customer, which is what a
+		 * counter needs to see.
 		 */
-		balanceDue: number;
+		balanceDue?: number;
+		/** Set exactly when `balanceDue` is `undefined`. */
+		withheld?: ServiceDepositBalanceWithheld;
 		/**
-		 * How many entries were summed. Compare against `deposits.length`: a
-		 * shortfall means an entry was excluded for carrying a currency other than
-		 * the order's, which is unreachable today (`ServiceOrder.currency` is
-		 * written once at creation and no mode edits it) and is guarded against a
-		 * future writer rather than a live row.
+		 * Deposits stamped in some OTHER currency — **counted rather than summed**,
+		 * because adding them into `deposited` would make the balance a
+		 * cross-currency subtraction.
+		 *
+		 * Zero on any row the api wrote: `mode: "deposit"` stamps `order.currency`
+		 * on every entry, and `ServiceOrder.currency` is written once at creation
+		 * with no mode editing it. It is not zero by construction, though — an
+		 * imported or restored row could carry another — and any non-zero value
+		 * withholds the balance entirely (`'mixed_currency'`) rather than reporting
+		 * an incomplete one.
 		 */
-		count: number;
+		otherCurrency: number;
 	}
 
 	// Service order
