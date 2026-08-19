@@ -7,6 +7,15 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.54
+
+- **feat(product):** add `Product.hiddenFromStorefront?: boolean`. Independent
+  of `disabled` — a product can be enabled (stocked, in operator pickers, moves
+  through the stock ledger) while not being publicly offered on the storefront
+  (repair-shop spare parts, ingredients, internal-use items). Defaults to
+  visible (`undefined`/`false`); no behaviour change for existing rows.
+  Additive.
+
 ## 1.10.35
 
 - **docs(serviceTemplate):** `ServiceCommonPart` still said "auto-populated onto

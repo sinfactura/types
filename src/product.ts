@@ -14,6 +14,16 @@ declare global {
 		updatedAt: number;
 		disabled: boolean;
 		/**
+		 * Independent of `disabled`. `disabled` means soft-deleted, gone
+		 * everywhere (operator pickers included); this means "real and
+		 * stocked, just not offered on the storefront" — a repair shop's
+		 * spare parts, ingredients, internal-use items. Defaults to visible
+		 * (`undefined`/`false`); operator-side reads (pickers, stock reports,
+		 * service parts, search) are UNAFFECTED and keep seeing it regardless
+		 * of this flag.
+		 */
+		hiddenFromStorefront?: boolean;
+		/**
 		 * Lowercase '#'-joined index the api maintains on every write.
 		 *
 		 * UNLIKE the same-named field on the other entities (where it is internal
