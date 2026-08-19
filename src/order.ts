@@ -107,7 +107,18 @@ declare global {
 		 * no index answers "every rework of parent X".
 		 */
 		parentServiceOrderId?: string;
-		deliveryMethod: number;
+		/**
+		 * FK into `Store.deliveryMethods`. OPTIONAL, matching `Customer.deliveryMethod`
+		 * — `_deliverOrder.ts`'s mint already omits it when the store's catalog
+		 * resolves no canonical pickup method, and `orders/_post.ts`'s write-boundary
+		 * validation has always modelled it that way (`z.number().optional()`). A
+		 * required type here disagreed with what the api actually produces.
+		 *
+		 * ⚠️ Same reader contract as `Customer.deliveryMethod`: resolve against the
+		 * store's catalog and tolerate a miss, and don't read the id as meaningful on
+		 * its own — method ids are per-catalog ordinals.
+		 */
+		deliveryMethod?: number;
 		invoiceMethod?: {
 			condFiscal: number;
 			condFiscalName: string;

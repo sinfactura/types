@@ -7,6 +7,15 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.55
+
+- **fix(order):** `Order.deliveryMethod` is now `deliveryMethod?: number`,
+  matching `Customer.deliveryMethod`'s treatment. `_deliverOrder.ts`'s mint
+  already omits the field when the store's catalog resolves no canonical
+  pickup method, and `orders/_post.ts`'s write-boundary validation has always
+  modelled it as optional — the required type disagreed with what the api
+  actually produces. Widening, not narrowing: additive.
+
 ## 1.10.54
 
 - **feat(product):** add `Product.hiddenFromStorefront?: boolean`. Independent
