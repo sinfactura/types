@@ -5,16 +5,17 @@
 // Naming follows `StorefrontEvent`'s convention: Title Case Object + Past-Tense Action for
 // event names, snake_case for properties.
 //
-// Distinct from `StorefrontEvent`: subject is internal staff (USER/ADMIN/SUPERVISOR/MANAGER),
-// never anonymous; retention is 90d hot + multi-year archive; append-only / anti-erasure per
-// Ley 25.326 audit-trail exemption; ingest is synchronous only (WS ingest disallowed).
+// Distinct from `StorefrontEvent`: subject is internal staff (USER/ADMIN/SUPERVISOR/MANAGER) or
+// the PRINTER machine identity (a Cloud Print agent), never anonymous; retention is 90d hot +
+// multi-year archive; append-only / anti-erasure per Ley 25.326 audit-trail exemption; ingest is
+// synchronous only (WS ingest disallowed).
 
 declare global {
 
 	interface UserActivityEventBase {
 		tenant_store_id: string;
 		user_id: string;
-		actor_role: 'USER' | 'ADMIN' | 'SUPERVISOR' | 'MANAGER';
+		actor_role: 'USER' | 'ADMIN' | 'SUPERVISOR' | 'MANAGER' | 'PRINTER';
 		actor_full_name: string;       // denormalized at write time so rows survive renames
 		actor_ip?: string;             // API Gateway sourceIp; absent for system-triggered actions
 		event_id: string;              // UUID v4 (idempotency key)
