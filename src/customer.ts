@@ -58,6 +58,17 @@ declare global {
     hash?: string;
     lastBuy?: number;
     lastLog?: number;
+    /**
+     * Per-account brute-force counter for `POST /auth?mode=login` (web).
+     * Mirrors `User.login` exactly. Storage-only — must never leave the API;
+     * `sanitizeCustomerRow` strips it at every wire boundary (auth-response
+     * legs and `dynamoUpdate`'s write echo).
+     */
+    login?: {
+      failedAttempts?: number;
+      lockedUntil?: number;
+      lastFailedAt?: number;
+    };
     marketing?: CustomerMarketing;
     minBuy?: number;
     /**
