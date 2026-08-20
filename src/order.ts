@@ -103,8 +103,10 @@ declare global {
 		 * A statutory warranty rework (Ley 24.240 art. 23) deliberately does NOT
 		 * reopen the parent — that would destroy the parent's cycle time and its
 		 * invoice linkage. This field is what keeps the rework's paperwork joined
-		 * to the original repair without reopening anything. Forward pointer only:
-		 * no index answers "every rework of parent X".
+		 * to the original repair without reopening anything. The sparse GSI
+		 * `PK-parentServiceOrderId` answers "every rework of parent X" directly —
+		 * keyed on the SERVICE partition and served by
+		 * `GET /services?parentServiceOrderId=`.
 		 */
 		parentServiceOrderId?: string;
 		/**

@@ -7,6 +7,14 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.56
+
+- **docs(order):** `Order.parentServiceOrderId` no longer claims "Forward
+  pointer only: no index answers 'every rework of parent X'". The sparse GSI
+  `PK-parentServiceOrderId` now answers exactly that query, keyed on the
+  SERVICE partition and served by `GET /services?parentServiceOrderId=`.
+  Docblock only — no shape change.
+
 ## 1.10.55
 
 - **fix(order):** `Order.deliveryMethod` is now `deliveryMethod?: number`,
