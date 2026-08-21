@@ -127,7 +127,22 @@ declare global {
     // issued comprobantes, which ARCA treats as immutable. One entry per
     // jurisdiction; `lines` is the rendered text in print order, so the stored
     // row stays truthful even if the norm or the store's rate later changes.
-    iibbLegends?: Array<{ jurisdiction: string; lines: string[] }>;
+    iibbLegends?: Array<{
+      jurisdiction: string;
+      lines: string[];
+      /** Frozen alicuota, percent (e.g. 3.5), for jurisdictions that annotate the
+       * ITEM TABLE rather than only the footer — Entre Rios (ATER 128/26 art. 3)
+       * prints the rate beside each line's IVA rate. `lines` freezes footer text
+       * only, so without this the item-table figure would still be re-derived
+       * from live store config at render time, which is exactly the defect the
+       * rest of this block exists to close.
+       *
+       * Deliberately NOT paired with a frozen amount: Entre Rios' document-level
+       * total is `neto gravado x rate`, and the neto is already immutable on this
+       * row, so the rate is the only live-config input. Do not add `amount` --
+       * two sources for one figure is how they drift. */
+      rate?: number;
+    }>;
     // ARCA CAEA contingency. Set only when fiscalStatus is
     // 'authorized_caea' | 'caea_reported'.
     caea?: string; // 14-digit ARCA-issued CAEA code

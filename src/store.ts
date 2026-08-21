@@ -429,6 +429,43 @@ declare global {
     syncPolicy?: MercadolibreSyncPolicyInput;
   }
 
+  type IibbJurisdiction = 'caba' | 'entre-rios' | 'mendoza';
+
+  /** One province's ISIB transparency registration.
+   *
+   * Flat optional flags rather than a discriminated union per jurisdiction: the
+   * union would make `promoted` on Mendoza unrepresentable, but it costs the FE
+   * substantially in form handling against a hard 2026-10-01 deadline. Validity
+   * across jurisdiction and flags is enforced BE-side in Zod instead, so an
+   * invalid combination is refused at the write rather than at compile time. */
+  interface IibbJurisdictionConfig {
+    /** Stable row id — survives reorder and keys the FE field array. */
+    id: string;
+    jurisdiction: IibbJurisdiction;
+    regime: 'local' | 'cm';
+    /** The store's own Ley Tarifaria percentage, e.g. 3.5. Ignored when `exempt`. */
+    rate: number;
+    exempt?: boolean;
+    /** CABA only — AGIP Res. 169/26 art. 4 economic-promotion legend. ADDITIVE:
+     * a promoted store prints its rate line AND the promotion line, and the
+     * promotion line survives `exempt`. */
+    promoted?: boolean;
+    /** Mendoza only — `Tasa Cero - Ley N° 9655` fiscal-benefit operations. */
+    tasaCero?: boolean;
+    /** Entre Rios only — which of ATER 128/26 art. 3's three labels this store
+     * prints. Three because the province covers two taxes, ISIB and Profesiones
+     * Liberales. */
+    erLabel?: 'impuestos-provinciales' | 'ingresos-brutos' | 'profesiones-liberales';
+    /** ISO date; applies to comprobantes issued on or after. Omitted => always.
+     * Load-bearing for Entre Rios, whose *grandes contribuyentes* cutover
+     * (2026-10-01) is a NOMINATIVE padron lookup per RG 118/22 rather than a
+     * revenue threshold — so which date binds a given store is an operator
+     * input that code cannot derive. Everyone else: 2026-10-31. */
+    activeFrom?: string;
+    /** ISO date; stops applying on or after. Omitted => open-ended. */
+    expiresAt?: string;
+  }
+
   interface Afip {
     production: boolean;
     address?: string;
@@ -444,10 +481,10 @@ declare global {
     /** Registered AFIP activity codes (6-digit nomenclador) — drives the
      * IVA Simple F.2051 apertura CSV export; autofillable from Padrón A5. */
     actividades?: number[];
-    /** Provincial ISIB transparency config (Ley 27.743 art. 99 adhesions).
-     * v1: CABA only (AGIP Res. 169/26 — prints the RATE, never an amount). `rate` is
-     * the store's own Ley Tarifaria percentage (e.g. 3.5 → "3,50%"); `regime: 'cm'`
-     * adds the Convenio Multilateral second line; `exempt` prints the exempt legend. */
+    /** @deprecated Single-jurisdiction ISIB config — superseded by
+     * `iibbJurisdictions`, which holds one entry per province. Dual-written
+     * through the deprecation window so un-migrated readers keep working; drop
+     * it only once no consumer reads it. CABA-shaped by construction. */
     iibbTransparency?: {
       jurisdiction: 'caba';
       regime: 'local' | 'cm';
@@ -458,6 +495,16 @@ declare global {
        * them — a promoted store prints its rate line AND the promotion line. */
       promoted?: boolean;
     };
+    /** Provincial ISIB transparency, one entry per registered jurisdiction
+     * (Ley 27.743 art. 99 adhesions). A store can be registered in several
+     * provinces at once, which is why this is plural and `iibbTransparency`
+     * could not be widened to carry it.
+     *
+     * Jurisdictions do NOT share a render shape, so consumers must dispatch per
+     * `jurisdiction` rather than assume footer lines: CABA and Mendoza print
+     * footer text, Entre Rios prints a positioned LABEL plus a rate inside the
+     * item table plus a document-level amount. Max 24 entries. */
+    iibbJurisdictions?: IibbJurisdictionConfig[];
     invoiceNote?: string; // NOTA EN FACTURA
     showInvoiceLogo?: boolean; // logo en factura — boolean toggle (was mistyped string)
     // catalogId — FK to PlatformCurrency. The AFIP MonId projection
@@ -527,6 +574,7 @@ declare global {
     facturaMLegend?: 'retencion' | 'cbu_informada' | null;
     cbu?: string | null;
     iibbTransparency?: Afip['iibbTransparency'] | null;
+    iibbJurisdictions?: IibbJurisdictionConfig[] | null;
     actividades?: number[] | null;
   }
 
