@@ -120,6 +120,14 @@ declare global {
     // applied when the CAE was requested. `cbu` is only set alongside 'cbu_informada'.
     facturaMLegend?: 'retencion' | 'cbu_informada';
     cbu?: string;
+    // Provincial ISIB transparency legends (Ley 27.743 art. 99). Frozen on the
+    // Invoice row AT ISSUANCE, exactly like `facturaMLegend`/`cbu` above and for
+    // the same reason: re-deriving them at render time from live store config
+    // means a later config edit silently rewrites the legends printed on already
+    // issued comprobantes, which ARCA treats as immutable. One entry per
+    // jurisdiction; `lines` is the rendered text in print order, so the stored
+    // row stays truthful even if the norm or the store's rate later changes.
+    iibbLegends?: Array<{ jurisdiction: string; lines: string[] }>;
     // ARCA CAEA contingency. Set only when fiscalStatus is
     // 'authorized_caea' | 'caea_reported'.
     caea?: string; // 14-digit ARCA-issued CAEA code

@@ -453,6 +453,10 @@ declare global {
       regime: 'local' | 'cm';
       rate: number;
       exempt?: boolean;
+      /** Economic-promotion regime. Drives the AGIP Res. 169/26 art. 4 promotion
+       * legend, which is ADDITIVE to the rate/CM lines rather than replacing
+       * them — a promoted store prints its rate line AND the promotion line. */
+      promoted?: boolean;
     };
     invoiceNote?: string; // NOTA EN FACTURA
     showInvoiceLogo?: boolean; // logo en factura — boolean toggle (was mistyped string)
