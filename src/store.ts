@@ -481,10 +481,17 @@ declare global {
     /** Registered AFIP activity codes (6-digit nomenclador) — drives the
      * IVA Simple F.2051 apertura CSV export; autofillable from Padrón A5. */
     actividades?: number[];
-    /** @deprecated Single-jurisdiction ISIB config — superseded by
-     * `iibbJurisdictions`, which holds one entry per province. Dual-written
-     * through the deprecation window so un-migrated readers keep working; drop
-     * it only once no consumer reads it. CABA-shaped by construction. */
+    /** SUPERSEDED by `iibbJurisdictions`, which holds one entry per province.
+     * Dual-written through the migration window so un-migrated readers keep
+     * working; drop it only once no consumer reads it. CABA-shaped by
+     * construction.
+     *
+     * ⚠️ Deliberately NOT carrying the JSDoc deprecation tag yet.
+     * `sonarjs/deprecation` is ERROR severity in the api, so the tag would fail
+     * the lint gate at every one of the four legitimate read sites the moment
+     * the pin lands — and during a dual-write window those readers are correct,
+     * which is the whole point of the window. Add the tag in the same change
+     * that removes the last reader, not before. */
     iibbTransparency?: {
       jurisdiction: 'caba';
       regime: 'local' | 'cm';
