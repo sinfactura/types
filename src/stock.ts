@@ -21,6 +21,7 @@ declare global {
   }
 
   interface StockIncomeWrite extends StoredStockBase {
+    dated: string;
     quantity: number;
     supplierId?: string;
     supplierName?: string;

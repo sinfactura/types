@@ -7,6 +7,11 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.62
+
+- **fix(stock):** require `dated` on `StockIncomeWrite`, matching every
+  persisted income row and restoring compiler coverage for that ledger field.
+
 ## 1.10.61
 
 - **fix(stock):** add `StockIncomeWrite` and `StockSaleWrite` for the persisted
