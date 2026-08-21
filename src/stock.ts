@@ -30,6 +30,15 @@ declare global {
   }
 
   interface StockSale extends StockBase {
+    /**
+     * Units leaving stock on this outflow. REQUIRED, mirroring
+     * `StockIncome.quantity` — on-hand is `Σ INCOME − Σ SALE`, so a SALE row
+     * without it cannot participate in the sum at all, which is why every
+     * writer has always set it. It was simply never declared here, and the
+     * three api writers reached the row through an `as Partial<StockSale>`
+     * cast that made the omission invisible to `tsc`.
+     */
+    quantity: number;
     customerId?: string;
     fullName?: string;
     ivaType?: number;
