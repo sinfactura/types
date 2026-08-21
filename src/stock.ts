@@ -7,7 +7,20 @@ declare global {
     skip?: boolean; // supersedes legacy notEvaluate; unused on new inserts
   }
 
-  interface StockIncome extends StockBase {
+  /**
+   * Attributes persisted on every stock-movement row. `storeId` and `stockId`
+   * deliberately do not belong here: the DynamoDB partition and sort keys carry
+   * them, and stock readers synthesize the public hydrated fields from those
+   * keys. Writers must use a stored shape so the compiler checks every attribute
+   * that is actually sent to DynamoDB.
+   */
+  interface StoredStockBase {
+    createdAt: number;
+    cost: number;
+    skip?: boolean;
+  }
+
+  interface StockIncomeWrite extends StoredStockBase {
     quantity: number;
     supplierId?: string;
     supplierName?: string;
@@ -29,14 +42,11 @@ declare global {
     orderItemIndex?: number;
   }
 
-  interface StockSale extends StockBase {
+  interface StockSaleWrite extends StoredStockBase {
     /**
      * Units leaving stock on this outflow. REQUIRED, mirroring
-     * `StockIncome.quantity` — on-hand is `Σ INCOME − Σ SALE`, so a SALE row
-     * without it cannot participate in the sum at all, which is why every
-     * writer has always set it. It was simply never declared here, and the
-     * three api writers reached the row through an `as Partial<StockSale>`
-     * cast that made the omission invisible to `tsc`.
+     * `StockIncomeWrite.quantity` — on-hand is `Σ INCOME − Σ SALE`, so a SALE
+     * row without it cannot participate in the sum at all.
      */
     quantity: number;
     customerId?: string;
@@ -57,6 +67,12 @@ declare global {
     serviceOrderId?: string;
     price?: number;
   }
+
+  /** Hydrated movement returned by readers after deriving ids from DynamoDB keys. */
+  interface StockIncome extends StockBase, StockIncomeWrite {}
+
+  /** Hydrated movement returned by readers after deriving ids from DynamoDB keys. */
+  interface StockSale extends StockBase, StockSaleWrite {}
 }
 
 export {}; // NOSONAR

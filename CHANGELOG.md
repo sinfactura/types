@@ -7,6 +7,13 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.61
+
+- **fix(stock):** add `StockIncomeWrite` and `StockSaleWrite` for the persisted
+  movement-row shape. The existing `StockIncome` and `StockSale` contracts stay
+  hydrated and backward-compatible; their `storeId` and `stockId` are derived
+  from DynamoDB keys on read and are intentionally absent from write rows.
+
 ## 1.10.56
 
 - **docs(order):** `Order.parentServiceOrderId` no longer claims "Forward
