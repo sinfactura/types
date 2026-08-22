@@ -352,6 +352,15 @@ declare global {
 		freeUntil?: string;
 		cancelAt: number | null;
 		canceledAt: number | null;
+		/**
+		 * The plan the tenant was on when the subscription was canceled — the
+		 * plan they lost. Set by both cancel paths (provider
+		 * `subscription.canceled` and the grace sweep) before `planTier` is
+		 * reset to the free tier; cleared (to `null`) when the tenant
+		 * re-subscribes to a paid tier. `null` on rows canceled before this
+		 * field existed — forward-only, readers fall back to generic copy.
+		 */
+		canceledFromTier: PlanTier | null;
 		entitlements: SubscriptionEntitlementEntry[];
 		usage: SubscriptionUsageEntry[];
 	}
