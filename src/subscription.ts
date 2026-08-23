@@ -360,7 +360,7 @@ declare global {
 		 * re-subscribes to a paid tier. `null` on rows canceled before this
 		 * field existed — forward-only, readers fall back to generic copy.
 		 */
-		canceledFromTier: PlanTier | null;
+		canceledFromTier?: PlanTier | null;
 		entitlements: SubscriptionEntitlementEntry[];
 		usage: SubscriptionUsageEntry[];
 	}
