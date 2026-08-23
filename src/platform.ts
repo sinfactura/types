@@ -163,8 +163,17 @@ export interface TenantHealthEnvelope {
 /** One operator-authored internal note about a tenant. NEVER tenant-facing. */
 export interface StoreNoteAuthor {
 	userId: string;
-	/** Best-effort display name resolved at WRITE time; absent if the user row is gone. */
-	fullName?: string;
+	/**
+	 * Resolved at WRITE time via `resolveAuditActor`.
+	 *
+	 * ⚠️ REQUIRED but possibly EMPTY. `resolveAuditActor`'s documented degradation
+	 * is `{ userId, fullName: '' }` — it returns an empty string rather than
+	 * omitting the field, deliberately, so an audit still writes instead of the
+	 * mutation refusing. Declaring it optional would make the contract imply
+	 * "absent" where the api actually writes `''`, forcing every consumer to
+	 * handle two spellings of one condition.
+	 */
+	fullName: string;
 }
 
 /**
@@ -184,4 +193,47 @@ export interface StoreNote {
 /** POST/PUT request body for a store note. */
 export interface StoreNoteInput {
 	body: string;
+}
+
+/** FE projection of the internal `OverrideRow`. */
+export interface StoreEntitlementOverride {
+	key: FeatureKey;
+	type: EntitlementType;
+	/** Present iff `type === 'boolean'`. */
+	enabled?: boolean;
+	/** Present iff `type === 'numeric'`. `-1` means unlimited. */
+	limit?: number;
+	reason: string;
+	/**
+	 * ⚠️ Unix SECONDS, not milliseconds — named for its unit because it is the one
+	 * seconds-valued field in a milliseconds codebase. It populates the DynamoDB
+	 * TTL attribute directly, and TTL is specified in seconds.
+	 */
+	expiresAtSeconds?: number;
+	/** ms-epoch. */
+	createdAt: number;
+	/** ms-epoch. */
+	updatedAt: number;
+}
+
+/** Write body for a per-store entitlement override. */
+export interface OverrideWriteInput {
+	key: FeatureKey;
+	type: EntitlementType;
+	enabled?: boolean;
+	limit?: number;
+	/** Operator justification, min 10 chars trimmed. Written to the audit entry. */
+	reason: string;
+	/**
+	 * ⚠️ Unix SECONDS, not milliseconds. See `StoreEntitlementOverride`. A
+	 * millisecond value is rejected at the api boundary rather than silently
+	 * setting a TTL ~31,000 years out.
+	 */
+	expiresAtSeconds?: number;
+}
+
+/** GET response: the raw override rows plus the resolved effective bundle. */
+export interface StoreOverridesEnvelope {
+	overrides: StoreEntitlementOverride[];
+	resolved: ResolvedEntitlements;
 }

@@ -392,7 +392,10 @@ declare global {
     syncPolicy?: {
       stockBuffer?: number; // subtract from local stock before publishing.
       stockLimit?: number; // hard cap on published stock.
-      paused?: boolean; // pause ALL outbound sync (inbound keeps flowing).
+      paused?: boolean;
+    /** Hold PRICE pushes while stock keeps flowing — what an operator wants mid-repricing.
+     *  `paused` freezes both; this freezes only the price leg. */
+    pricePaused?: boolean; // pause ALL outbound sync (inbound keeps flowing).
     };
   }
 
@@ -408,6 +411,8 @@ declare global {
     stockBuffer?: number | null;
     stockLimit?: number | null;
     paused?: boolean | null;
+    /** WRITE side of `pricePaused` — `null` clears it, same convention as the knobs above. */
+    pricePaused?: boolean | null;
   }
 
   /**
