@@ -52,6 +52,19 @@ declare global {
     disabled: boolean;
     discount: number;
     email: string;
+    /**
+     * Set ONLY by the customer OTP verify transaction.
+     *
+     * ⚠️ UNDEFINED MEANS **NOT** VERIFIED — deliberately the INVERSE of
+     * `User.emailVerified`, which carries a grandfather clause telling apps to
+     * treat undefined as verified. Do not copy that comment here. Pre-existing
+     * customer rows have no attribute and must read as UNVERIFIED; reading
+     * absence as verified would silently mark the entire existing customer base
+     * verified and defeat the backfill it exists to force.
+     */
+    emailVerified?: boolean;
+    /** ms-epoch of the OTP verification. Absent whenever `emailVerified` is not `true`. */
+    emailVerifiedAt?: number;
     favorites?: Partial<Product>[];
     fullName: string;
     /** Storage-only credential hash — stripped from every response by the api's central sanitizer; never present on reads. */
