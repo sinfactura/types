@@ -27,7 +27,13 @@ declare global {
 
 	interface UserLoggedInEvent extends UserActivityEventBase {
 		event: 'User Logged In';
-		method: 'password' | 'totp' | 'refresh' | 'social' | 'recovery';
+		/**
+		 * How the session was established. `'magic-link'` is a PASSWORDLESS
+		 * primary login — never fold it into `'password'`, which would put a
+		 * false method in the audit trail. The 2FA branch still resolves to
+		 * `'totp'`/`'recovery'` as it does for every other primary method.
+		 */
+		method: 'password' | 'totp' | 'refresh' | 'social' | 'recovery' | 'magic-link';
 	}
 
 	interface UserLoggedOutEvent extends UserActivityEventBase {
