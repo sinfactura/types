@@ -140,7 +140,13 @@ export type CertBand = 'expired' | '14' | '30' | '60';
 export interface TenantHealthEnvelope {
 	storeId: string;
 	subscription: {
-		status: SubscriptionStatus;
+		/**
+		 * `'unknown'` is a READ-FAILURE sentinel, not a subscription state: the
+		 * console degrades this leg rather than 404ing the whole envelope, so a
+		 * consumer must distinguish "no subscription row read" from any real
+		 * status. Never persist it — it exists only on this wire shape.
+		 */
+		status: SubscriptionStatus | 'unknown';
 		freeUntil: number | null;
 		trialEndsAt: number | null;
 	};
