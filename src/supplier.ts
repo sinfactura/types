@@ -105,6 +105,50 @@ declare global {
 		 * Optional: forward-only, so older rows carry no ttl.
 		 */
 		ttl?: number;
+		/** Buyer-side FCE state. Present only when this row IS an FCE voucher. */
+		fce?: SupplierInvoiceFce;
+	}
+
+	/**
+	 * Buyer/receiving side of an FCE MiPyME, on the tenant that RECEIVED the
+	 * credit instrument.
+	 *
+	 * ⚠️ Deliberately NOT `FceFields`, and the two must not be merged. `FceFields`
+	 * is written at EMISSION time from the issuer's viewpoint and carries `cbu`
+	 * and `sca` — the EMISOR's fields on the instrument, which a buyer never sets.
+	 * Its `FceStatus` opens with `'emitted'`, an event that on a SupplierInvoice
+	 * belongs to somebody else and cannot express the state the buyer actually
+	 * needs: "an accept/reject is owed and the clock is running". Sharing one enum
+	 * across both sides is precisely the semantic collision `typecheck` cannot police.
+	 */
+	type SupplierInvoiceFceStatus = 'pending' | 'accepted' | 'rejected' | 'ceded';
+
+	interface SupplierInvoiceFce {
+		status: SupplierInvoiceFceStatus;
+		statusChangedAt?: string; // ISO timestamp — same convention as FceFields
+		acceptanceDeadline?: string; // ISO date. OPTIONAL here, unlike the issuer side: the buyer learns it from WSFECRED and may not have it yet.
+		/** ARCA cuenta-corriente id — the `codCtaCte` branch of `IdCtaCteType`. */
+		codCtaCte?: number;
+		/**
+		 * ARCA voucher-type code (201/206/211 …).
+		 *
+		 * ⚠️ NOT redundant with `cbteClass` + `pointOfSale` + `invoiceNumber`. Those
+		 * satisfy every part of ARCA's `idFactura: { CUITEmisor, codTipoCmp, ptoVta,
+		 * nroCmp }` branch EXCEPT the numeric voucher type, and the repo's only
+		 * letter→code mapping (`CBTE_TIPO_GRID`) covers FAC/ND/NC × A/B/C only,
+		 * mapping everything else — FCE included — to `null`. Without this field a
+		 * SupplierInvoice cannot express that it IS an FCE voucher.
+		 *
+		 * It lives here rather than widening `cbteClass` on purpose: widening would
+		 * ripple into constatación, and FCE genuinely is not WSCDC-constatable, so
+		 * that `null` is correct behaviour rather than a defect to route around.
+		 */
+		codTipoCmp?: number;
+		/** The EMISOR's CBU. The buyer never sets this — recorded as observed. */
+		emisorCbu?: string;
+		cesionId?: string;
+		/** From WSFECRED `MotivoRechazoType`, stamped when THIS tenant rejected. */
+		rejection?: { codMotivo: number; descMotivo: string; justificacion: string };
 	}
 
 	// Generic per-invoice ARCA trust-check status, shared across
