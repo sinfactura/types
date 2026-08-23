@@ -109,22 +109,38 @@ declare global {
 	// payload shapes above (SINFACTURA-side entities).
 
 	/**
-	 * Per-tenant WhatsApp Business connection + plan tier. Partially live:
-	 * the api sanitizes and projects it (supervisor integrations view), but NO
-	 * connect flow writes it yet — treat every member as potentially absent on
-	 * real rows until that flow ships.
+	 * Per-tenant WhatsApp Business connection + plan tier.
+	 *
+	 * ⚠️ **Treat every member as potentially absent on a real row.** Rows
+	 * predate the connect flow that populates this block, and writes here are
+	 * forward-only — an older tenant keeps its original shape rather than being
+	 * backfilled. This is a property of the stored data, not a statement about
+	 * which release shipped the writer, so it does not go stale.
 	 */
 	interface WhatsAppConfig {
 		wabaId: string;
 		phoneNumberId: string;
 		/**
 		 * Meta access token — encrypted at rest and stripped from every read by
-		 * the api sanitizer. Optional: no writer exists yet (no connect flow),
-		 * so no row carries it today.
+		 * the api sanitizer.
+		 *
+		 * Optional because the sanitizer removes it: a value legitimately read
+		 * back from the api never carries this field, so a read-shaped object
+		 * lacking it is correct rather than incomplete. Do not narrow it to
+		 * required on the strength of a writer existing.
 		 */
 		accessToken?: string;
 		verifiedName: string;
-		qualityRating: 'GREEN' | 'YELLOW' | 'RED';
+		/**
+		 * Meta's quality signal for the number.
+		 *
+		 * ⚠️ `'UNKNOWN'` is a real Meta value, not a placeholder — it is what a
+		 * number with no traffic yet reports, so every freshly connected tenant
+		 * starts here. Render it as "no data", never fold it into `'GREEN'`:
+		 * coercing it makes a brand-new number indistinguishable from a
+		 * healthy one, and the coercion is invisible at the read site.
+		 */
+		qualityRating: 'GREEN' | 'YELLOW' | 'RED' | 'UNKNOWN';
 		status: 'connected' | 'disconnected' | 'suspended';
 		tier: 'free' | 'pro' | 'enterprise';
 		/** ISO timestamp. */
