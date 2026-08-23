@@ -150,6 +150,15 @@ declare global {
 		reason: ReturnReason;
 		ncStatus?: ReturnCreditNoteStatus;
 		creditNoteId?: string;
+		/** Human-readable failure detail when `ncStatus === 'rejected'`. Never raw ARCA payloads. Mirrors `Return.ncError`. */
+		ncError?: string;
+		/**
+		 * Machine-readable failure cause when `ncStatus === 'rejected'`. Mirrors
+		 * `Return.ncErrorCode`. Distinct from `ncError`, which is prose: this is what a
+		 * client branches on to decide whether the `return-credit-note` retry mode is
+		 * worth offering. Only `PARTIAL_NC_AFIP_DOWN` is retryable.
+		 */
+		ncErrorCode?: ReturnCreditNoteErrorCode;
 		/** Per-line returned quantities, keyed by originating order-array index. */
 		items: { orderItemIndex: number; quantity: number; condition: 'sellable' | 'damaged' }[];
 	}

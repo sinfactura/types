@@ -19,9 +19,10 @@ declare global {
 		total: number;
 		/**
 		 * Positive sum of credited return totals dated this day.
-		 * ⚠️ FORWARD-ONLY: no api producer emits the return/net quintet yet —
-		 * `GET /reports?mode=sales` currently returns only `date`/`quantity`/
-		 * `cost`/`total`, so all five are absent on every current response.
+		 * ⚠️ OPTIONAL, not forward-only any more: `GET /reports?mode=sales` now
+		 * emits the return/net quintet. They stay optional because a day with no
+		 * returns omits them rather than sending zeros — absent means "no returns
+		 * dated this day", which is not the same as a measured zero.
 		 */
 		returns?: number;
 		/** Count of returns dated this day. Forward-only — see `returns`. */

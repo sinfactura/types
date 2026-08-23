@@ -114,3 +114,74 @@ export type PlatformOAuthAppConfigResponse = { data: PlatformOAuthAppConfig[] };
 // 'afip' | 'whatsapp' | 'gmail' today) — deliberately kept open as `string`
 // so a new BE provider row degrades gracefully instead of failing the parse.
 export type PlatformIntegrationsAggregate = Record<string, PlatformProviderHealth>;
+
+/**
+ * AFIP certificate expiry band. Graduated from the api's
+ * `lambdas/afipCertMonitor/bands.ts`, which is where it is computed — it reaches
+ * the wire on the tenant health envelope, so it cannot stay repo-local.
+ *
+ * `bandFor` returns `undefined` above 60 days; consumers see `null` at the wire
+ * boundary, never `undefined`.
+ */
+export type CertBand = 'expired' | '14' | '30' | '60';
+
+/**
+ * Cross-tab tenant health for the super-admin console.
+ *
+ * ⚠️ Derived booleans and epochs ONLY. No part of the STORE row is echoed —
+ * STORE rows embed live secrets and no read helper sanitizes them, so this shape
+ * is an explicit allow-list rather than a filtered row.
+ *
+ * ⚠️ `lastActivityAt` is deliberately ABSENT: it is not implementable from this
+ * Lambda without widening its IAM onto the operational table, which was
+ * deliberately avoided by keeping user-activity in its own function. Do not add
+ * it here without moving that boundary first.
+ */
+export interface TenantHealthEnvelope {
+	storeId: string;
+	subscription: {
+		status: SubscriptionStatus;
+		freeUntil: number | null;
+		trialEndsAt: number | null;
+	};
+	afip: {
+		hasCert: boolean;
+		/** ms-epoch of the cert's `notAfter`. */
+		certExpiry: number | null;
+		/** `null` above 60 days, where `bandFor` returns `undefined`. */
+		certBand: CertBand | null;
+	};
+	integrations: {
+		/** Presence and expiry ONLY — never the OAuth tokens. */
+		mercadopago: { connected: boolean; oauthExpiresAt: number | null };
+		whatsapp: { enabled: boolean };
+		sms: { enabled: boolean };
+	};
+	maintenance: { active: boolean; scope: 'platform' | 'store' | null };
+}
+
+/** One operator-authored internal note about a tenant. NEVER tenant-facing. */
+export interface StoreNoteAuthor {
+	userId: string;
+	/** Best-effort display name resolved at WRITE time; absent if the user row is gone. */
+	fullName?: string;
+}
+
+/**
+ * ⚠️ Wire shape only. The stored row additionally carries `PK`/`SK`, which must
+ * never reach a consumer — the same split as `PrinterRow` vs `PrintPrinter`.
+ */
+export interface StoreNote {
+	noteId: string;
+	/** Plain text for v1. Trimmed, non-empty, <= 5000 chars — enforced at the api boundary. */
+	body: string;
+	author: StoreNoteAuthor;
+	createdAt: number;
+	updatedAt?: number;
+	lastEditedBy?: StoreNoteAuthor;
+}
+
+/** POST/PUT request body for a store note. */
+export interface StoreNoteInput {
+	body: string;
+}
