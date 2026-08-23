@@ -53,13 +53,62 @@ export interface PlatformProviderHealth {
 	syncSuccessRate24h?: number;
 	/** Integer milliseconds. */
 	p95LatencyMs?: number;
-	/** Shared platform DLQ depth — the same value is repeated on every provider row. */
-	dlqDepth: number;
+	/** Shared platform DLQ depth — the same value is repeated on every provider row.
+	 *  ⚠️ OPTIONAL on purpose: absent means "no DLQ datapoint in the window", which is
+	 *  NOT the same as a measured depth of zero. Rendering the two identically is the
+	 *  synthesise-on-no-data defect this shape exists to remove. */
+	dlqDepth?: number;
 	/** Epoch ms of the most recent error datapoint in the 24h window. */
 	lastIncidentAt?: number;
 	refreshFailures24h: number;
 	killSwitchEnabled?: boolean;
+	/**
+	 * True iff a health-representative Lambda backs this provider's
+	 * CloudWatch-derived fields. REQUIRED so a consumer must handle all three
+	 * states rather than reading absent-as-false:
+	 *   `monitored: false`                  → not monitored, no data source
+	 *   `monitored: true`, metrics absent   → monitored but idle (zero invocations)
+	 *   `monitored: true`, metrics present  → measured
+	 */
+	monitored: boolean;
+	/**
+	 * Hourly buckets over the trailing 24h, ascending by `t`. Absent when the
+	 * provider is unmonitored, or monitored with no datapoints — never an empty
+	 * array standing in for "no data".
+	 */
+	deliveries24h?: PlatformProviderDeliveryBucket[];
 }
+
+/** One hourly bucket of the trailing-24h webhook-delivery series. */
+export interface PlatformProviderDeliveryBucket {
+	/** Bucket start, epoch ms. */
+	t: number;
+	/** Successful invocations in the bucket (invocations − errors, clamped at 0). */
+	ok: number;
+	/** Errored invocations in the bucket. */
+	err: number;
+}
+
+/**
+ * MANAGER-only read of our OAuth *application* config.
+ * ⚠️ Never carries a client secret or a webhook signing key.
+ */
+export interface PlatformOAuthAppConfig {
+	provider: 'mercadopago' | 'mercadolibre' | 'gmail';
+	/** Absent when the provider's client id is not configured in this stage. */
+	clientId?: string;
+	/** Per-stage, computed — the value the BE actually registers with the provider. */
+	redirectUri: string;
+	/**
+	 * Absent for `mercadopago` and `mercadolibre`: neither sends a `scope` param at
+	 * all — their scopes are configured app-side in the provider's own dashboard, so
+	 * emitting them here would put unmeasured text on the wire as if it were read
+	 * config. Only `gmail` sends a real scope string.
+	 */
+	scopes?: string[];
+}
+
+export type PlatformOAuthAppConfigResponse = { data: PlatformOAuthAppConfig[] };
 
 // Aggregate keyed by provider id ('mercadopago' | 'mercadolibre' | 'stripe' |
 // 'afip' | 'whatsapp' | 'gmail' today) — deliberately kept open as `string`

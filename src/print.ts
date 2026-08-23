@@ -177,6 +177,17 @@ declare global {
     state?: PrintPrinterState;
     capabilities?: PrintPrinterCapabilities;
     /**
+     * IPP keyword behind a non-usable `state`, e.g. `media-empty-error`.
+     * Agent-reported and FREE-FORM, never an enum — the vocabulary is
+     * driver-supplied and vendor-extensible (`media-jam`, `toner-empty`,
+     * `door-open`, `marker-supply-low`, …), so an enum would drop exactly the
+     * unusual reason worth surfacing. Bounded to 128 chars at the api schema.
+     *
+     * ⚠️ CLEARED when the printer returns to a usable state. A stale reason is
+     * worse than none, because it sends someone to a machine that is fine.
+     */
+    reason?: string;
+    /**
      * Operator-controlled pause. BE-owned — NOT agent-reported, and must
      * survive a re-registration that omits it. `false` = do not route jobs here.
      */
