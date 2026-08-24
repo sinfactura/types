@@ -18,6 +18,7 @@ export * from "./customer.js";
 export * from "./demo.js";
 export * from "./impersonation.js";
 export * from "./imports.js";
+export * from "./invitation.js";
 export * from "./invoice.js";
 export * from "./log.js";
 export * from "./maintenance.js";

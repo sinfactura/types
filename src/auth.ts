@@ -74,6 +74,62 @@ declare global {
 		submittedAt: number;
 	}
 
+	/** `POST /auth?mode=verifyInvite` request body — the token from the invite email. */
+	interface VerifyInviteInput {
+		token: string;
+	}
+
+	/**
+	 * Why an invite token will not accept. Deliberately COARSE: `invalid`
+	 * covers "no such token" and "signature mismatch" alike, so a caller
+	 * cannot probe which store an unknown token belongs to.
+	 */
+	type InviteInvalidReason = 'invalid' | 'expired' | 'revoked' | 'accepted';
+
+	/** Unauthenticated pre-check — returns only what the accept form needs to render. */
+	interface VerifyInviteResponse {
+		valid: true;
+		email: string;
+		role: string;
+		storeName: string;
+		invitedByName: string;
+		expiresAt: number;
+		message?: string;
+	}
+
+	/** ⚠️ Carries NO tenant detail — an invalid token must not disclose which store it named. */
+	interface VerifyInviteInvalidResponse {
+		valid: false;
+		reason: InviteInvalidReason;
+	}
+
+	/** `POST /auth?mode=acceptInvite` request body. */
+	interface AcceptInviteInput {
+		token: string;
+		fullName: string;
+		password: string;
+		phone?: string;
+	}
+
+	/**
+	 * `INVITE_INVALID` collapses the four `InviteInvalidReason` cases on the
+	 * accept path on purpose — by then the client has already seen the precise
+	 * reason from `verifyInvite`, and a second, more specific answer here would
+	 * turn accept into the probe `verifyInvite` was shaped to avoid.
+	 */
+	type AcceptInviteErrorCode =
+		| 'INVITE_INVALID'
+		| 'EMAIL_ALREADY_REGISTERED'
+		| 'SEAT_LIMIT_REACHED'
+		| 'WEAK_PASSWORD';
+
+	/** Success shape — acceptance logs the new user straight in. */
+	interface AcceptInviteResponse {
+		userId: string;
+		storeId: string;
+		accessToken: string;
+	}
+
 }
 
 export {}; // NOSONAR

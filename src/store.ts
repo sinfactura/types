@@ -584,6 +584,14 @@ declare global {
     // cert for FCE); no auto-detection, never mutated by any AFIP-calling handler.
     fceEnabled?: boolean;
     wscdcEnabled?: boolean;
+    // WSFECRED received-FCE poller checkpoint — unix ms upper bound
+    // (`fecha.hasta`, Receptor role) of the last FULLY DRAINED
+    // `consultarComprobantes` poll for this tenant. Absent means never polled,
+    // and the poller falls back to a lookback window rather than to epoch.
+    // Advanced monotonically under a conditional SET so a late or retried
+    // invocation cannot walk the checkpoint backwards and re-ingest.
+    // Mirrors `Mercadopago.lastMovementCheckpoint`.
+    fceReceivedCheckpoint?: number;
   }
 
   // Afip PATCH write shape
