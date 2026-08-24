@@ -304,3 +304,41 @@ export interface PlatformOverridesRosterResponse {
 	/** Unix ms. */
 	builtAt: number;
 }
+
+/**
+ * Why a plan's marketing copy disagrees with the entitlements actually backing
+ * that tier. Advisory only — `PATCH /platform/billing/plans/{tier}` reports
+ * these and still applies the write. It never blocks: tiers are hand-tuned
+ * between pricing decisions, so a mismatch is routinely the intended
+ * intermediate state rather than an error.
+ *
+ * - `NUMERIC_MISMATCH` — a bullet advertises a number that differs from the
+ *   numeric entitlement it maps to.
+ * - `UNLIMITED_ADVERTISED_AS_CAPPED` — the entitlement is `-1` (unlimited) but
+ *   the copy advertises a finite cap. Reported separately because the equality
+ *   compare would otherwise render it as a nonsense mismatch against `-1`.
+ * - `UNBACKED_CAPABILITY` — the copy names a capability the tier does not have
+ *   `status: 'live'` and `enabled: true` for.
+ */
+export type CatalogWarningCode = 'NUMERIC_MISMATCH' | 'UNLIMITED_ADVERTISED_AS_CAPPED' | 'UNBACKED_CAPABILITY';
+
+/**
+ * One disagreement between a plan's copy and its entitlements.
+ *
+ * ⚠️ Absence of a warning is NOT a claim that the copy is correct. The matcher
+ * pairs a bullet to a feature only on a single unambiguous keyword; a bullet
+ * matching two keywords or none is skipped rather than guessed, so it
+ * deliberately understates. Reading an empty array as "this tier's copy is
+ * verified" inverts that design.
+ */
+export interface CatalogWarning {
+	code: CatalogWarningCode;
+	/** Which piece of copy produced it — one of the `bullets`, or the `description`. */
+	source: 'bullets' | 'description';
+	/** The offending bullet, or the description, verbatim. */
+	text: string;
+	/** The entitlement the copy was checked against. */
+	featureKey: FeatureKey;
+	/** Human-readable, already safe to render as-is. */
+	message: string;
+}
