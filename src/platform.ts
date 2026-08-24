@@ -243,3 +243,64 @@ export interface StoreOverridesEnvelope {
 	overrides: StoreEntitlementOverride[];
 	resolved: ResolvedEntitlements;
 }
+
+
+// ---------------------------------------------------------------------------
+// Cross-tenant operator control plane (Ops API).
+// ---------------------------------------------------------------------------
+
+/**
+ * One active refresh-token session for a tenant user, as returned to a
+ * SUPERVISOR/MANAGER operator. Deliberately carries NO token material: `jti`
+ * and `family` identify a session for revocation, they do not authenticate one.
+ */
+export interface TenantUserSessionSummary {
+	jti: string;
+	family: string;
+	/** Unix ms. */
+	issuedAt: number;
+	/** Unix ms. */
+	expiresAt: number;
+	userAgent?: string;
+	ip?: string;
+}
+
+/**
+ * `complete: false` means the underlying scan was truncated and the list is a
+ * prefix, not the whole set — never render it as "these are all the sessions".
+ */
+export interface TenantUserSessionsResponse {
+	sessions: TenantUserSessionSummary[];
+	complete: boolean;
+}
+
+/** Revoke-all result. Idempotent: revoking with no sessions is `revoked: 0`, not an error. */
+export interface TenantUserSessionsRevokeResponse {
+	revoked: number;
+	failed: number;
+	complete: boolean;
+}
+
+/** One store's entry in the cross-store entitlement-override roster. */
+export interface PlatformOverrideRosterEntry {
+	storeId: string;
+	overrideCount: number;
+	/**
+	 * ⚠️ Unix SECONDS, matching `StoreEntitlementOverride`'s TTL field rather
+	 * than the millisecond timestamps elsewhere in this file. Absent when no
+	 * override on that store carries an expiry.
+	 */
+	earliestExpiresAt?: number;
+}
+
+/**
+ * Roster response. Built by a scheduled scan into a single `PLATFORM#OVERRIDES`
+ * projection row rather than served from a GSI — `builtAt` is therefore the age
+ * of the answer, and a caller that needs live data must read the per-store
+ * route instead.
+ */
+export interface PlatformOverridesRosterResponse {
+	entries: PlatformOverrideRosterEntry[];
+	/** Unix ms. */
+	builtAt: number;
+}

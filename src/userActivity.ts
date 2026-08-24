@@ -675,6 +675,24 @@ declare global {
 		email_sent: boolean;
 	}
 
+	// Cross-tenant operator actions on a tenant user's account (Ops API).
+	// `target_user_id` is the acted-on user; `user_id`/`actor_role` on the base
+	// remain the OPERATOR, so the two are never conflated in the trail.
+	interface UserSessionsRevokedEvent extends UserActivityEventBase {
+		event: 'User Sessions Revoked';
+		target_user_id: string;
+		revoked_count: number;
+	}
+
+	// `email_sent` records the send honestly rather than asserting delivery —
+	// same reasoning as `CustomerPasswordResetInitiatedEvent`: a row claiming an
+	// email went out when the send was swallowed is worse than no row at all.
+	interface UserPasswordResetInitiatedByOperatorEvent extends UserActivityEventBase {
+		event: 'User Password Reset Initiated by Operator';
+		target_user_id: string;
+		email_sent: boolean;
+	}
+
 	// Discriminated union. Count in this comment has drifted before — recount
 	// the arms before trusting any number stated here.
 	type UserActivityEvent =
@@ -771,7 +789,10 @@ declare global {
 		// Per-printer `active` pause toggle
 		| PrinterActiveToggledEvent
 		// Operator-initiated customer storefront password reset (BE-emitted)
-		| CustomerPasswordResetInitiatedEvent;
+		| CustomerPasswordResetInitiatedEvent
+		// Cross-tenant operator actions on a tenant user (Ops API)
+		| UserSessionsRevokedEvent
+		| UserPasswordResetInitiatedByOperatorEvent;
 
 }
 
