@@ -223,6 +223,21 @@ declare global {
     // Pre-launch landing lead-capture marker; cleared by the
     // `convert-waitlist` operator endpoint (which fires the deferred welcome email).
     waitlist?: boolean;
+    /**
+     * Tenant opt-in: require a storefront customer's email to be verified
+     * before checkout. Absent or `false` — the default for every store,
+     * including all pre-existing ones — leaves verification a SOFT state:
+     * `Customer.emailVerified` is tracked and surfaced, and nothing is
+     * blocked.
+     *
+     * ⚠️ Turning this on gates the store's OWN existing customers. Nothing is
+     * backfilled (forward-only), so every customer who registered before
+     * verification existed reads as unverified and is refused at checkout
+     * until they verify. That is the tenant's decision to make, but a
+     * settings UI should say so rather than presenting it as a neutral
+     * switch.
+     */
+    requireEmailVerification?: boolean;
   }
 
   interface StoreIntegrations {
