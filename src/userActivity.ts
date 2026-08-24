@@ -176,10 +176,42 @@ declare global {
 		customer_id: string;
 	}
 
+	/**
+	 * One staff-side change to a single `Customer.marketing` channel.
+	 *
+	 * ⚠️ `to` is the literal `false`, not `boolean`, and that is load-bearing.
+	 * Staff may CLEAR a consent flag and may never grant one — a customer's
+	 * consent can only ever come from the customer. Typing the literal makes
+	 * the compiler refuse an emission that records a grant, so the rule is
+	 * enforced at every call site rather than restated in a comment. Widening
+	 * this to `boolean` would be a deliberate change to that policy, which is
+	 * exactly the kind of decision that should cost a types publish.
+	 *
+	 * `from` is `null` when the channel had never been set, which is a
+	 * different fact from `false` (explicitly opted out before) and must stay
+	 * distinguishable in an audit record.
+	 */
+	interface CustomerConsentChange {
+		channel: 'adds' | 'email' | 'phone' | 'sms' | 'whatsapp';
+		from: boolean | null;
+		to: false;
+	}
+
 	interface CustomerEditedEvent extends UserActivityEventBase {
 		event: 'Customer Edited';
 		customer_id: string;
 		fields_changed: string[];
+		/**
+		 * Present only when a staff-side write touched `Customer.marketing`.
+		 * Absent — not an empty array — when the edit left consent alone, so
+		 * "no consent change" and "consent examined and unchanged" do not have
+		 * to be told apart by a reader.
+		 *
+		 * `who` and `when` are already carried by `UserActivityEventBase`
+		 * (`actor_full_name`, `actor_role`, `ts`); this adds only the per-
+		 * channel before/after the base cannot express.
+		 */
+		consent_changes?: CustomerConsentChange[];
 	}
 
 	interface CashDrawerOpenedEvent extends UserActivityEventBase {
