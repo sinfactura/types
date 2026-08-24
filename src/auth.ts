@@ -9,6 +9,22 @@ declare global {
 		captchaToken?: string;
 		/** Firebase App Check token — the mobile step-up, required only after an `ATTESTATION_REQUIRED` rejection; the native equivalent of `captchaToken`. */
 		appCheckToken?: string;
+		/**
+		 * Opt in to a long-lived session. Absent or `false` issues the SHORT
+		 * default lifetime, so a client that never learns about this field gets
+		 * the safer one; only an explicit `true` extends it.
+		 */
+		rememberMe?: boolean;
+		/**
+		 * Opt in to remembering THIS device, so subsequent logins from it skip
+		 * the TOTP step-up until the trust expires.
+		 *
+		 * ⚠️ Honoured only on a login that actually PERFORMED the step-up — it
+		 * cannot bootstrap itself on a login that never presented a second
+		 * factor. The trust is carried by a BE-managed HttpOnly cookie, never by
+		 * a value the client stores or echoes back.
+		 */
+		trustDevice?: boolean;
 	}
 
 	interface Social {
@@ -16,6 +32,8 @@ declare global {
 		accessToken: string;
 		/** TOTP step-up code (6-32 chars) — same semantics as `Login.totpCode`. */
 		totpCode?: string;
+		/** Remember this device — same semantics as `Login.trustDevice`. */
+		trustDevice?: boolean;
 	}
 
 	interface Register {

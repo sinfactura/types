@@ -121,6 +121,16 @@ declare global {
       stock: boolean;
       changePrice: boolean;
       /**
+       * Ceiling on concurrent refresh-token sessions per user. When a new login
+       * would exceed it the OLDEST family is revoked, so the cap never blocks a
+       * login — it evicts.
+       *
+       * Absent falls back to the BE default (5). Counts SESSIONS (families),
+       * not stored rows: refresh rotation replaces a row without adding a
+       * device, so counting rows would evict an active user for refreshing.
+       */
+      maxSessions?: number;
+      /**
        * Back-office display currency (catalogId) the operator's screens are
        * framed in — distinct from any individual money entity's own `currency`
        * stamp. Also the denomination fallback for unstamped legacy `Account` rows.
