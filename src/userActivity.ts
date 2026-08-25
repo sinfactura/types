@@ -725,6 +725,36 @@ declare global {
 		email_sent: boolean;
 	}
 
+	// Remote diagnostic command dispatched to a Cloud Print agent over WSS
+	// (`POST /print {mode:'agent-command'}`). `user_id`/`actor_role` on the base
+	// stay the DISPATCHING operator, never the agent — the agent is the target,
+	// identified by `agent_id`.
+	//
+	// `command` is reached through an import type expression rather than a
+	// re-declared literal union: this file is an ambient `declare global` block
+	// with no imports, and a top-level import would turn it into a module and
+	// un-declare every interface in it. Copying the four command strings here
+	// instead is the drift `AgentCommandData`'s own placement was chosen to
+	// avoid.
+	//
+	// `destructive` mirrors the stored audit row's field name and semantics 1:1
+	// so one fact carries one name across both trails; it records membership of
+	// `DESTRUCTIVE_AGENT_COMMANDS` at dispatch time, which is what made
+	// `confirm: true` mandatory for this dispatch.
+	//
+	// Emitted once the claim succeeds, regardless of how many connections the
+	// frame reached — a dispatch to an offline agent is still an operator
+	// action the trail owes. Delivery is not asserted here and the agent's
+	// later result report does not emit a second event; it folds onto the
+	// `AGENT_COMMAND#` row instead.
+	interface AgentCommandDispatchedEvent extends UserActivityEventBase {
+		event: 'Agent Command Dispatched';
+		agent_id: string;
+		command: import('./socket').AgentCommand;
+		command_id: string;
+		destructive: boolean;
+	}
+
 	// Discriminated union. Count in this comment has drifted before — recount
 	// the arms before trusting any number stated here.
 	type UserActivityEvent =
@@ -824,7 +854,9 @@ declare global {
 		| CustomerPasswordResetInitiatedEvent
 		// Cross-tenant operator actions on a tenant user (Ops API)
 		| UserSessionsRevokedEvent
-		| UserPasswordResetInitiatedByOperatorEvent;
+		| UserPasswordResetInitiatedByOperatorEvent
+		// Remote diagnostic command dispatched to a Cloud Print agent
+		| AgentCommandDispatchedEvent;
 
 }
 
