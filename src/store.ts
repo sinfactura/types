@@ -1,5 +1,55 @@
 declare global {
   /**
+   * One tenant-authored Cmd-K palette entry (`store.palette.custom[]`).
+   *
+   * ⚠️ `url` and `icon` are ALLOW-LISTED server-side, not merely validated for
+   * shape. A palette entry renders inside an operator's command palette, so a
+   * free-form `url` is a phishing and open-redirect surface and a free-form
+   * `icon` is an injection surface. `url` accepts `https://…` or a relative
+   * path beginning with `/`; `icon` accepts a known subset of
+   * `@mui/icons-material`. Never widen either on the strength of the FE
+   * having checked first.
+   *
+   * `custom` is writable ONLY from the Ops API — the tenant-facing palette
+   * route refuses it outright rather than validating it, because the phishing
+   * surface is not worth exposing to tenant ADMINs at all.
+   */
+  interface CustomVerb {
+    /** `custom-{slug}`. */
+    id: string;
+    /** Operator-facing label, <= 60 chars. */
+    name: string;
+    /** `https://…` or a relative path starting with `/`. Allow-listed. */
+    url: string;
+    /** A known `@mui/icons-material` name. Allow-listed. */
+    icon: string;
+    /** Palette section heading, <= 40 chars. */
+    section: string;
+  }
+
+  /**
+   * Per-tenant Cmd-K palette overrides.
+   *
+   * ⚠️ TOP-LEVEL on `Store`, deliberately NOT under `features`. In this repo
+   * `features` means the PLAN TEMPLATE's billing entitlements (see
+   * `store/_get.ts`), a different concept on the same word — UI personalisation
+   * must never share that namespace. There is also no backend `features` merge
+   * mechanism to extend: the footer/navbar/sidebar merge this was once modelled
+   * on lives entirely in the frontend.
+   *
+   * `hidden` and `pinned` carry built-in verb ids and are tenant-writable via
+   * the palette PATCH route. `custom` is Ops-only — see `CustomVerb`.
+   */
+  interface StorePalette {
+    /** Verb ids to hide. */
+    hidden?: string[];
+    /** Verb ids to elevate to the top of their section. */
+    pinned?: string[];
+    /** Tenant-specific deep links. Ops-API-writable only. */
+    custom?: CustomVerb[];
+  }
+
+  /**
    * One counter's static-QR POS binding (`store.integrations.mercadopago.staticQrs[counterId]`).
    *
    * `label` is the entire point of the multi-counter feature — the operator-facing
@@ -93,6 +143,13 @@ declare global {
   }
 
   interface Store {
+    /**
+     * Cmd-K palette overrides. Absent means "all built-in verbs, default order".
+     * Not writable through `POST /store` or `POST /tenants` — both refuse it with
+     * `FIELD_NOT_WRITABLE_HERE`; it moves through its own PATCH route.
+     */
+    palette?: StorePalette;
+
     storeId: string;
     createdAt: number;
     /** Unix ms — BE-stamped on every `POST`/`PATCH /store` write. Always present on written rows. */
