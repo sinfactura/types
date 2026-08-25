@@ -95,8 +95,38 @@ declare global {
 		tenant_store_id: string;
 		/** Unix ms when the interaction completed. */
 		ts: number;
-		/** Which ARCA fiscal op — see `ConstatarComprobante` (WSCDC), `FEXAuthorize` (WSFEX), `ConsultarApoc` (APOC registry check). */
-		operation: 'FECAESolicitar' | 'FECompConsultar' | 'FEXAuthorize' | 'ConstatarComprobante' | 'ConsultarApoc';
+		/**
+		 * Which ARCA fiscal op. Grouped by service: WSFE online issuance
+		 * (`FECAESolicitar`, `FECompConsultar`), WSFE CAEA contingency
+		 * (`FECAEASolicitar`, `FECAEARegInformativo`, `FECAEASinMovimientoConsultar`,
+		 * `FECAEASinMovimientoInformar`), WSFEX export (`FEXAuthorize`), WSCDC
+		 * verification (`ConstatarComprobante`), WSFECRED credit-instrument
+		 * decisions (`aceptarFECred`, `rechazarFECred`), and the APOC registry
+		 * check (`ConsultarApoc`).
+		 *
+		 * The membership rule: an operation belongs here when it names ONE
+		 * identified subject and receives ONE authoritative verdict about it.
+		 * Numbering lookups (`FECompUltimoAutorizado`) and broad date-window
+		 * discovery queries (WSFECRED `consultarComprobantes`) are excluded by
+		 * that rule — NOT for being read-only, which several members here are.
+		 *
+		 * ⚠️ `FECAEARegInformativo` batches up to 250 vouchers per SOAP call but
+		 * is audited PER VOUCHER — one row per det verdict, each carrying only
+		 * its own sliced request/response, so a large batch cannot approach
+		 * DynamoDB's 400KB item cap.
+		 */
+		operation:
+			| 'FECAESolicitar'
+			| 'FECompConsultar'
+			| 'FEXAuthorize'
+			| 'ConstatarComprobante'
+			| 'ConsultarApoc'
+			| 'FECAEASolicitar'
+			| 'FECAEARegInformativo'
+			| 'FECAEASinMovimientoConsultar'
+			| 'FECAEASinMovimientoInformar'
+			| 'aceptarFECred'
+			| 'rechazarFECred';
 		/** Issuer CUIT (RAW — masked only at display). */
 		cuit: string;
 		/** AFIP environment the call hit. */
@@ -107,8 +137,20 @@ declare global {
 		voucherNumber?: number;
 		/** Internal invoice id correlation (INV000123) when available. */
 		invoiceId?: string;
-		/** Outcome of the interaction. */
-		outcome: 'authorized' | 'rejected' | 'unresolved' | 'queried';
+		/**
+		 * Outcome of the interaction.
+		 *
+		 * `authorized` is reserved for an actual authorization-code grant that
+		 * populates `cae`/`caeExpiration`. ⚠️ A CAEA code is a DIFFERENT
+		 * instrument and never lands in those two fields — it stays raw in the
+		 * response payload, so `FECAEASolicitar` success is `confirmed`, not
+		 * `authorized`.
+		 *
+		 * `confirmed` is a write-style ARCA acknowledgement carrying no code:
+		 * a `FECAEARegInformativo` det approved, `FECAEASinMovimientoInformar`
+		 * success, and FCE accept/reject success.
+		 */
+		outcome: 'authorized' | 'confirmed' | 'rejected' | 'unresolved' | 'queried';
 		/** CAE + expiry on success. */
 		cae?: string;
 		caeExpiration?: string;
