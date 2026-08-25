@@ -56,7 +56,22 @@ declare global {
     entityType?: string;
     createdAt: number;
     dated: number;
-    total: number;
+    /**
+     * ⚠️ OPTIONAL, and the reason is forward-only rather than cosmetic.
+     *
+     * MercadoPago types `transaction_amount` as optional, so the context this
+     * row is built from carries `number | undefined`. Two sibling builders in
+     * the same module always defaulted with `?? 0`; the builder behind THIS
+     * row did not, and passed the raw value straight through until
+     * 2026-08-25. Rows written before that fix can therefore lack the
+     * attribute entirely — DynamoDB drops `undefined` rather than storing it.
+     *
+     * Declaring it required would make this contract true of new rows and a
+     * lie about old ones. Tolerate both: a missing `total` means "not
+     * recorded", NEVER zero. The sibling `PAYMENT#{storeId}` row is the
+     * authoritative amount if you need one.
+     */
+    total?: number;
     email?: string;
     cuit?: string;
   }
