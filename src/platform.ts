@@ -354,3 +354,62 @@ export interface CatalogWarning {
 	/** Human-readable, already safe to render as-is. */
 	message: string;
 }
+
+/**
+ * `GET /platform/dashboard` — infra-health rollup for the MANAGER operational
+ * dashboard: CloudWatch alarms, Lambda/API Gateway error metrics, DLQ depth,
+ * and estimated AWS billing. Deliberately separate from the business-KPI
+ * rollup on `GET /platform/metrics` — this endpoint's IAM surface reads
+ * CloudWatch and Cost Explorer, which the KPI endpoint keeps off its hot path.
+ */
+export interface PlatformDashboardResponse {
+	/**
+	 * `'unknown'` is a READ-FAILURE sentinel, not an infra state — some or all of
+	 * the underlying CloudWatch reads failed, so the aggregate could not be
+	 * computed either way. Never treat it as equivalent to `'ok'`.
+	 */
+	systemStatus: 'ok' | 'incident' | 'unknown';
+	alarms: PlatformAlarm[];
+	metrics: {
+		lambdaErrorsByFunction: MetricSeries[];
+		apiGateway4xx: MetricPoint[];
+		apiGateway5xx: MetricPoint[];
+		dlqDepth: MetricPoint[];
+		lambdaThrottles: MetricPoint[];
+	};
+	billing: {
+		estimatedMonthToDateUsd: number;
+		dailyTrendUsd: MetricPoint[];
+		topServicesByCostUsd: { service: string; costUsd: number }[];
+		/**
+		 * Epoch ms of the underlying billing cache's last write. `null` only
+		 * before that cache has ever been populated for the first time — once
+		 * written, every subsequent read carries a real timestamp, stale or not.
+		 */
+		asOf: number | null;
+	};
+	generatedAt: number;
+}
+
+/** One CloudWatch alarm's current state, as surfaced on the dashboard. */
+export interface PlatformAlarm {
+	name: string;
+	state: 'OK' | 'ALARM' | 'INSUFFICIENT_DATA';
+	service: string;
+	description?: string;
+	/** Epoch ms; `null` when CloudWatch has not recorded a state transition. */
+	stateChangedAt: number | null;
+}
+
+/** A named collection of `MetricPoint`s — one line on a multi-series chart. */
+export interface MetricSeries {
+	label: string;
+	points: MetricPoint[];
+}
+
+/** One datapoint of a CloudWatch-derived time series. */
+export interface MetricPoint {
+	/** Epoch ms. */
+	t: number;
+	v: number;
+}

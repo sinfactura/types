@@ -7,6 +7,13 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.95
+
+- **feat(platform):** add `PlatformDashboardResponse` for `GET /platform/dashboard` —
+  the MANAGER-only infra-health rollup (CloudWatch alarms, Lambda/API Gateway
+  error metrics, DLQ depth, estimated billing). Also adds `PlatformAlarm`,
+  `MetricSeries`, and `MetricPoint`.
+
 ## 1.10.63
 
 - **fix(stock):** correct `StockIncomeWrite.dated` to `number`, matching the
