@@ -368,6 +368,30 @@ declare global {
 		concept: string;
 	}
 
+	/*
+	 * Employee time & attendance. BE-emitted on the clock-in / clock-out
+	 * handlers, exactly like `Cash Drawer Opened`/`Closed` — and, for the same
+	 * reason, deliberately ABSENT from `UI_ONLY_USER_ACTIVITY_VARIANTS`. That
+	 * whitelist is what the FE-ingest endpoint accepts, so anything in it can be
+	 * POSTed by a client; attendance rows feed hours worked, which makes a
+	 * spoofable clock-out a payroll defect rather than a cosmetic one. The
+	 * UI-only half of the cash-drawer precedent is the separate
+	 * `Cash Drawer UI Opened`/`UI Closed` pair, not these.
+	 */
+	interface ClockedInEvent extends UserActivityEventBase {
+		event: 'Clocked In';
+		shift_id: string;
+		source: ClockEventSource;
+		geohash?: string;
+	}
+
+	interface ClockedOutEvent extends UserActivityEventBase {
+		event: 'Clocked Out';
+		shift_id: string;
+		total_minutes: number;
+		overtime_minutes?: number;
+	}
+
 	interface PaymentCreatedEvent extends UserActivityEventBase {
 		event: 'Payment Created';
 		payment_id: string;
@@ -933,7 +957,10 @@ declare global {
 		| UserSessionsRevokedEvent
 		| UserPasswordResetInitiatedByOperatorEvent
 		// Remote diagnostic command dispatched to a Cloud Print agent
-		| AgentCommandDispatchedEvent;
+		| AgentCommandDispatchedEvent
+		// Employee time & attendance (BE-emitted — NOT UI-ingestable)
+		| ClockedInEvent
+		| ClockedOutEvent;
 
 }
 
@@ -1003,4 +1030,5 @@ export type UserActivityEntityType =
 	| 'report'
 	| 'notification'
 	| 'printer'
-	| 'printer_agent';
+	| 'printer_agent'
+	| 'attendance_shift';
