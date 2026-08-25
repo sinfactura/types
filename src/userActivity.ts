@@ -687,6 +687,37 @@ declare global {
 		printer_id: string;
 	}
 
+	// Webhook subscription CRUD (`WEBHOOK#${storeId}`). `url` is safe to record:
+	// it is operator-supplied routing, not a credential — the HMAC key never
+	// leaves Secrets Manager and `secretRef` deliberately does not travel here.
+	//
+	// `events` is reached through an import type expression for the same reason
+	// `AgentCommandDispatchedEvent.command` is: this file is an ambient
+	// `declare global` block with no imports, and `webhook.ts` is a real module
+	// (it exports the tuple as a VALUE). A top-level import here would turn this
+	// file into a module and un-declare every interface in it.
+	interface WebhookCreatedEvent extends UserActivityEventBase {
+		event: 'Webhook Created';
+		webhook_id: string;
+		url: string;
+		events: import('./webhook').WebhookEventType[];
+	}
+
+	// `fields_changed` follows `PrintRuleEditedEvent`'s convention: dotted paths
+	// for nested changes, bare names otherwise, and a symmetric diff — a key
+	// REMOVED from the payload is listed too.
+	interface WebhookUpdatedEvent extends UserActivityEventBase {
+		event: 'Webhook Updated';
+		webhook_id: string;
+		fields_changed: string[];
+	}
+
+	interface WebhookDeletedEvent extends UserActivityEventBase {
+		event: 'Webhook Deleted';
+		webhook_id: string;
+		url: string;
+	}
+
 	interface PrinterActiveToggledEvent extends UserActivityEventBase {
 		event: 'Printer Active Toggled';
 		agent_id: string;
@@ -848,6 +879,10 @@ declare global {
 		| PrintRuleCreatedEvent
 		| PrintRuleEditedEvent
 		| PrintRuleDeletedEvent
+		// Webhook subscription CRUD
+		| WebhookCreatedEvent
+		| WebhookUpdatedEvent
+		| WebhookDeletedEvent
 		// Per-printer `active` pause toggle
 		| PrinterActiveToggledEvent
 		// Operator-initiated customer storefront password reset (BE-emitted)
