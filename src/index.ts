@@ -44,5 +44,6 @@ export * from "./support.js";
 export * from "./supplier.js";
 export * from "./user.js";
 export * from "./userActivity.js";
+export * from "./webhook.js";
 export * from "./whatsapp.js";
 export * from "./provinces.js";
