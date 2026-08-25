@@ -72,6 +72,23 @@ declare global {
      * authoritative amount if you need one.
      */
     total?: number;
+    /**
+     * MercadoPago's own ISO code, UPPERCASE (`'ARS'`) — deliberately NOT the
+     * lowercase catalogId (`'ars'`) that `Account.currency` and the sibling
+     * `PAYMENT#{storeId}` row use.
+     *
+     * The audit rows are the raw forensic tier: they record what the provider
+     * said. `PAYMENT#` is the canonicalized cross-provider view. Normalising
+     * here while `StripePaymentAuditRow.currency` stays raw would put two
+     * spellings of one concept in the same module, which is the failure this
+     * split exists to avoid. Note the Stripe path already uppercases its
+     * naturally-lowercase codes, so uppercase ISO is the settled convention
+     * for this tier rather than an accident of what each provider returns.
+     *
+     * Optional because rows written before this field existed have no such
+     * attribute — absent means "not recorded", never a default.
+     */
+    currency?: string;
     email?: string;
     cuit?: string;
   }
