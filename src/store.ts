@@ -237,6 +237,32 @@ declare global {
        * FE-side (absent, or neither `completed` nor `skipped` ⇒ show wizard).
        */
       onboarding?: { step: number; completed: boolean; skipped: boolean };
+      /**
+       * Store-level configuration for GENERATED internal barcodes (products that
+       * carry no manufacturer GTIN). Shape-only on the api side: nothing in the
+       * backend allocates or advances these values — `PATCH /store` validates the
+       * block and the FE generator reads and writes it.
+       *
+       * ⚠️ `nextSequence` is therefore NOT a server-authoritative allocator. Two
+       * clients generating concurrently can read the same value; the generated
+       * barcode is deduped at the product write, not here.
+       */
+      barcode?: {
+        /**
+         * Leading digits of a generated store-internal EAN-13. Restricted to the
+         * GS1 restricted-circulation range — `'02'` or `'20'`–`'29'` — so a
+         * generated code can never collide with a real manufacturer GTIN.
+         */
+        ean13Prefix?: string;
+        /** Prefix prepended to the product id when generating a Code-128 internal barcode. */
+        code128Prefix?: string;
+        /**
+         * Next value the sequential generator should consume. Seeded by the
+         * operator (the "configurable start value") and advanced by the FE after
+         * each generation.
+         */
+        nextSequence?: number;
+      };
     };
     ecommerce?: Ecommerce;
     photoURL: string;
