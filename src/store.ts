@@ -403,6 +403,24 @@ declare global {
     statementDescriptor?: string; // shows on customer's bank statement.
     notificationUrl?: string; // webhook URL registered with MP.
 
+    /**
+     * Tenant cap on the Checkout Preference's `payment_methods.installments` /
+     * `default_installments` (cuotas), bounded to Ahora 12's own tiers.
+     *
+     * ⚠️ ABSENT MEANS "NO SINFACTURA-SIDE CAP", NOT ZERO. `POST /mercadopago`
+     * clamps a caller-supplied value DOWN to this when configured and forwards
+     * the request UNCLAMPED when it is not — MP's own account-level default
+     * then governs. A reader that coerces absence to `0` turns "no restriction"
+     * into "no installments", which is the opposite instruction. Every row
+     * written before 1.10.96 lacks the key (forward-only; nothing backfills).
+     *
+     * This is only the installments cap. Ahora 12 enrollment itself is NOT
+     * API-settable at all — it is a merchant-side MP dashboard action gated on
+     * the tenant's AFIP-registered `rubro`, with no field anywhere in the MP
+     * SDK or REST API. Do not add one here expecting it to do something.
+     */
+    maxInstallments?: 3 | 6 | 12 | 18;
+
     pos?: {
       defaultDeviceId?: string; // selected POS terminal id.
       defaultStoreMpId?: string; // MP's store_id for multi-branch merchants.
