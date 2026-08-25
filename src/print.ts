@@ -273,6 +273,29 @@ declare global {
     createdAt?: number;
     /** userId that last changed it — feeds the audit trail. */
     updatedBy?: string;
+    /**
+     * Derived, NEVER stored — computed by `GET /print?mode=rules` at read time
+     * against the resolved printer's LIVE reported capabilities. Lists every
+     * key in this rule's `options` that currently contradicts them.
+     *
+     * ⚠️ Empty or absent means EITHER "none contradict" OR "the printer has
+     * reported no capabilities at all" — disambiguate with
+     * `capabilitiesReported` before treating it as a clean bill of health.
+     * Reading empty as "verified clean" inverts the registry's core rule
+     * (absent capabilities = not reported, never not supported) and would
+     * mark every Windows rule falsely clean, since Windows agents report
+     * `paper` only.
+     *
+     * Purely informational. The dispatch-time strip is the actual enforcement
+     * point and does not read this field.
+     */
+    unsupportedOptionKeys?: Array<keyof PrintOptions>;
+    /**
+     * Derived, NEVER stored — `true` only when the resolved printer has
+     * reported ANY capabilities. Exists so `unsupportedOptionKeys` can be
+     * read unambiguously; see the warning on it.
+     */
+    capabilitiesReported?: boolean;
   }
 
   /**
