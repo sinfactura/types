@@ -1,4 +1,28 @@
 declare global {
+  /**
+   * One counter's static-QR POS binding (`store.integrations.mercadopago.staticQrs[counterId]`).
+   *
+   * `label` is the entire point of the multi-counter feature — the operator-facing
+   * name of the register, cashier or location ("Caja 1", "Belgrano"). It is NOT
+   * MercadoPago's POS `name`: that is a creation-time payload value threaded
+   * through the POS resolver and is not persisted here.
+   *
+   * `disabledAt` is a SOFT delete. The MP-side POS row deliberately stays alive
+   * so historical payments keep resolving to the counter that took them —
+   * hard-deleting it would orphan past attribution. Readers must hide disabled
+   * counters from operator pickers while still resolving them for history.
+   */
+  interface MercadopagoStaticQr {
+    posId: string; // MP-issued POS numeric id (stringified).
+    externalPosId: string; // SINFACTURA-pinned external id (`SF{storeId}POS{counterId}`).
+    createdAt: number; // unix ms when the POS was created.
+    label: string;
+    /** Optional attribution binding to one user; absent means counter-only. */
+    userId?: string;
+    /** Unix ms of soft delete; absent means active. */
+    disabledAt?: number;
+  }
+
   interface Config {
     // PK // global config
     appVersion: number;
@@ -338,6 +362,22 @@ declare global {
       externalPosId: string; // SINFACTURA-pinned external id (`SF{storeId}DYN`).
       createdAt: number; // unix ms when the POS was created.
     };
+
+    /**
+     * Per-counter static QR POS rows, keyed by an opaque `counterId`.
+     *
+     * The singular `staticQr` above is the one-POS-per-tenant original and is
+     * deliberately left untouched — this is additive, and nothing migrates.
+     * A tenant may carry both; treat `staticQr` as the legacy default counter.
+     *
+     * Every field here is server-written by the dedicated POS endpoints, never
+     * by a client. It sits under `integrations.mercadopago`, and BOTH `.loose()`
+     * pass-throughs already delete the whole `integrations` umbrella
+     * (`store/_post.ts`, `tenants/_post.ts` — which also drops a top-level
+     * `mercadopago`), so this inherits that protection rather than needing its
+     * own strip-list entry.
+     */
+    staticQrs?: Record<string, MercadopagoStaticQr>;
 
     // Money-movement poller checkpoint — unix ms of the
     // latest MP payment/movement date already ingested. `mpMovementsPoller`
