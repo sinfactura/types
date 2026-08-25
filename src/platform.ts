@@ -319,8 +319,20 @@ export interface PlatformOverridesRosterResponse {
  *   compare would otherwise render it as a nonsense mismatch against `-1`.
  * - `UNBACKED_CAPABILITY` — the copy names a capability the tier does not have
  *   `status: 'live'` and `enabled: true` for.
+ * - `MISSING_FEATURE_ROW` — a bullet states a LIMIT for an entitlement the tier
+ *   has no row for at all. Distinct from `UNBACKED_CAPABILITY` on purpose: that
+ *   one means "the row exists but is not live/enabled", a state an operator
+ *   fixes by flipping two flags, whereas this one means the row is absent —
+ *   what deleting or renaming a key through
+ *   `PATCH /platform/billing/plans/{tier}` produces — and is fixed by
+ *   re-creating it. Collapsing them (as the API briefly did) hides the more
+ *   severe of the two behind the more common one.
  */
-export type CatalogWarningCode = 'NUMERIC_MISMATCH' | 'UNLIMITED_ADVERTISED_AS_CAPPED' | 'UNBACKED_CAPABILITY';
+export type CatalogWarningCode =
+	| 'NUMERIC_MISMATCH'
+	| 'UNLIMITED_ADVERTISED_AS_CAPPED'
+	| 'UNBACKED_CAPABILITY'
+	| 'MISSING_FEATURE_ROW';
 
 /**
  * One disagreement between a plan's copy and its entitlements.
