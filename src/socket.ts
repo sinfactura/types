@@ -77,6 +77,24 @@ export const SOCKET_ACTIONS = [
 	'surveys',
 	'users',
 	'favorites',
+	/**
+	 * BE → all store users on an outbound-webhook config mutation.
+	 *
+	 * Declared even though the api writes webhook rows with `silent: true` and
+	 * emits no frame today — the same reason `'service-templates'` above is
+	 * declared. `dynamoUpdate`'s `action` is not socket-only: it is interpolated
+	 * into the REST success message and into the cross-tenant guard's audit
+	 * label, neither of which `silent` gates. A writer with no action of its own
+	 * has to borrow one, and the borrowed name then surfaces as the wrong entity
+	 * in the client's response body and sends anyone grepping the audit log into
+	 * the wrong handler.
+	 *
+	 * ⚠️ If the broadcast is ever turned on, keep it operator-only. A `Webhook`
+	 * row carries `secretRef` (a Secrets Manager pointer) and never the signing
+	 * secret itself, but `scrubForCustomer` knows nothing about this entity, so
+	 * it would strip nothing from a webhook frame.
+	 */
+	'webhooks',
 
 	// Explicit deletions — the row is gone, not updated.
 	'account-delete',
