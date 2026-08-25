@@ -36,6 +36,25 @@ declare global {
     credit?: number;
     amount?: number;
     /**
+     * Absent = an ordinary movement, which is every row written to date.
+     * `'fxAdjustment'` = a compensating row that reconciles a payment's
+     * conversion rate against the rate in force when the debit was issued;
+     * the primary converted credit stays a separate, ordinary row.
+     *
+     * ⚠️ RECONCILIATION IS BY `currency`, NOT BY A POINTER. Write the
+     * adjustment with `currency` equal to the currency of the movement it
+     * offsets — i.e. the ledger currency the primary converted credit already
+     * lands in, NOT the payment's source currency. The consumer rollup buckets
+     * strictly per currency and restarts its running balance per bucket, so a
+     * row stamped with the source currency lands in a separate bucket nobody
+     * inspects and silently nets nothing.
+     *
+     * The rate trace belongs in `details`, following the idiom the money path
+     * already uses for ordinary FX conversion — there is deliberately no
+     * structured rate field, because nothing renders one.
+     */
+    kind?: 'fxAdjustment';
+    /**
      * catalogId (lowercase e.g. `'ars'`) — FK to PlatformCurrency (ADR-0013).
      *
      * DENOMINATION CONTRACT: this row's money values are denominated in the

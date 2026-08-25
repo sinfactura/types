@@ -262,6 +262,12 @@ declare global {
 		debit: number;
 		credit: number;
 		amount: number;
+		/**
+		 * Mirrors `Account.kind` — see that field's contract. Absent = an
+		 * ordinary movement. Reconciliation is by `currency`, never by a
+		 * pointer, and the rate trace belongs in `details`.
+		 */
+		kind?: 'fxAdjustment';
 		// catalogId — FK to PlatformCurrency (ADR-0013).
 		currency?: string;
 		currencyValue: number;
