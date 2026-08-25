@@ -38,8 +38,9 @@ export interface Webhook {
 	url: string;
 	events: WebhookEventType[];
 	/**
-	 * Secrets Manager reference for the HMAC-SHA256 signing key — **never the
-	 * key itself**.
+	 * KMS ciphertext of the HMAC-SHA256 signing key — **never the plaintext
+	 * key**, and NOT a Secrets Manager ARN: resolve it through the KMS decrypt
+	 * helper, not `getSecret()`. Same treatment as `user.totp.secretRef`.
 	 *
 	 * The live key must not sit on this row. `response()` auto-strips exactly
 	 * seven keys, and `secretRef` is one of them (the bare name `secret` is

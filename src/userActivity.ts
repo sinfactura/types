@@ -725,6 +725,43 @@ declare global {
 		active: boolean;
 	}
 
+	// Sibling of `PrinterActiveToggledEvent`. Its api-side Zod mirror has
+	// existed and been wired into the runtime discriminated union since before
+	// this declaration; the graduation is what was missing, not the schema.
+	interface PrinterRawFormatsUpdatedEvent extends UserActivityEventBase {
+		event: 'Printer Raw Formats Updated';
+		agent_id: string;
+		printer_id: string;
+		raw_formats: ('zpl' | 'escpos')[];
+	}
+
+	/**
+	 * A MANAGER edit to a PLAN TEMPLATE's own fields via
+	 * `PATCH /platform/billing/plans/{tier}` — the catalog row, not anybody's
+	 * subscription.
+	 *
+	 * ⚠️ Deliberately NOT `Plan Changed`, which models a TENANT moving between
+	 * subscription tiers. Reusing that variant here would make a catalog edit
+	 * indistinguishable from a customer upgrade in the audit feed, and the two
+	 * have different actors, different blast radius and different retention
+	 * interest. `before`/`after` follow `StoreSettingsUpdatedEvent`'s shape.
+	 */
+	interface PlanTemplateUpdatedEvent extends UserActivityEventBase {
+		event: 'Plan Template Updated';
+		tier: string;
+		before: Record<string, unknown>;
+		after: Record<string, unknown>;
+	}
+
+	// Completes the Supplier Account CRUD trio (Created/Updated already exist).
+	// Delete-only: the handler's restore path reuses `Supplier Account Updated`
+	// via its soft-delete toggle branch rather than minting a `Restored` variant.
+	interface SupplierAccountDeletedEvent extends UserActivityEventBase {
+		event: 'Supplier Account Deleted';
+		supplier_id: string;
+		account_id: string;
+	}
+
 	// Operator-initiated customer storefront password reset. BE-emitted, so it is
 	// NOT in `UI_ONLY_USER_ACTIVITY_VARIANTS`. Field naming follows the
 	// customer-scoped convention (`customer_id`), NOT `target_customer_id` — in
@@ -883,8 +920,13 @@ declare global {
 		| WebhookCreatedEvent
 		| WebhookUpdatedEvent
 		| WebhookDeletedEvent
-		// Per-printer `active` pause toggle
+		// Per-printer `active` pause toggle and raw-format declaration
 		| PrinterActiveToggledEvent
+		| PrinterRawFormatsUpdatedEvent
+		// Plan CATALOG template edit (not a tenant tier change — see the interface)
+		| PlanTemplateUpdatedEvent
+		// Supplier account deletion (completes Created/Updated/Deleted)
+		| SupplierAccountDeletedEvent
 		// Operator-initiated customer storefront password reset (BE-emitted)
 		| CustomerPasswordResetInitiatedEvent
 		// Cross-tenant operator actions on a tenant user (Ops API)
@@ -931,8 +973,17 @@ export type UiOnlyUserActivityVariant = (typeof UI_ONLY_USER_ACTIVITY_VARIANTS)[
 /**
  * Valid per-entity timeline entity types for the user-activity audit feed.
  * MUST stay in sync with the BE `VALID_ENTITY_TYPES` const in
- * `sinfactura/api/stacks/lambdas/userActivity/_get.ts`, which Zod-enums the
- * `entityType` query param.
+ * `sinfactura/api/stacks/helpers/userActivity/query.ts`, which Zod-enums the
+ * `entityType` query param. (That const moved out of
+ * `stacks/lambdas/userActivity/_get.ts`, which still exists but no longer
+ * holds it.) The BE const carries `satisfies readonly UserActivityEntityType[]`,
+ * so widening this union is safe but narrowing it breaks the api build.
+ *
+ * `printer` and `printer_agent` are distinct types because their ids have
+ * different uniqueness scope: `agentId` is unique store-wide, but `printerId`
+ * is unique only WITHIN an agent — two agents can each report a printer under
+ * the same id. A `printer` row must therefore key on the composite
+ * `(agentId, printerId)` pair, never on `printerId` alone.
  */
 export type UserActivityEntityType =
 	| 'order'
@@ -950,4 +1001,6 @@ export type UserActivityEntityType =
 	| 'cash'
 	| 'ticket'
 	| 'report'
-	| 'notification';
+	| 'notification'
+	| 'printer'
+	| 'printer_agent';

@@ -90,7 +90,7 @@ export const SOCKET_ACTIONS = [
 	 * the wrong handler.
 	 *
 	 * ⚠️ If the broadcast is ever turned on, keep it operator-only. A `Webhook`
-	 * row carries `secretRef` (a Secrets Manager pointer) and never the signing
+	 * row carries `secretRef` (KMS ciphertext of the key) and never the signing
 	 * secret itself, but `scrubForCustomer` knows nothing about this entity, so
 	 * it would strip nothing from a webhook frame.
 	 */

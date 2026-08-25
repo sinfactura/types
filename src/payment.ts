@@ -1,5 +1,82 @@
 declare global {
   /**
+   * The ONLY fields the provider-side audit rows genuinely share.
+   *
+   * All four are optional at EVERY write site — verified against the code, not
+   * assumed: MP's Preference create takes them from optional Zod fields and
+   * spreads them conditionally; MP's payment row derives them from
+   * `parseMpExternalReference`, whose legacy-regex fallback sets AT MOST ONE of
+   * the four per payment; Stripe reads them off `Stripe.Metadata`, an
+   * unstructured `Record<string, string>` Stripe imposes no schema on. Treat a
+   * populated field as a bonus, never as a guarantee.
+   *
+   * Deliberately NOT a single shared row interface. The three rows below have
+   * different keys, lifecycles and required fields, and forcing one shape would
+   * make real fields optional on both providers to buy nothing.
+   */
+  interface PaymentAuditLinkage {
+    orderId?: string;
+    invoiceId?: string;
+    customerId?: string;
+    accountId?: string;
+  }
+
+  /**
+   * `MP#{storeId}` row written when a Checkout Preference is created.
+   * `SK` is the Preference id, NOT a payment id — this row records an intent,
+   * and no payment may ever follow it.
+   *
+   * ⚠️ The handler also spreads MercadoPago's raw Preference response onto this
+   * row. Those fields are deliberately NOT declared: they are a third-party
+   * shape we neither own nor version, and enumerating them here would turn the
+   * next MP SDK change into a silent lie in this contract. Read them as
+   * provider passthrough.
+   */
+  interface MpPreferenceAuditRow extends PaymentAuditLinkage {
+    PK: string;
+    SK: string;
+    entityType?: string;
+    createdAt: number;
+  }
+
+  /**
+   * `MP#{storeId}` row keyed by PAYMENT id — written by the webhook and by the
+   * recovery endpoint.
+   *
+   * ⚠️ Carries `total` with NO currency field. That is the shape as written
+   * today, not an omission in this declaration: the sibling
+   * `PAYMENT#{storeId}` row for the same payment DOES store a currency, and
+   * the value is computed but dropped on this path. A consumer must NOT infer
+   * denomination from the store's display currency — that inference is the
+   * documented root cause of a live denomination bug on the ledger side.
+   */
+  interface MpPaymentAuditRow extends PaymentAuditLinkage {
+    PK: string;
+    SK: string;
+    entityType?: string;
+    createdAt: number;
+    dated: number;
+    total: number;
+    email?: string;
+    cuit?: string;
+  }
+
+  /** `STRIPE#{storeId}` row keyed by payment id, written by the webhook. */
+  interface StripePaymentAuditRow extends PaymentAuditLinkage {
+    PK: string;
+    SK: string;
+    entityType?: string;
+    createdAt: number;
+    dated: number;
+    total: number;
+    currency: string;
+    email?: string;
+    paymentMethod?: string;
+    /** Stripe's event id — required here, no MercadoPago counterpart. */
+    stripeEventId: string;
+  }
+
+  /**
    * WebSocket broadcast payload for the `payment_received` action, fired when a
    * "money received" event is persisted (MP webhook, Stripe webhook, or MP
    * movements poller). FE should toast with `total`+`currency`+`payerName` and
