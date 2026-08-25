@@ -36,7 +36,22 @@ declare global {
     PK: string;
     SK: string;
     entityType?: string;
-    createdAt: number;
+    /**
+     * ⚠️ OPTIONAL on THIS row only — its two siblings below set it explicitly
+     * and keep it required.
+     *
+     * The Preference writer calls `dynamoUpdate` with **no `mode`**, and the
+     * auto-stamp is insert-branch only (`dynamoUpdate` stamps `createdAt` under
+     * `mode === 'insert'`), so the update-branch UPSERT never sets it. The
+     * writer hand-stamps `entityType` for exactly this reason and does not
+     * hand-stamp `createdAt`.
+     *
+     * Consequence worth knowing before you query for these rows: `dynamoQuery`'s
+     * base filter requires `createdAt > 0`, so rows without it are invisible to
+     * that helper regardless of what the type says. Use `dynamoSearch`, which
+     * carries no such base filter.
+     */
+    createdAt?: number;
   }
 
   /**
