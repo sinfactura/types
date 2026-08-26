@@ -129,6 +129,138 @@ declare global {
 		legacy: boolean;
 	}
 
+	/**
+	 * The request body for every cart mutation, discriminated on `mode`.
+	 *
+	 * Replaces the overloaded `POST /basket`, where ONE verb carried five meanings
+	 * — set, sum, remove, clear, and an emergent "empty the last line and the row
+	 * disappears" — distinguished only by which fields happened to be present.
+	 *
+	 * ⚠️ ONE schema set serves BOTH surfaces (`/baskets` on the App API and
+	 * `/basket` on the Web API). That is what makes the unresolvable-product policy
+	 * identical across them STRUCTURALLY, rather than two implementations that
+	 * agree today. Do not fork it per surface.
+	 *
+	 * Constraints the type system cannot express, enforced in zod at the handler
+	 * and stated here because a `.d.ts` reader has no other way to learn them:
+	 * - `productId` matches `/^PROD\d{6,10}$/`; `lineId` matches `/^L\d{4,}$/`.
+	 * - `quantity` is `min(0).max(1_000_000)` and is deliberately NOT an integer:
+	 *   weight-priced products carry fractional quantities. The maximum is overflow
+	 *   hygiene — an absurd quantity takes the running total to `Infinity` and dies
+	 *   at the DynamoDB marshaller instead of at validation.
+	 * - `merge.items` is `min(1).max(50)`.
+	 */
+	type CartActionRequest =
+		| CartActionAddLine
+		| CartActionChangeQuantity
+		| CartActionRemoveLine
+		| CartActionClear
+		| CartActionMerge;
+
+	/**
+	 * Fields common to every action.
+	 *
+	 * ⚠️ `version` being OPTIONAL is what lets the server deploy ahead of either
+	 * front end: an FE that does not yet send it gets an unconditional write rather
+	 * than a rejection. Send it to make the write a CAS whose mismatch is a `409`
+	 * carrying the current row.
+	 */
+	interface CartActionBase {
+		// Integer >= 0. Absent means an unconditional write.
+		version?: number;
+		idempotencyKey?: string;
+	}
+
+	/**
+	 * SUMS into an existing line. Contrast `CartActionChangeQuantity`, which SETS —
+	 * the split between these two is the entire point of the named-action contract.
+	 */
+	interface CartActionAddLine extends CartActionBase {
+		mode: 'addLine';
+		productId: string;
+		// The ONE quantity that excludes 0: adding zero of something is not an add,
+		// and removal has its own action.
+		quantity: number;
+		/**
+		 * Targets one specific line when several share a `productId` — a state
+		 * `lineId` exists to make addressable.
+		 *
+		 * Resolution when ABSENT is total and never errors: sum into the sole line
+		 * for that product; create one if none exists; APPEND a new line if several
+		 * do. Named-but-unknown is a client error, unlike a removal, which has an
+		 * idempotent reading.
+		 */
+		lineId?: string;
+		// Accepted for FE back-compat and DISCARDED — the server re-derives every
+		// price. Declared rather than dropped so the next implementer does not
+		// conclude it is honoured.
+		price?: number;
+	}
+
+	/** SETS the line to `quantity`. A quantity of 0 removes the line. */
+	interface CartActionChangeQuantity extends CartActionBase {
+		mode: 'changeQuantity';
+		lineId: string;
+		// 0 removes. On an ALREADY-ABSENT line this is a no-op rather than an error,
+		// because a removal is idempotent.
+		quantity: number;
+		// Accepted and DISCARDED — see `CartActionAddLine.price`.
+		price?: number;
+	}
+
+	interface CartActionRemoveLine extends CartActionBase {
+		mode: 'removeLine';
+		lineId: string;
+	}
+
+	/**
+	 * Empties `lines` to `[]`.
+	 *
+	 * ⚠️ The ROW AND ITS `cartId` SURVIVE. The pre-2-F behaviour deleted the row
+	 * when the last line went, which threw away the stable identity the re-key
+	 * existed to mint — and made `status: 'abandoned'` unrepresentable for exactly
+	 * the carts most likely to be abandoned. Physical deletion now survives only at
+	 * checkout conversion and tenant purge.
+	 */
+	interface CartActionClear extends CartActionBase {
+		mode: 'clear';
+	}
+
+	/**
+	 * Bulk-folds a client-side cart into the stored one.
+	 *
+	 * ⚠️ Per-item quantity SUMS into the existing line, EXCEPT `0`, which sets the
+	 * line to zero and removes it. An FE reading "merge sums" and sending 0
+	 * expecting a no-op will remove the line instead. Two consequences fall out:
+	 * intra-request dedupe happens FIRST, so a payload naming one product twice
+	 * sums against itself before it sums against the stored line; and a brand-new
+	 * product at quantity 0 adds nothing, being a removal of something absent.
+	 */
+	interface CartActionMerge extends CartActionBase {
+		mode: 'merge';
+		items: { productId: string; quantity: number }[];
+	}
+
+	/**
+	 * The response to every cart mutation.
+	 *
+	 * ⚠️ `droppedSkus` is REQUIRED and always present — an empty array when nothing
+	 * was dropped. It is declared non-optional so an FE cannot treat it as an
+	 * optional diagnostic: an unresolvable product is SOFT-DROPPED on every action,
+	 * so a single-item `addLine` naming a deleted product returns 200 having done
+	 * nothing, and this array is the only thing that says so.
+	 *
+	 * Soft-drop is uniform by design. The alternative — a hard 400, which the
+	 * pre-2-F single POST did — strands a shopper behind a line whose product was
+	 * deleted, unable to remove it because removing it is itself a write that
+	 * re-validates the product.
+	 */
+	interface CartActionResponse {
+		cart: Cart;
+		droppedSkus: string[];
+	}
+
+
 }
 
 export {}; // NOSONAR
