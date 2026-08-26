@@ -183,7 +183,10 @@ declare global {
 			source?: 'auto' | 'manual';
 		};
 		disabled?: boolean;
-		items: Partial<BasketItem>[];
+		// Orders copy cart lines verbatim. `CartLine` is structurally a superset of
+		// `BasketItem`, so a re-keyed cart's lines land here — `lineId` included —
+		// whether or not the type admits it. Widened so the declaration stops lying.
+		items: Partial<CartLine>[];
 		rating?: number;
 		comment?: string;
 		surveyDate?: number;

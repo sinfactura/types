@@ -35,6 +35,11 @@ export const SOCKET_ACTIONS = [
 	// Entity upserts — mostly emitted by `dynamoUpdate`'s auto-broadcast.
 	'account',
 	'baskets',
+	// The re-keyed cart. `baskets` stays published and stays emitted for legacy
+	// rows: a NEW name is what makes an un-migrated client IGNORE the frame
+	// (a stale cart until refresh) rather than render `lines` where it expects
+	// `items` and confidently display an empty cart. Fail-quiet over fail-wrong.
+	'cart',
 	'brands',
 	'cash',
 	'categories',
@@ -99,6 +104,8 @@ export const SOCKET_ACTIONS = [
 	// Explicit deletions — the row is gone, not updated.
 	'account-delete',
 	'baskets-delete',
+	// Makes "emptying the last line deletes the row" explicit on the wire.
+	'cart-delete',
 	'log-delete',
 
 	// Notifications & messaging.
