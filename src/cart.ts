@@ -22,7 +22,7 @@ declare global {
 		// Slot reserved for parked/held POS tickets. Nothing populates it yet.
 		terminalId?: string;
 		// Slots reserved for the cart lifecycle. Nothing populates them yet.
-		status?: 'active' | 'abandoned' | 'converted';
+		status?: 'active' | 'abandoned' | 'converted' | 'parked';
 		ttl?: number;
 		// Optimistic-concurrency token, same two-way optionality as `Basket.version`:
 		// omit it for an unconditional write, send it to make the write a CAS whose
