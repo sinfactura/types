@@ -242,13 +242,20 @@ declare global {
 	}
 
 	/**
-	 * The response to every cart mutation.
+	 * The response envelope for every cart mutation.
 	 *
-	 * ⚠️ `droppedSkus` is REQUIRED and always present — an empty array when nothing
-	 * was dropped. It is declared non-optional so an FE cannot treat it as an
-	 * optional diagnostic: an unresolvable product is SOFT-DROPPED on every action,
-	 * so a single-item `addLine` naming a deleted product returns 200 having done
-	 * nothing, and this array is the only thing that says so.
+	 * ⚠️ `droppedSkus` is a SIBLING of `data`, not a field inside it. That follows
+	 * the house envelope — `{ message, data, LastEvaluatedKey?, truncated? }` — where
+	 * properties of the OPERATION hang off the envelope while `data` stays the
+	 * entity. `mergeMeta` already occupies this slot on this very route
+	 * (`basketWriteCore.ts`'s `basketMergeBody`). Nesting the cart one level deeper
+	 * would buy the same isolation while spending a convention to get it.
+	 *
+	 * ⚠️ It is REQUIRED and always present — an empty array when nothing was
+	 * dropped — so an FE cannot treat it as an optional diagnostic. An unresolvable
+	 * product is SOFT-DROPPED on every action, so a single-item `addLine` naming a
+	 * deleted product returns 200 having done nothing, and this array is the only
+	 * thing that says so.
 	 *
 	 * Soft-drop is uniform by design. The alternative — a hard 400, which the
 	 * pre-2-F single POST did — strands a shopper behind a line whose product was
@@ -256,7 +263,8 @@ declare global {
 	 * re-validates the product.
 	 */
 	interface CartActionResponse {
-		cart: Cart;
+		message: string;
+		data: Cart;
 		droppedSkus: string[];
 	}
 
