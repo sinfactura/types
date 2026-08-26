@@ -435,6 +435,19 @@ declare global {
      * was issued in; Moneda_Ctz must then match BNA's prior-business-day quote (RG 5616/2024,
      * WSFEX manual v3.0.0 2025-03-17; error codes 1602-1607). */
     canMisMonExt?: 'S' | 'N';
+    /**
+     * The `Imp_total` WSFEX actually AUTHORIZED, stamped exactly as submitted.
+     *
+     * ⚠️ Voucher currency, never pesos — it is the figure ARCA holds against
+     * this CAE, so a reader that converts it has changed what the voucher says.
+     *
+     * ⚠️ OPTIONAL, and that is load-bearing rather than caution: writes here are
+     * forward-only and never backfilled, so every row written before this field
+     * existed lacks it permanently. A reader MUST tolerate its absence and fall
+     * back to re-deriving the total. Making it required would make every
+     * historical row fail to typecheck as an `Invoice`.
+     */
+    impTotal?: number;
   }
 
   /** Reference data cached from WSFEXV1 `GetPARAM_*` operations, refreshed on a schedule.
