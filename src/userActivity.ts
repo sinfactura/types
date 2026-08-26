@@ -349,14 +349,29 @@ declare global {
 
 	interface BasketUpdatedEvent extends UserActivityEventBase {
 		event: 'Basket Updated';
-		customer_id: string;
+		/**
+		 * ⚠️ OPTIONAL because a walk-in POS ticket has no customer at all.
+		 *
+		 * The audit must still fire for one: an operator touching an anonymous
+		 * counter ticket is MORE worth auditing than one touching a named
+		 * customer's cart, so dropping the record would put the least
+		 * attributable writes in the store outside the audit trail entirely.
+		 *
+		 * ⚠️ Never substitute the cart id here to satisfy a required field. A
+		 * field that reads as one kind of id and holds another is undetectable
+		 * downstream — exactly the defect that had cart socket frames carrying
+		 * a cart id under `customerId`.
+		 */
+		customer_id?: string;
 		items_count: number;
 		total: number;
 	}
 
 	interface BasketDeletedEvent extends UserActivityEventBase {
 		event: 'Basket Deleted';
-		customer_id: string;
+		/** Optional for the same reason as `BasketUpdatedEvent.customer_id`:
+		 *  deleting a walk-in ticket is the same event with no customer. */
+		customer_id?: string;
 	}
 
 	interface CashDrawerMovementEvent extends UserActivityEventBase {
