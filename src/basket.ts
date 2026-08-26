@@ -7,6 +7,15 @@ declare global {
 		customer: Partial<Customer>;
 		createdAt: number;
 		updatedAt: number;
+		// Optimistic-concurrency token. OPTIONAL on purpose, in both directions:
+		// a row written before this field existed simply has none, and a client
+		// that omits it on a write gets today's UNCONDITIONAL behaviour (the
+		// server still bumps the counter). Send it and the write becomes a
+		// compare-and-swap: a mismatch is `409` with `error: 'BASKET_VERSION_CONFLICT'`
+		// and `data` carrying the current server row, so the client can rebase
+		// rather than retry. That two-way optionality is what lets the api ship
+		// ahead of app + storefront without breaking either.
+		version?: number;
 		quantity: number;
 		// catalogId — FK to PlatformCurrency.
 		currency: string,
