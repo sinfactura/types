@@ -28,6 +28,22 @@ export enum NotificationTypeEnum {
 	// Support ticket bell — fired on ticket create / status change.
 	// User-row opt-in read path.
 	SUPPORT = 'SUPPORT',
+	/**
+	 * A cart the abandonment sweep flipped to `abandoned`.
+	 *
+	 * ⚠️ Additive: `UserNotifications` is
+	 * `Partial<Record<NotificationTypeEnum, boolean>>`, so every existing
+	 * preferences row stays valid and an absent key already reads as
+	 * "not opted in". No consumer migration is owed.
+	 *
+	 * ⚠️ A cart with no `customerId` has nobody to notify — a walk-in POS
+	 * ticket has no customer attribute at all, and the legacy partition
+	 * flips wholesale on the sweep's first night. The producer must gate on
+	 * a customer being present as well as on the cart having lines, or it
+	 * writes a notification row that validates, broadcasts to nobody, and
+	 * fails silently.
+	 */
+	ABANDONED_CART = 'ABANDONED_CART',
 }
 
 declare global {
