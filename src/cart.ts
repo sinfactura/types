@@ -355,6 +355,23 @@ declare global {
 		 * not what the coupon currently says.
 		 */
 		minSubtotal?: number;
+		/**
+		 * The coupon's per-redemption money ceiling at apply time
+		 * (`Coupon.maxDiscountAmount`), frozen with the rest of the terms. Absent
+		 * means the coupon had no ceiling.
+		 *
+		 * ⚠️ Frozen for the SAME reason `minSubtotal` above is, and it is the same
+		 * class of bug if it is not: the cart's coupon money is RE-DERIVED on every
+		 * write from this object alone — the live coupon row is not read again
+		 * except at apply and at checkout. A ceiling left un-frozen would apply on
+		 * the write that granted it and silently vanish on the next unrelated
+		 * add-to-cart, handing back exactly the money the cap exists to withhold.
+		 *
+		 * ⚠️ Like the grant and the floor, deliberately NOT re-read: a coupon whose
+		 * ceiling the merchant lowers after a shopper applied it must not reprice
+		 * them mid-session. The store's control point is checkout.
+		 */
+		maxDiscountAmount?: number;
 	}
 
 	/**
