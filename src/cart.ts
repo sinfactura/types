@@ -5,9 +5,9 @@ declare global {
 	 * A cart, keyed by its OWN minted id rather than by the customer.
 	 *
 	 * Replaces `Basket`, which keyed one cart per customer at `BASKET#{storeId}` /
-	 * `{customerId}`. ⚠️ `Basket` and `BasketItem` STAY published and are not
-	 * deprecated: the migration is forward-only with a permanent tolerant reader,
-	 * so legacy rows keep their old shape and never stop existing.
+	 * `{customerId}`. `Basket` and `BasketItem` are now `@deprecated` — both front
+	 * ends are cut over — but STAY published, so a stale consumer keeps compiling.
+	 * New code uses `Cart` and `CartLine`.
 	 */
 	interface Cart {
 		// CART000001 — minted through the atomic counter. Gaps are contractual and
