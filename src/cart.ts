@@ -424,7 +424,8 @@ declare global {
 		| CartActionRestoreLine
 		| CartActionRemoveSavedLine
 		| CartActionApplyCoupon
-		| CartActionRemoveCoupon;
+		| CartActionRemoveCoupon
+		| CartActionSetLineDiscount;
 
 	/**
 	 * WHICH cart an OPERATOR action acts on — the half of the operator request
@@ -734,6 +735,36 @@ declare global {
 	 */
 	interface CartActionRemoveCoupon extends CartActionBase {
 		mode: 'removeCoupon';
+	}
+
+	/**
+	 * Sets or clears ONE line's discount — the operator's per-line cut.
+	 *
+	 * ⚠️ OPERATOR SURFACE ONLY, and enforced as a CAPABILITY rather than by
+	 * hiding the mode: the storefront never passes it, so a shopper naming this
+	 * mode is refused `403 LINE_DISCOUNT_NOT_ALLOWED`. One schema set serves both
+	 * surfaces on purpose — forking it per surface is what would let the two drift
+	 * on everything else.
+	 *
+	 * ⚠️ Also gated on the store's own `config.changePrice`, the same switch that
+	 * governs a typed price override. A per-line discount is a price override in
+	 * everything but spelling, and two switches would let a store turn one off
+	 * believing it had closed both.
+	 *
+	 * ⚠️ It carries a GRANT and never an amount. The money is derived server-side
+	 * against the line's current price on every write, so there is no field a
+	 * client could use to name its own discount.
+	 *
+	 * ⚠️ `value: 0` CLEARS the discount rather than granting a zero one — a zero
+	 * grant and no grant are indistinguishable downstream, so storing the former
+	 * would be a row attribute that costs bytes and means nothing.
+	 */
+	interface CartActionSetLineDiscount extends CartActionBase {
+		mode: 'setLineDiscount';
+		lineId: string;
+		type: 'percent' | 'amount';
+		/** The grant, in the unit `type` names. `0` clears. */
+		value: number;
 	}
 
 	interface CartActionResponse {
