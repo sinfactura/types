@@ -482,10 +482,61 @@ declare global {
 		reason: 'insufficientStock' | 'notOffered';
 	}
 
+	/**
+	 * WHY a product the request named did not make it onto the cart.
+	 *
+	 * ⚠️ The distinction that matters is REMEDIABLE vs NOT. `cartFull` is the
+	 * shopper's to fix — remove a line and send it again — while the other two are
+	 * facts about the catalogue that retrying cannot change. `droppedSkus` alone
+	 * could not express that, so every consumer rendered one message for all of
+	 * them, and the one that told the shopper "product not found" for a cart that
+	 * was merely full was both wrong and unactionable.
+	 *
+	 * ⚠️ `notOffered` deliberately shares its spelling with
+	 * `CartLineAvailability.reason`, because it is the same fact — the product is
+	 * hidden from this channel. Two half-aligned vocabularies for one condition is
+	 * the outcome this naming exists to avoid.
+	 *
+	 * ⚠️ Treat an UNRECOGNISED reason as unremediable rather than discarding the
+	 * entry: a reason added later must degrade, not vanish, and guessing
+	 * "remediable" would invite a retry loop that cannot succeed.
+	 */
+	interface CartLineDrop {
+		productId: string;
+		/**
+		 * - `productUnavailable` — no product row resolved at all (deleted, or never
+		 *   existed). Permanent from the caller's side.
+		 * - `notOffered` — the product resolved but is `hiddenFromStorefront`, so it
+		 *   is not sellable on this channel. Also permanent from the caller's side,
+		 *   but a DIFFERENT fact: the product exists.
+		 * - `cartFull` — the line was truncated because the resulting cart would
+		 *   exceed the line cap. `merge` is the only action that truncates; every
+		 *   other one refuses with `400 BASKET_LINE_LIMIT` instead. **Remediable.**
+		 */
+		reason: 'productUnavailable' | 'notOffered' | 'cartFull';
+	}
+
 	interface CartActionResponse {
 		message: string;
 		data: Cart;
+		/**
+		 * ⚠️ KEPT, and kept as `string[]`. It is not replaced by `dropped` below
+		 * and must not be: both consumers parse this as an array of strings today,
+		 * and one of them filters non-strings out — so changing its element type
+		 * would degrade that client to reporting NOTHING, silently, in the
+		 * direction that hides the problem. The reason travels alongside instead.
+		 */
 		droppedSkus: string[];
+		/**
+		 * The same drops as `droppedSkus`, each carrying WHY.
+		 *
+		 * ⚠️ REQUIRED and always present — an empty array when nothing dropped —
+		 * for the same reason its two siblings are. One entry per entry in
+		 * `droppedSkus`, in the same order, so a consumer that has already indexed
+		 * one can zip them; new consumers should read this one and ignore
+		 * `droppedSkus` entirely.
+		 */
+		dropped: CartLineDrop[];
 		/*
 		 * ⚠️ REQUIRED and always present — an empty array when every line was
 		 * satisfied — for the same reason `droppedSkus` is. A key that vanishes
