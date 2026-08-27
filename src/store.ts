@@ -219,7 +219,30 @@ declare global {
       displayCurrency?: string;
       /** Seed catalogId for new Product writes (FE currency-selector default); does not reinterpret existing rows. */
       defaultProductCurrency?: string;
-      /** Seed catalogId for new Account / SupplierAccount writes (FE currency-selector default); does not reinterpret existing rows. */
+      /**
+       * Seed catalogId offered as the FE currency-selector default when a new
+       * customer-facing money row is created. Does not reinterpret existing
+       * rows, and — importantly — **does not denominate the Account ledger.**
+       *
+       * ⚠️ Read this before treating it as the account currency. `credit`/`debit`
+       * on every row of the ACCOUNT partition are denominated in
+       * `displayCurrency`, and the backend enforces that: caller-chosen and
+       * order-derived amounts alike convert before persisting and refuse with
+       * `FX_CONVERSION_UNAVAILABLE` when no usable rate resolves. Nothing on the
+       * backend reads this field at all — it is consumed exclusively by the
+       * frontend, which uses it to preselect a currency on customer creation and
+       * on the invoice flow.
+       *
+       * ⚠️ Consequence: setting this to anything other than `displayCurrency`
+       * produces customer rows whose stamped currency disagrees with the
+       * denomination their own balance is actually kept in. No cross-field guard
+       * prevents that today.
+       *
+       * The earlier wording here named "new Account / SupplierAccount writes",
+       * which was wrong in both halves: Account rows are ledger-enforced to
+       * `displayCurrency` regardless of this field, and no SupplierAccount write
+       * path consumes it.
+       */
       defaultAccountCurrency?: string;
       /**
        * ADR-0004 §5 — tenant opt-out from AI product enrichment. Absent does
