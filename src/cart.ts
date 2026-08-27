@@ -39,11 +39,24 @@ declare global {
 		// The user who parked this ticket, for showing WHO holds it alongside which
 		// till (`terminalId`).
 		//
-		// ⚠️ Only meaningful while `status === 'parked'`. Resume does not clear it,
-		// so an active cart can still carry the id of whoever last parked it, and
-		// rows written before this field existed carry nothing at all. Read it
-		// gated on `status`, never on its own presence.
+		// ⚠️ Only meaningful while `status === 'parked'` — read it gated on
+		// `status`, never on its own presence. Rows parked before this field
+		// existed carry nothing, and rows parked before resume began clearing it
+		// can carry a stale id on an ACTIVE cart.
 		parkedBy?: string;
+		// When this ticket was parked, in epoch ms — the field a "held for 12
+		// minutes" age is measured from.
+		//
+		// ⚠️ Use THIS for age, never `updatedAt`. An ordinary mutation of a parked
+		// ticket (a cashier scanning another item into it) moves `updatedAt` and
+		// deliberately does NOT move `parkedAt`, so an age derived from `updatedAt`
+		// reports a long-held ticket as freshly parked. Set once per park and
+		// cleared on resume.
+		//
+		// ⚠️ Same gating as `parkedBy`, and additionally absent on every ticket
+		// parked before this field shipped — those are readable and resumable but
+		// have no age. Render the age as unknown rather than as zero.
+		parkedAt?: number;
 		ttl?: number;
 		// Optimistic-concurrency token, same two-way optionality as `Basket.version`:
 		// omit it for an unconditional write, send it to make the write a CAS whose
