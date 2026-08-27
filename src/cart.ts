@@ -410,6 +410,36 @@ declare global {
 		/** The GRANT. Percent is `0 < value <= 100`; amount is `> 0`. */
 		value: number;
 		/**
+		 * The catalogId this coupon's MONEY is denominated in — stamped at mint
+		 * from the store's display currency at that moment, and read at
+		 * redemption. Governs `value` when `type` is `'amount'`, and
+		 * `minSubtotal`/`maxDiscountAmount`/`maxDiscountTotal` always.
+		 *
+		 * ⚠️ **Absent means "the store's `displayCurrency` at redemption time"** —
+		 * the pre-existing behaviour, kept because this repo is forward-only and
+		 * every coupon minted before this field existed has to keep working. New
+		 * rows always carry it.
+		 *
+		 * ⚠️ **A mismatch at redemption is REFUSED, never converted.** A coupon is
+		 * a promise the merchant made in a specific currency; converting it would
+		 * mean choosing an FX rate for a promise that was denominated at mint, and
+		 * there is no honest rate to choose — not today's (the merchant never
+		 * agreed to it) and not the mint-time one (the shopper is not paying at
+		 * it).
+		 *
+		 * ⚠️ This exists because the coupon was the one money-bearing entity in
+		 * the system that was not self-describing. `value` and `minSubtotal` meant
+		 * "units of whatever currency the cart happens to be in", resolved at
+		 * redemption — so a store that changed `displayCurrency` after minting
+		 * silently re-denominated every existing amount coupon and every floor. A
+		 * 2 500-peso coupon became a US$2 500 coupon, with nothing failing.
+		 *
+		 * ℹ️ `'percent'` coupons are unit-free: the field is still stamped (the
+		 * floor and the caps are money even when the grant is not) but a percent
+		 * grant itself never depends on it.
+		 */
+		currency?: string;
+		/**
 		 * Validity window, ms epoch. Both open-ended when absent. Checked at
 		 * APPLY and again at CHECKOUT — a cart can sit across the boundary.
 		 */
@@ -509,7 +539,8 @@ declare global {
 		| 'COUPON_MIN_SUBTOTAL'
 		| 'COUPON_REQUIRES_CUSTOMER'
 		| 'COUPON_BUDGET_EXHAUSTED'
-		| 'COUPON_RATE_LIMITED';
+		| 'COUPON_RATE_LIMITED'
+		| 'COUPON_CURRENCY_MISMATCH';
 
 	/*
 	 * ⚠️ `COUPON_BUDGET_EXHAUSTED` is NOT `COUPON_EXHAUSTED` with a different
