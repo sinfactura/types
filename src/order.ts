@@ -338,6 +338,53 @@ declare global {
 		linkedAt: number;
 	}
 
+	/**
+	 * The body of `POST /orders` on the CREATE / UPDATE path — the one carrying no
+	 * `mode`. (`mode: 'edit'` is `EditOrderRequest`; `mode: 'return'` is
+	 * `CreateReturnRequest`.)
+	 *
+	 * Order fields ride this body straight onto the stored row, which is why it
+	 * extends `Partial<Order>`. Everything declared HERE is the opposite: a field
+	 * that ROUTES or DIRECTS the request and is deliberately stripped before the
+	 * write. None of them is ever readable back off a stored `Order` — do not
+	 * reach for `order.cartId` or `order.counterSale` on a row you read.
+	 */
+	interface CreateOrderRequest extends Partial<Order> {
+		/**
+		 * The cart to build this order from, named explicitly.
+		 *
+		 * ⚠️ For a WALK-IN ticket this is the only thing that works. A walk-in cart
+		 * has no `customerId` at all and the `PK-customerId` index is sparse, so the
+		 * customer lookup cannot reach it by any route. Omit `cartId` on a walk-in
+		 * conversion and the server resolves the named CUSTOMER's own cart instead —
+		 * converting a different row, or none, while the scanned lines sit in a
+		 * ticket nobody converted.
+		 *
+		 * It is also required for correctness on a NON-walk-in POS sale: a customer
+		 * can own several carts at once (their own web cart, plus any till's ticket
+		 * for them), so resolving by customer makes the server guess which one the
+		 * cashier is holding. The till already knows — send it.
+		 *
+		 * Satisfies the "name something to build from" gate on its own: a request
+		 * carrying `cartId` needs neither `orderId` nor `customerId`.
+		 *
+		 * ⚠️ NOT stored on the order. It routes the request and is stripped before
+		 * the write.
+		 */
+		cartId?: string;
+		/** Counter sale — a request directive, stripped before the write, never stored. */
+		counterSale?: boolean;
+		/** Send the order's SMS notification. Directive only, never stored. */
+		sendSms?: boolean;
+		/** Persist `deliveryAddress` as the customer's default. Directive only, never stored. */
+		saveAsDefault?: boolean;
+		/**
+		 * Attributes to REMOVE from the stored order, rather than set — clearing a
+		 * date needs an explicit removal, since an omitted key means "leave it".
+		 */
+		removeFields?: ('serviceStartDate' | 'serviceEndDate' | 'dueDate')[];
+	}
+
 	interface ZebraTag {
 		orderId: string;
 		fullName: string;
