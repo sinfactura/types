@@ -367,6 +367,54 @@ declare global {
 		total: number;
 	}
 
+	/**
+	 * A DISCOUNT was granted or withdrawn on a cart — a per-line cut, or a coupon
+	 * applied or removed.
+	 *
+	 * ⚠️ **Distinct from `BasketUpdatedEvent` on purpose.** That event carries
+	 * `{ items_count, total }`, which makes a 90% cut indistinguishable from a
+	 * price change in the trail. It already answers WHO (`user_id`,
+	 * `actor_role`, `actor_full_name`, `actor_ip` ride on the base); what it
+	 * cannot answer is WHAT and BY HOW MUCH, and those are the two questions a
+	 * discount-abuse review is made of.
+	 *
+	 * ⚠️ Together with `Order.coupons` this is what makes **employee
+	 * self-redemption detectable**. Neither is sufficient alone: the order record
+	 * says a redemption happened, this says who granted it. A per-user `discount`
+	 * permission decides who *may*; only this says who *did*.
+	 */
+	interface BasketDiscountGrantedEvent extends UserActivityEventBase {
+		event: 'Basket Discount Granted';
+		/** Which verb — a withdrawal is as worth auditing as a grant. */
+		verb: 'setLineDiscount' | 'applyCoupon' | 'removeCoupon';
+		/**
+		 * The grant's unit. Absent on `removeCoupon`, which withdraws rather than
+		 * grants and therefore has no terms of its own.
+		 */
+		type?: 'percent' | 'amount';
+		/** The GRANT, in the unit `type` names — NOT money. See `amount`. */
+		value?: number;
+		/**
+		 * The MONEY the grant actually took, in the cart's currency, after every
+		 * clamp.
+		 *
+		 * ⚠️ Recorded ALONGSIDE `value` rather than instead of it, because the two
+		 * answer different review questions and neither implies the other: `value`
+		 * is what the operator chose, `amount` is what it cost. A 15% grant on a
+		 * large ticket and a 15% grant on a small one are the same decision and
+		 * wildly different money.
+		 */
+		amount?: number;
+		/** The coupon code, on the two coupon verbs. Absent for a line discount. */
+		code?: string;
+		/** The line the cut was applied to, on `setLineDiscount`. */
+		line_id?: string;
+		/** ⚠️ Optional for the same reason as `BasketUpdatedEvent.customer_id`: a
+		 *  walk-in POS ticket has no customer, and an operator discounting an
+		 *  anonymous counter ticket is MORE worth auditing, not less. */
+		customer_id?: string;
+	}
+
 	interface BasketDeletedEvent extends UserActivityEventBase {
 		event: 'Basket Deleted';
 		/** Optional for the same reason as `BasketUpdatedEvent.customer_id`:
@@ -908,6 +956,7 @@ declare global {
 		| AccountCreatedEvent
 		| AccountDeletedEvent
 		| BasketUpdatedEvent
+		| BasketDiscountGrantedEvent
 		| BasketDeletedEvent
 		| CashDrawerMovementEvent
 		| PaymentCreatedEvent
