@@ -241,6 +241,39 @@ declare global {
     appliedMinQty?: number;
     promoApplied?: boolean;
     basePrice?: number;
+    /**
+     * The per-line figures EXACTLY as sent to WSFEX `FEXAuthorize` — the
+     * `Pro_precio_uni` and `Pro_total_item` of this line's `IFexItem`.
+     *
+     * ⚠️ **Voucher currency, never pesos.** On an export voucher the header
+     * carries one `MonId`/`MonCotiz` and every line is already converted to it,
+     * so these are denominated in the voucher's currency at the voucher's rate —
+     * a factor of `export.monedaCtz` away from the peso figures on the same row.
+     *
+     * ⚠️ **Do not confuse `fex.precioUni` with `unitPrice` above.** `unitPrice`
+     * is the PESO per-unit total; `fex.precioUni` is `Pro_precio_uni`, in voucher
+     * currency and carried at 6 decimal places. Same concept, different
+     * denomination and different precision — there is no safe arithmetic
+     * relationship between them that does not go through the rate.
+     *
+     * Exists so the rendered breakdown cannot silently disagree with the voucher
+     * it claims to represent. The PDF otherwise RE-DERIVES each line from the
+     * persisted peso base, which is an independent computation that has already
+     * drifted from the issuance path in production once. Persisting closes the
+     * class rather than the instance; a renderer should prefer this and fall back
+     * to re-derivation only when it is absent.
+     *
+     * ⚠️ **This is what WE SENT, not an echo from ARCA.** WSFEX's authorize
+     * response carries header fields only — it returns no per-line data at all —
+     * so no per-line figure here was ever confirmed back by ARCA. What the CAE
+     * attests is that `FEXAuthorize` returned an authorization for exactly this
+     * request.
+     *
+     * Forward-only: absent on every row written before this shipped, and absent
+     * by design on peso (`PES`) vouchers and on every non-export invoice. Absent
+     * means "not stamped", never zero.
+     */
+    fex?: { precioUni: number; totalItem: number };
   }
 
   interface InvoiceWithCustomer extends Invoice {
