@@ -1,6 +1,31 @@
 
 declare global {
 
+	/**
+	 * A coupon as it was redeemed onto an order — the grant frozen at
+	 * consumption, plus the money it actually took.
+	 *
+	 * Deliberately NOT a reference to the live `Coupon` row: that row keeps
+	 * changing (its caps move, it gets disabled, its terms are edited), and an
+	 * order must record what was granted at the till, not what the code means
+	 * today.
+	 */
+	interface OrderCoupon {
+		/** Normalized upper-case, matching the `Coupon` row's own `code`. */
+		code: string;
+		/** The grant's unit, as frozen at redemption. */
+		type: 'percent' | 'amount';
+		/** The GRANT, in the unit `type` names — NOT money. See `amount`. */
+		value: number;
+		/**
+		 * The MONEY this coupon took off this order, in the order's currency,
+		 * after every clamp (`maxDiscountAmount`, and the cart's gross).
+		 */
+		amount: number;
+		/** ms epoch the redemption was consumed — checkout, never apply. */
+		redeemedAt: number;
+	}
+
 	interface Order {
 		storeId: string;
 		orderId: string;
@@ -139,6 +164,38 @@ declare global {
 		cost: number;
 		total: number;
 		discount: number;
+		/**
+		 * The cart-level coupon(s) redeemed to mint this order, frozen at the
+		 * moment the redemption was CONSUMED. Absent on every order minted
+		 * without one, and on every order written before this field existed.
+		 *
+		 * ⚠️ **An ARRAY even though a cart holds at most one coupon**, and that is
+		 * not speculative generality. The asymmetry is what decides it: a CART is
+		 * ephemeral, so singular is right there and renaming a live cart field is
+		 * a patch bump plus a mechanical sweep. An ORDER ROW IS IMMUTABLE HISTORY,
+		 * and this repo is forward-only with no backfills — reshaping a singular
+		 * field into an array later means a migration nobody will run, against
+		 * rows nobody can rewrite. The array costs nothing now and removes the
+		 * only expensive half of a future stacking decision. **Today it holds at
+		 * most one entry.**
+		 *
+		 * ⚠️ **`amount` here is the money the coupon actually took off THIS
+		 * order** — not the coupon's `value`, which is the grant in the unit
+		 * `type` names. A percent coupon whose `value` is 15 may have an `amount`
+		 * of 4 500. Reading `value` as money is the mistake this pair exists to
+		 * prevent, and both are `number`, so nothing typechecks it for you.
+		 *
+		 * ⚠️ **Do not derive "was a coupon used" by arithmetic on `total`.**
+		 * Subtracting the line cuts from the item sum will silently absorb
+		 * shipping and tax the moment those reserved `CartTotals` slots are
+		 * populated. This field is the record; the arithmetic is not.
+		 *
+		 * A RETURN may report that a redemption was taken against this order. It
+		 * must NOT release one — releasing is the failure mode that vendors with
+		 * an explicit session-lock primitive exist to manage, and there is no such
+		 * primitive here.
+		 */
+		coupons?: OrderCoupon[];
 		orderPrinted?: boolean;
 		tagPrinted?: boolean;
 		/**

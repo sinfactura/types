@@ -245,6 +245,21 @@ declare global {
        */
       defaultAccountCurrency?: string;
       /**
+       * Ceiling, in percent, on a single per-line discount an operator may grant
+       * (`setLineDiscount`). Absent means no ceiling — the switch stays binary,
+       * which is the pre-existing behaviour.
+       *
+       * ⚠️ It bounds the LINE grant only. It is not a cap on coupon value: a
+       * coupon's ceilings are its own (`Coupon.maxDiscountAmount` /
+       * `maxDiscountTotal`), because a coupon is a term the merchant minted
+       * deliberately while a line discount is typed at the till.
+       *
+       * Exists so the discount control is not all-or-nothing: a store that wants
+       * cashiers to be able to take 10% off a damaged item should not have to
+       * grant them the ability to take 90%.
+       */
+      maxLineDiscountPercent?: number;
+      /**
        * ADR-0004 §5 — tenant opt-out from AI product enrichment. Absent does
        * NOT block; only an explicit `true` blocks. The api gate fails CLOSED
        * on a read failure but open on a missing field.

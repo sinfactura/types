@@ -423,6 +423,43 @@ declare global {
 		 */
 		minSubtotal?: number;
 		/**
+		 * **Per-redemption ceiling on the MONEY this coupon may grant**, in the
+		 * cart's currency. Unlimited when absent.
+		 *
+		 * `maxRedemptions` bounds how many times a code is used, which is not the
+		 * thing that costs money: 500 redemptions of a 50% coupon is unbounded
+		 * spend under a cap that looks set. A percent coupon on a wholesale cart
+		 * is unbounded by construction without this.
+		 *
+		 * Composes with — never replaces — the existing clamp to the cart's gross,
+		 * so the granted amount is `min(derived, maxDiscountAmount, gross)` and a
+		 * coupon still cannot take a cart below zero.
+		 *
+		 * ℹ️ This is the local idiom, not a new concept: Argentine shoppers read
+		 * **"tope de reintegro"** on every bank promo, so a merchant setting it
+		 * needs no explanation and a shopper reading it needs none either.
+		 */
+		maxDiscountAmount?: number;
+		/**
+		 * **Lifetime budget across ALL redemptions**, in the cart's currency.
+		 * Unlimited when absent. Accumulates into `discountSpent` at redemption
+		 * and refuses with `COUPON_BUDGET_EXHAUSTED` once crossed.
+		 *
+		 * The campaign-level sibling of `maxDiscountAmount`: that one bounds what
+		 * any single shopper can take, this one bounds what the promotion can cost
+		 * in total.
+		 */
+		maxDiscountTotal?: number;
+		/**
+		 * Money granted so far, accumulated atomically at checkout under the same
+		 * conditional-increment shape as `redemptions`.
+		 *
+		 * ⚠️ Never write this directly, for the same reason as `redemptions` — the
+		 * conditional increment IS the cap, and a plain overwrite loses every
+		 * concurrent redemption's spend. Server-owned; refused from the wire.
+		 */
+		discountSpent?: number;
+		/**
 		 * Switched off without deleting the row, so the code cannot be re-minted
 		 * with different terms while shoppers still hold the old one.
 		 *
@@ -453,7 +490,39 @@ declare global {
 		| 'COUPON_EXHAUSTED'
 		| 'COUPON_EXHAUSTED_AT_CHECKOUT'
 		| 'COUPON_MIN_SUBTOTAL'
-		| 'COUPON_REQUIRES_CUSTOMER';
+		| 'COUPON_REQUIRES_CUSTOMER'
+		| 'COUPON_BUDGET_EXHAUSTED'
+		| 'COUPON_RATE_LIMITED';
+
+	/*
+	 * ⚠️ `COUPON_BUDGET_EXHAUSTED` is NOT `COUPON_EXHAUSTED` with a different
+	 * noun. They bound different things and a client that collapses them tells
+	 * the shopper the wrong story:
+	 *
+	 *  - `COUPON_EXHAUSTED` — the COUNT ceiling (`maxRedemptions`) is full. The
+	 *    code was used the agreed number of times.
+	 *  - `COUPON_BUDGET_EXHAUSTED` — the MONEY ceiling (`maxDiscountTotal`) is
+	 *    spent. The code may have been redeemed far fewer times than its count
+	 *    allows; a handful of large carts can exhaust a budget a count cap would
+	 *    have let run for months.
+	 *
+	 * Both are permanent until the merchant raises the respective cap, so both
+	 * are safe to state plainly to the shopper. What differs is what the MERCHANT
+	 * must change to bring the code back, which is why the operator log needs the
+	 * two apart.
+	 *
+	 * ⚠️ `COUPON_RATE_LIMITED` is the only refusal in this union that is about
+	 * the CALLER rather than the coupon, and it is deliberately answered for any
+	 * code once the caller is over the limit — including a code that does not
+	 * exist. Answering `COUPON_NOT_FOUND` past the limit would leak the very
+	 * signal the limit exists to withhold, by letting an enumerator distinguish
+	 * real codes from invented ones at whatever rate it is still allowed.
+	 *
+	 * ⚠️ It bounds the CALLER, never the coupon. Disabling a code after N failed
+	 * attempts would convert guessing into a denial of service on a live promo —
+	 * an attacker takes down a campaign by attempting it, which is a worse
+	 * failure than the enumeration it prevents. Do not add a lockout.
+	 */
 
 	/*
 	 * ⚠️ `COUPON_EXHAUSTED` and `COUPON_EXHAUSTED_AT_CHECKOUT` are the same

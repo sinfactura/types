@@ -100,6 +100,26 @@ declare global {
     payments?: boolean;
     cash?: boolean;
     packOrder?: boolean;
+    /**
+     * May grant a discount at the till — a per-line `setLineDiscount`, or
+     * applying/removing a cart coupon.
+     *
+     * ⚠️ Checked **IN ADDITION TO** the store-wide `config.changePrice` switch,
+     * never instead of it. A store that turned the price switch off must not
+     * find discounts still reachable; a per-line discount is a price override in
+     * everything but spelling.
+     *
+     * Absent/false means no. Before this key existed, every `USER`-role cashier
+     * at a store with `changePrice` on could grant an unbounded per-line cut,
+     * because `UserPermissions` had eight keys and none of them was a discount.
+     *
+     * ℹ️ This is the industry floor, not a novel control: Shopify POS has
+     * separate toggles for custom discounts and for discount codes, Toast
+     * requires a manager permission level, and Clover prompts for a manager PIN
+     * stating the rationale outright — so employees do not inadvertently (or
+     * maliciously) abstain from accepting payment for the full amount.
+     */
+    discount?: boolean;
   };
 
   /**
