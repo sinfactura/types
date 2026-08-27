@@ -189,6 +189,23 @@ declare global {
 		listingPrice?: number;
 		listingStock?: number;
 		mlStatus?: string;
+		// Per-publication OUTBOUND price controls, read from the same ML_ITEM
+		// pointer row as the three fields above — but the opposite direction and
+		// a different trust level. `listingPrice`/`listingStock`/`mlStatus` are an
+		// inbound cache of what ML last reported and may be stale; these two are
+		// what the operator SET, so they are authoritative and a control bound to
+		// them renders the real server state rather than optimistic local state.
+		//
+		// Both absent means "behave as before": `pricePaused` undefined is not
+		// paused, and `priceListId` undefined defers to the store default. Neither
+		// is persisted on Product — read-time enrichment only, like the three
+		// above. Written by `POST /mercadolibre/products/{productId}/price-sync`.
+		//
+		// ⚠️ `pricePaused` holds PRICE pushes for this one publication; stock keeps
+		// flowing. It is not the store-wide `syncPolicy.paused`, which freezes both
+		// kinds for every publication at once.
+		pricePaused?: boolean;
+		priceListId?: number;
 	}
 
 }
