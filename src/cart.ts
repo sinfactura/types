@@ -10,9 +10,25 @@ declare global {
 	 * New code uses `Cart` and `CartLine`.
 	 */
 	interface Cart {
-		// CART000001 — minted through the atomic counter. Gaps are contractual and
-		// never reused.
-		cartId: string;
+		/**
+		 * CART000001 — minted through the atomic counter. Gaps are contractual and
+		 * never reused.
+		 *
+		 * ⚠️ OPTIONAL, and permanently so. A LEGACY `BASKET#{storeId}` row is keyed
+		 * by customerId and carries no `cartId` attribute at all; the migration is
+		 * forward-only with a tolerant reader, so those rows are never rewritten
+		 * and this is not a window that closes. `hydrateCart` returns them with the
+		 * key absent, and on a live store they are still the MAJORITY of rows.
+		 *
+		 * ⚠️ Declaring it required was not cosmetic. `getRowId={(row) => row.cartId}`
+		 * is the natural reading of a required field, and a MUI DataGrid THROWS
+		 * rather than warns on an undefined row id — so the obvious client
+		 * implementation broke the cart list for every store that had not yet
+		 * written a cart under the new key, while `tsc` believed the field was a
+		 * string on every row. Fall back to `customerId` for identity, or to `ref`
+		 * for the physical key.
+		 */
+		cartId?: string;
 		storeId: string;
 		// An ATTRIBUTE now, not the SK, and indexed by the existing PK-customerId
 		// GSI. Optional because a parked POS ticket has no customer attached yet.
@@ -218,6 +234,37 @@ declare global {
 		| CartActionMerge
 		| CartActionSaveLine
 		| CartActionRestoreLine;
+
+	/**
+	 * WHICH cart an OPERATOR action acts on — the half of the operator request
+	 * that `CartActionRequest` cannot carry.
+	 *
+	 * The storefront takes the cart from the authenticated identity, so a
+	 * shopper's body names no target and `CartActionRequest` alone is complete
+	 * there. The operator surface acts on someone else's cart and must say which,
+	 * so `POST /baskets` refuses a body naming none of the three with
+	 * `400 CART_TARGET_REQUIRED`. A client typing an operator body as the bare
+	 * `CartActionRequest` therefore compiles and 400s on every write, which is
+	 * exactly what this type exists to stop.
+	 *
+	 * Modelled as a UNION rather than three optional fields so "at least one" is
+	 * enforced by `tsc` rather than discovered at runtime. Supplying more than one
+	 * is legal; the server resolves them in the order below.
+	 *
+	 * ⚠️ `cartId` is the ONLY one that reaches a WALK-IN ticket. Such a cart has
+	 * no `customerId` at all and the `PK-customerId` GSI is sparse, so no customer
+	 * lookup can find it by any route.
+	 */
+	type OperatorCartTarget =
+		/** That customer's own cart. */
+		| { customerId: string; cartId?: string; terminalId?: string }
+		/** One specific ticket, walk-ins included. */
+		| { cartId: string; customerId?: string; terminalId?: string }
+		/** The till's currently OPEN ticket, minted if it has none. */
+		| { terminalId: string; customerId?: string; cartId?: string };
+
+	/** The body `POST /baskets` accepts: any named action, plus a target. */
+	type OperatorCartActionRequest = CartActionRequest & OperatorCartTarget;
 
 	/**
 	 * Fields common to every action.
