@@ -831,6 +831,28 @@ declare global {
 		 * not render an empty array as an availability guarantee.
 		 */
 		availability: CartLineAvailability[];
+		/**
+		 * Set when this write DROPPED the cart's coupon because the coupon stopped
+		 * qualifying — carrying the refusal that fired.
+		 *
+		 * ⚠️ This exists because a coupon's terms are checked against the cart the
+		 * write PRODUCES, not the one it started from. A shopper can meet a
+		 * `minSubtotal` floor, apply a code, then remove lines back below the floor;
+		 * the coupon has to come off, or the cart quotes a discount it is not
+		 * entitled to and checkout refuses the order at the till instead.
+		 *
+		 * ⚠️ OPTIONAL, unlike its three siblings above, and deliberately so. Those
+		 * are always-present arrays because an empty array still answers their
+		 * question ("nothing dropped", "nothing short"). This one is a per-request
+		 * ADVISORY about an event: absent means the coupon was untouched, which
+		 * includes the ordinary case of there never having been one. A required
+		 * `null` would add a key every consumer must handle to say nothing happened.
+		 *
+		 * When present, `data.coupon` and `data.discount` are already gone from the
+		 * cart and `totals` already reflect their absence — this names the reason so
+		 * the shopper can be told why the total moved, rather than watching it jump.
+		 */
+		couponDropped?: CouponRefusal;
 	}
 
 
