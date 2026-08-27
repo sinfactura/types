@@ -233,7 +233,8 @@ declare global {
 		| CartActionClear
 		| CartActionMerge
 		| CartActionSaveLine
-		| CartActionRestoreLine;
+		| CartActionRestoreLine
+		| CartActionRemoveSavedLine;
 
 	/**
 	 * WHICH cart an OPERATOR action acts on — the half of the operator request
@@ -349,6 +350,38 @@ declare global {
 	 */
 	interface CartActionRestoreLine extends CartActionBase {
 		mode: 'restoreLine';
+		lineId: string;
+	}
+
+	/**
+	 * Removes a line from `savedLines` OUTRIGHT — the shelf's own delete.
+	 *
+	 * ⚠️ It exists because `removeLine` does NOT reach a saved line. That verb
+	 * filters `lines` only, so handing it a saved `lineId` is an idempotent no-op
+	 * `200` and the shelf is untouched — which left restore-then-remove as the
+	 * only path off `savedLines`, and that path is not always available:
+	 *
+	 * - On a cart at `MAX_CART_LINES` the restore is refused
+	 *   `400 BASKET_LINE_LIMIT` and nothing is written, so a saved line on a full
+	 *   ticket was unreachable by any sequence of actions.
+	 * - Saved lines spend `MAX_CART_BYTES`, and once the row is over it `saveLine`
+	 *   is refused too — so a shelf could become the thing consuming the budget
+	 *   with no way to shrink it.
+	 *
+	 * This verb touches `savedLines` alone, so the LINE guard cannot refuse it
+	 * (the active count does not change) and it is a genuine reduction against the
+	 * BYTE guard. That makes it the shelf's recovery path, not merely its
+	 * convenience.
+	 *
+	 * ⚠️ It does NOT return the line to the cart. `restoreLine` is that verb; this
+	 * one discards. A UI must not offer them behind the same affordance.
+	 *
+	 * A `lineId` that is not in `savedLines` is a no-op `200`, matching
+	 * `removeLine`, `saveLine` and `restoreLine`.
+	 */
+	interface CartActionRemoveSavedLine extends CartActionBase {
+		mode: 'removeSavedLine';
+		/** Names a line in `savedLines` — NOT in `lines`. */
 		lineId: string;
 	}
 
