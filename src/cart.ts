@@ -108,6 +108,26 @@ declare global {
 		 * product under the same key.
 		 */
 		savedLines?: CartLine[];
+		/**
+		 * The coupon this cart carries, if any. Applied by `applyCoupon`, cleared
+		 * by `removeCoupon`, and CONSUMED at checkout — holding it is not a
+		 * redemption. See `CartCoupon`.
+		 */
+		coupon?: CartCoupon;
+		/**
+		 * The CART-LEVEL cut this coupon produced, re-derived on every write from
+		 * `coupon`'s frozen grant against the current subtotal. Absent when no
+		 * coupon is applied.
+		 *
+		 * ⚠️ CLAMPED at the subtotal, and the remainder is FORFEITED. A 500-unit
+		 * coupon on a 300-unit cart cuts 300 and the other 200 is gone — the
+		 * coupon is not a stored-value instrument and carries no balance. That is
+		 * why `grandTotal` can reach 0 but never goes negative.
+		 *
+		 * ⚠️ Distinct from `CartLine.discount`, which is per line. `CartTotals.discount`
+		 * is the SUM of both, so reading this alone under-reports.
+		 */
+		discount?: CartDiscount;
 		totals: CartTotals;
 		convertedOrderId?: string;
 		createdAt: number;
@@ -144,7 +164,21 @@ declare global {
 		appliedMinQty?: number;
 		promoApplied?: boolean;
 		basePrice?: number;
-		// Reserved for cart-level discounts; nothing populates it yet.
+		/**
+		 * This LINE's own cut — not the cart's. The cart-level one lives at
+		 * `Cart.discount`, and `CartTotals.discount` is the sum of both.
+		 *
+		 * ⚠️ Its `value` survives a re-price and its `amount` does not. Every write
+		 * rebuilds every line from the product row, so the grant is carried forward
+		 * and the money recomputed against the line's current `price` × `quantity`.
+		 * Stamping only the money would leave it recomputed against prices that
+		 * moved, and clearing it on rebuild would make an unrelated add-to-cart
+		 * silently delete the operator's discount.
+		 *
+		 * ⚠️ It does NOT reach the AFIP comprobante. Invoicing reads the
+		 * ORDER-level percentage only, so a line discount must already be inside
+		 * the money the order carries — which it is, via `grandTotal`.
+		 */
 		discount?: CartDiscount;
 		// When this line was moved to `savedLines`. Set by `saveLine`, cleared by
 		// `restoreLine` — present only on a line that is currently saved.
@@ -165,11 +199,38 @@ declare global {
 	 * load-bearing, sourcing the order's currency at checkout.
 	 */
 	interface CartTotals {
+		/** Gross: the sum of `price × quantity` over `lines`, before any discount. */
 		subtotal: number;
-		// Slot reserved for cart-level discounts; 0 until then.
+		/**
+		 * Every cut, as ABSOLUTE currency units — the cart-level coupon plus every
+		 * line's own discount, summed.
+		 *
+		 * ⚠️ ABSOLUTE MONEY, unlike `Order.discount`, which is a PERCENTAGE. The
+		 * two fields share a name and a `number` type and mean opposite things, so
+		 * nothing typechecks a copy from one to the other: a 50-unit cart discount
+		 * assigned to `Order.discount` becomes a 50% cut. Never assign across.
+		 *
+		 * ⚠️ Clamped so it never exceeds `subtotal`. A coupon larger than the cart
+		 * forfeits its remainder rather than carrying a balance.
+		 */
 		discount: number;
+		/** Reserved. Tax is derived per line from `ivaType` at invoicing. */
 		tax: number;
+		/** Reserved. Shipping is chosen at checkout. */
 		shipping: number;
+		/**
+		 * What the customer pays: `subtotal - discount + tax + shipping`, floored
+		 * at 0.
+		 *
+		 * ⚠️ This is the number checkout copies verbatim onto `Order.total`, so it
+		 * is the money path and not a display field. It used to be a byte-identical
+		 * copy of `subtotal` that subtracted nothing — which was harmless only
+		 * while `discount` was structurally always 0.
+		 *
+		 * ⚠️ It is NET of the cart's discounts and GROSS of `Order.discount`. The
+		 * operator's percentage composes on top, applied to this figure at
+		 * invoicing — coupon first, then the percentage on what is left.
+		 */
 		grandTotal: number;
 		currency: string;
 		// ⚠️ REQUIRED, and not cosmetic: checkout copies this onto the ORDER row and
@@ -181,11 +242,138 @@ declare global {
 		quantity: number;
 	}
 
+	/**
+	 * A discount, carrying BOTH what was granted and what it actually cut.
+	 *
+	 * ⚠️ `value` and `amount` are different numbers in different units and both
+	 * are required. `value` is the GRANT — `20` under `type: 'percent'` means 20%
+	 * off; `20` under `type: 'amount'` means 20 currency units off. `amount` is
+	 * the DERIVED money, always absolute currency units, always `>= 0`, and
+	 * always what the totals arithmetic uses.
+	 *
+	 * The split exists because collapsing them was ambiguous in the direction that
+	 * silently overcharges: a percent discount whose single number held `15` was
+	 * summed into `CartTotals.discount` as fifteen currency units. Nothing typed
+	 * that — both are `number`.
+	 *
+	 * ⚠️ `amount` is SERVER-DERIVED and never accepted from the wire. A client
+	 * names a coupon code or a grant; the server computes the money. A request
+	 * carrying `amount` has it ignored, not honoured — the same rule that governs
+	 * line prices.
+	 *
+	 * ⚠️ `value` is what SURVIVES a re-price and `amount` is not. Every cart write
+	 * rebuilds every line from the product row, so a stored `amount` would be
+	 * recomputed against prices that may have moved. Carry the grant forward and
+	 * re-derive the money; never carry the money.
+	 */
 	interface CartDiscount {
+		/**
+		 * The coupon this came from. Absent on a discount an operator granted
+		 * directly, which is why it cannot be used to tell a discount from a
+		 * coupon — read the cart's own `coupon` for that.
+		 */
 		code?: string;
-		amount: number;
 		type: 'percent' | 'amount';
+		/** The GRANT, in the unit `type` names. */
+		value: number;
+		/** The DERIVED cut, in currency units. Server-owned. */
+		amount: number;
 	}
+
+	/**
+	 * The coupon a cart currently carries — the granted TERMS, frozen at apply
+	 * time, not the money.
+	 *
+	 * ⚠️ Holding this does NOT mean a redemption has been consumed. Redemption
+	 * happens at CHECKOUT, atomically, against the coupon's own counters. An
+	 * abandoned cart therefore costs the store nothing, and `removeCoupon` needs
+	 * no release path — which is the whole reason the count is not taken here.
+	 * The consequence a client must handle: a coupon that validated at apply time
+	 * can still be refused at checkout, because someone else redeemed the last one
+	 * in between.
+	 *
+	 * ⚠️ The terms are FROZEN at apply time on purpose. A coupon edited or expired
+	 * after a shopper applied it keeps working for that cart until checkout
+	 * re-validates the window — so the shopper is never silently repriced
+	 * mid-session, and the store's control point is checkout, where the money
+	 * moves.
+	 */
+	interface CartCoupon {
+		/** Normalized upper-case, matching the coupon row's own key. */
+		code: string;
+		type: 'percent' | 'amount';
+		value: number;
+		/** When the shopper applied it. */
+		appliedAt: number;
+	}
+
+	/**
+	 * A redeemable coupon. `PK: COUPON#{storeId}`, `SK: <normalized code>`.
+	 *
+	 * ⚠️ Keyed by the CODE, not by an allocated id — so uniqueness is the key's
+	 * own property and a redemption is a point read rather than an index query.
+	 * The normalization (upper-case) lives in the key factory, never at a call
+	 * site, or a second write path mints `SUMMER10` beside `summer10` with no
+	 * error and both are redeemable.
+	 */
+	interface Coupon {
+		PK?: string;
+		SK?: string;
+		storeId: string;
+		/** Normalized upper-case. The SK carries the same value. */
+		code: string;
+		type: 'percent' | 'amount';
+		/** The GRANT. Percent is `0 < value <= 100`; amount is `> 0`. */
+		value: number;
+		/**
+		 * Validity window, ms epoch. Both open-ended when absent. Checked at
+		 * APPLY and again at CHECKOUT — a cart can sit across the boundary.
+		 */
+		startsAt?: number;
+		endsAt?: number;
+		/** Global redemption ceiling. Unlimited when absent. */
+		maxRedemptions?: number;
+		/** Per-customer ceiling. Unlimited when absent. */
+		maxPerCustomer?: number;
+		/**
+		 * Redemptions consumed so far, incremented atomically at checkout under a
+		 * condition. ⚠️ Never write this directly — the conditional increment IS
+		 * the cap, and a plain overwrite loses every concurrent redemption.
+		 */
+		redemptions?: number;
+		/**
+		 * Minimum cart subtotal, in the cart's currency, before the coupon
+		 * applies. Absent means no floor.
+		 */
+		minSubtotal?: number;
+		/**
+		 * A walk-in ticket has no `customerId`, so a coupon with a per-customer cap
+		 * cannot be attributed. Such a coupon is refused on a customer-less cart
+		 * rather than silently sharing one anonymous bucket.
+		 */
+		disabled?: boolean;
+		search?: string;
+		entityType?: string;
+		createdAt?: number;
+		updatedAt?: number;
+	}
+
+	/**
+	 * Why a coupon was refused. All bare SCREAMING_SNAKE, matching the `error`
+	 * slot convention for a 4xx.
+	 *
+	 * ⚠️ `COUPON_EXHAUSTED` is reachable at BOTH apply and checkout, and means
+	 * different things: at apply the cap was already full; at checkout it filled
+	 * between the two. A client must handle it on the checkout leg too, where it
+	 * is the one refusal a shopper did nothing to cause.
+	 */
+	type CouponRefusal =
+		| 'COUPON_NOT_FOUND'
+		| 'COUPON_NOT_ACTIVE'
+		| 'COUPON_EXPIRED'
+		| 'COUPON_EXHAUSTED'
+		| 'COUPON_MIN_SUBTOTAL'
+		| 'COUPON_REQUIRES_CUSTOMER';
 
 	/**
 	 * The PHYSICAL key a cart was read from.
@@ -234,7 +422,9 @@ declare global {
 		| CartActionMerge
 		| CartActionSaveLine
 		| CartActionRestoreLine
-		| CartActionRemoveSavedLine;
+		| CartActionRemoveSavedLine
+		| CartActionApplyCoupon
+		| CartActionRemoveCoupon;
 
 	/**
 	 * WHICH cart an OPERATOR action acts on — the half of the operator request
@@ -514,6 +704,36 @@ declare global {
 		 *   other one refuses with `400 BASKET_LINE_LIMIT` instead. **Remediable.**
 		 */
 		reason: 'productUnavailable' | 'notOffered' | 'cartFull';
+	}
+
+	/**
+	 * Applies a coupon to the cart by CODE. The server resolves the coupon, checks
+	 * its window, its caps and any subtotal floor, and freezes the granted terms
+	 * onto the cart.
+	 *
+	 * ⚠️ It does NOT consume a redemption — see `CartCoupon`. A refusal carries a
+	 * bare `CouponRefusal` in the `error` slot and leaves the cart's money
+	 * completely untouched, including its lines.
+	 *
+	 * ⚠️ A cart holds AT MOST ONE coupon. Applying a second REPLACES the first
+	 * rather than stacking, and the response's cart shows which one won. Stacking
+	 * was rejected because two percent grants compose differently depending on
+	 * order, and nothing in the request says what that order should be.
+	 */
+	interface CartActionApplyCoupon extends CartActionBase {
+		mode: 'applyCoupon';
+		/** Case-insensitive; the server normalizes. */
+		code: string;
+	}
+
+	/**
+	 * Clears the cart's coupon and its derived cut.
+	 *
+	 * A cart carrying no coupon is a no-op `200`, matching every other removal
+	 * verb here. Nothing is released, because nothing was consumed.
+	 */
+	interface CartActionRemoveCoupon extends CartActionBase {
+		mode: 'removeCoupon';
 	}
 
 	interface CartActionResponse {
