@@ -360,6 +360,23 @@ declare global {
 	 * error and both are redeemable.
 	 */
 	interface Coupon {
+		/*
+		 * ⚠️ A STORE coupon, and only a store coupon. A bank or wallet promo —
+		 * "30% los jueves con Banco X, tope $12.000" — is a `reintegro`: the
+		 * customer pays the full ticket at the register, the bank credits the
+		 * cardholder later against its own monthly cap, and THE MERCHANT NEITHER
+		 * SHOWS IT ON THE COMPROBANTE NOR BEARS ITS COST. It never touches this
+		 * entity and must not be modelled here — keying one as a coupon discounts
+		 * the store's own money for a promotion someone else is funding, and the
+		 * ticket, the voucher and the till all go wrong together.
+		 *
+		 * ⚠️ A discount for paying by cash or transfer is a THIRD thing, also not
+		 * this. It is legal (Ley 25.065 art. 37(c) bars charging MORE for a card in
+		 * a single payment, and survived DNU 70/2023, so discounting cash is not
+		 * surcharging card) — but it applies once a payment method has been chosen,
+		 * which is after the cart total has become the order total. Different
+		 * lifecycle, different entity, not yet designed.
+		 */
 		PK?: string;
 		SK?: string;
 		storeId: string;
@@ -894,6 +911,17 @@ declare global {
 		 * When present, `data.coupon` and `data.discount` are already gone from the
 		 * cart and `totals` already reflect their absence — this names the reason so
 		 * the shopper can be told why the total moved, rather than watching it jump.
+		 *
+		 * ⚠️ The CODE IS NOT RECOVERABLE from this response, and copy must not try:
+		 * the coupon has already been removed from `data` by the time the advisory
+		 * is set, so interpolating `data.coupon.code` yields an empty string. Say
+		 * that a coupon was removed and why; do not name which one.
+		 *
+		 * ⚠️ Produced by the writes that CHANGE THE LINES — a scan, a quantity edit,
+		 * a line removal — never by the coupon verbs themselves. `applyCoupon`
+		 * failing its terms is a refusal, and `removeCoupon` is intentional; neither
+		 * is a drop. So a consumer that handles this only in its coupon surface will
+		 * never see it fire, which is the whole way this goes unnoticed.
 		 */
 		couponDropped?: CouponRefusal;
 	}
