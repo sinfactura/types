@@ -68,6 +68,30 @@ declare global {
 		// be poisoned by a stray stored attribute.
 		version?: number;
 		lines: CartLine[];
+		/**
+		 * Save-for-later: a quantity-bearing list held on the CART row, distinct from
+		 * `Customer.favorites`, which is quantity-less and lives on the customer.
+		 *
+		 * ⚠️ OPTIONAL, and it must stay optional. This repo is forward-only and never
+		 * backfills, so every row written before this shipped has no such attribute.
+		 * `droppedSkus` and `availability` can be required because they are ENVELOPE
+		 * keys the server rebuilds on every response; this is a STORED field, so
+		 * requiring it would make the declaration lie about every existing row. Read
+		 * it as `[]` when absent.
+		 *
+		 * ⚠️ Saved lines are NOT part of the cart's economics and never reach an
+		 * order. They are excluded from `totals` (which derives only from `lines`),
+		 * excluded from checkout, and excluded from the line cap — that cap is
+		 * bounded by CHECKOUT, and a saved line does not check out. They DO count
+		 * toward the row's byte ceiling, because they occupy the same row.
+		 *
+		 * ⚠️ Their `lineId`s stay live for id-allocation purposes. `lineId` is minted
+		 * from the row's high-water mark precisely so a removed line's id is never
+		 * reissued to a different product; if saving a line freed its id, a new line
+		 * would re-mint it and a later restore would collide with a different
+		 * product under the same key.
+		 */
+		savedLines?: CartLine[];
 		totals: CartTotals;
 		convertedOrderId?: string;
 		createdAt: number;
@@ -104,8 +128,10 @@ declare global {
 		appliedMinQty?: number;
 		promoApplied?: boolean;
 		basePrice?: number;
-		// Slots reserved for discounts and save-for-later. Nothing populates them yet.
+		// Reserved for cart-level discounts; nothing populates it yet.
 		discount?: CartDiscount;
+		// When this line was moved to `savedLines`. Set by `saveLine`, cleared by
+		// `restoreLine` — present only on a line that is currently saved.
 		savedAt?: number;
 	}
 
@@ -189,7 +215,9 @@ declare global {
 		| CartActionChangeQuantity
 		| CartActionRemoveLine
 		| CartActionClear
-		| CartActionMerge;
+		| CartActionMerge
+		| CartActionSaveLine
+		| CartActionRestoreLine;
 
 	/**
 	 * Fields common to every action.
@@ -244,6 +272,36 @@ declare global {
 
 	interface CartActionRemoveLine extends CartActionBase {
 		mode: 'removeLine';
+		lineId: string;
+	}
+
+	/**
+	 * Moves an ACTIVE line to `savedLines`, keeping its quantity.
+	 *
+	 * A move, not a copy — the line leaves `lines`, so `totals` drop by its
+	 * contribution and it can no longer be checked out.
+	 */
+	interface CartActionSaveLine extends CartActionBase {
+		mode: 'saveLine';
+		lineId: string;
+	}
+
+	/**
+	 * Moves a SAVED line back into `lines`, keeping its `lineId`.
+	 *
+	 * ⚠️ The line is RE-PRICED on the way back, from the product row, exactly as
+	 * any other write re-prices. A saved line can sit for weeks, and copying its
+	 * stored stamp back into the active cart would sell at a price the catalogue
+	 * no longer offers. The stored line is the source of the quantity and the id,
+	 * never of the money.
+	 *
+	 * ⚠️ The `lineId` is KEPT rather than re-minted. It is the same line, and two
+	 * lines of the same product coexisting is already supported — telling them
+	 * apart is what `lineId` exists for. This is safe only because saved lines
+	 * remain inside the high-water-mark computation (see `Cart.savedLines`).
+	 */
+	interface CartActionRestoreLine extends CartActionBase {
+		mode: 'restoreLine';
 		lineId: string;
 	}
 
