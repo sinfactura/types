@@ -147,7 +147,24 @@ export interface TenantHealthEnvelope {
 		 * status. Never persist it — it exists only on this wire shape.
 		 */
 		status: SubscriptionStatus | 'unknown';
-		freeUntil: number | null;
+		/**
+		 * The courtesy-gift cutoff as a **`YYYY-MM-DD` calendar-date string**,
+		 * or `null` when unset or when the subscription leg failed to read.
+		 *
+		 * ⚠️ **This was published as `number | null` and that was wrong** — the
+		 * handler has always sent the string straight off the row. Every other
+		 * declaration of this field in this package already says so, including
+		 * one that states it explicitly: *"`YYYY-MM-DD`, matches
+		 * `Subscription.freeUntil` — not epoch ms."* This envelope was the sole
+		 * outlier, so a consumer that trusted it and did date arithmetic on a
+		 * `number` was comparing against `NaN`, which is false against every
+		 * bound and therefore fails by silently never showing the gift.
+		 *
+		 * It is a calendar date rather than an instant deliberately: a courtesy
+		 * runs to the END of the named day in the tenant's own reckoning, and an
+		 * epoch stamp would fix it to one instant in one zone.
+		 */
+		freeUntil: string | null;
 		trialEndsAt: number | null;
 	};
 	afip: {
