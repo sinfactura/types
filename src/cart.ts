@@ -175,9 +175,19 @@ declare global {
 		 * moved, and clearing it on rebuild would make an unrelated add-to-cart
 		 * silently delete the operator's discount.
 		 *
-		 * ⚠️ It does NOT reach the AFIP comprobante. Invoicing reads the
-		 * ORDER-level percentage only, so a line discount must already be inside
-		 * the money the order carries — which it is, via `grandTotal`.
+		 * ⚠️ Invoicing reads the ORDER-LEVEL PERCENTAGE only — it never reads
+		 * `Order.total`, and therefore never sees `grandTotal`. The voucher is built
+		 * from `order.items`' gross `price × quantity` with
+		 * `getDiscountMultiplier(order.discount)` applied per line, so a grant
+		 * reaches the comprobante if and only if checkout folded it into that
+		 * percentage. This docblock previously claimed the money arrived "via
+		 * `grandTotal`"; it did not, and a cart carrying this grant was invoiced
+		 * gross until checkout began deriving the percentage from
+		 * `CartTotals.discount`.
+		 *
+		 * ⚠️ So the percentage must be derived from the AGGREGATE, never from the
+		 * coupon alone — this per-line grant is the half that survives a
+		 * coupon-shaped fix unnoticed.
 		 */
 		discount?: CartDiscount;
 		// When this line was moved to `savedLines`. Set by `saveLine`, cleared by
@@ -228,8 +238,22 @@ declare global {
 		 * while `discount` was structurally always 0.
 		 *
 		 * ⚠️ It is NET of the cart's discounts and GROSS of `Order.discount`. The
-		 * operator's percentage composes on top, applied to this figure at
-		 * invoicing — coupon first, then the percentage on what is left.
+		 * operator's percentage composes on top — coupon first, then the percentage
+		 * on what is left.
+		 *
+		 * ⚠️ But that composition does NOT happen against this figure. Invoicing
+		 * never reads `Order.total`: the multiplier is applied per line to
+		 * `price × quantity`, and each line's neto is derived from the already
+		 * discounted total at that line's own `ivaType`. This docblock used to say
+		 * the percentage was "applied to this figure at invoicing", which read as a
+		 * guarantee that the two agreed — they are computed from different
+		 * quantities and agree only up to per-line rounding.
+		 *
+		 * ⚠️ Applying the cut per line before the neto split is not an approximation
+		 * chosen for convenience: Ley 23.349 Art. 11 presumes, without admitting
+		 * proof to the contrary, that discounts operate PROPORTIONALLY to the precio
+		 * neto and the tax invoiced. So this is the apportionment the statute
+		 * assumes, and it is why a mixed-IVA cart needs no apportionment table.
 		 */
 		grandTotal: number;
 		currency: string;
