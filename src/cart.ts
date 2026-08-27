@@ -333,7 +333,16 @@ declare global {
 		endsAt?: number;
 		/** Global redemption ceiling. Unlimited when absent. */
 		maxRedemptions?: number;
-		/** Per-customer ceiling. Unlimited when absent. */
+		/**
+		 * Per-customer ceiling. Unlimited when absent.
+		 *
+		 * ⚠️ A walk-in ticket has no `customerId`, so a coupon carrying this cap
+		 * cannot be attributed to anyone. Such a coupon is REFUSED on a
+		 * customer-less cart (`COUPON_REQUIRES_CUSTOMER`) rather than silently
+		 * sharing one anonymous bucket — which would either block the second
+		 * walk-in of the day or, keyed on the empty string, hand every walk-in the
+		 * same allowance.
+		 */
 		maxPerCustomer?: number;
 		/**
 		 * Redemptions consumed so far, incremented atomically at checkout under a
@@ -347,9 +356,12 @@ declare global {
 		 */
 		minSubtotal?: number;
 		/**
-		 * A walk-in ticket has no `customerId`, so a coupon with a per-customer cap
-		 * cannot be attributed. Such a coupon is refused on a customer-less cart
-		 * rather than silently sharing one anonymous bucket.
+		 * Switched off without deleting the row, so the code cannot be re-minted
+		 * with different terms while shoppers still hold the old one.
+		 *
+		 * ⚠️ Reported as `COUPON_NOT_FOUND`, deliberately — the same refusal an
+		 * unknown code gets. A distinct "this coupon is disabled" answer would tell
+		 * an enumerator that the code is real.
 		 */
 		disabled?: boolean;
 		search?: string;
