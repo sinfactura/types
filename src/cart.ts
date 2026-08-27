@@ -188,6 +188,13 @@ declare global {
 		 * ⚠️ So the percentage must be derived from the AGGREGATE, never from the
 		 * coupon alone — this per-line grant is the half that survives a
 		 * coupon-shaped fix unnoticed.
+		 *
+		 * ⚠️ NEVER derive "what was charged" from `Order.total`. It is net of the
+		 * cart's discount but GROSS of any operator percentage, and `mode: 'edit'`
+		 * rewrites it as the gross line sum — so no single reading of that scalar is
+		 * correct across the writers that produce it. The charged figure is the
+		 * gross line sum times `getDiscountMultiplier(Order.discount)`, which is
+		 * what the voucher, the credit note, the PDF and the till each compute.
 		 */
 		discount?: CartDiscount;
 		// When this line was moved to `savedLines`. Set by `saveLine`, cleared by
