@@ -19,10 +19,31 @@ declare global {
 		customerId?: string;
 		customer?: Partial<Customer>;
 		channel: 'pos' | 'web';
-		// Slot reserved for parked/held POS tickets. Nothing populates it yet.
+		// The till holding a parked POS ticket. Populated by the park/resume pair.
+		//
+		// Opaque to the server: it is validated only as /^[A-Za-z0-9_-]{1,64}$/ and
+		// used as the partition key of the sparse PK-terminalId GSI, which is what
+		// makes "list this till's held tickets" a query rather than a store-wide
+		// scan. Nothing derives meaning from its value, enumerates known terminals,
+		// or joins it to an entity — a per-device UUID and an operator-named till
+		// are equally valid.
+		//
+		// ⚠️ Sparse, and never unset. A ticket parked with NO terminal is absent
+		// from that index and unreachable by till listing. Resume does not clear
+		// this either — no verb unsets it — so an active cart may still carry the
+		// terminal that last held it.
 		terminalId?: string;
-		// Slots reserved for the cart lifecycle. Nothing populates them yet.
+		// The cart lifecycle. Populated by the park/resume pair ('parked' on park,
+		// back to 'active' on resume) and by the abandonment sweep ('abandoned').
 		status?: 'active' | 'abandoned' | 'converted' | 'parked';
+		// The user who parked this ticket, for showing WHO holds it alongside which
+		// till (`terminalId`).
+		//
+		// ⚠️ Only meaningful while `status === 'parked'`. Resume does not clear it,
+		// so an active cart can still carry the id of whoever last parked it, and
+		// rows written before this field existed carry nothing at all. Read it
+		// gated on `status`, never on its own presence.
+		parkedBy?: string;
 		ttl?: number;
 		// Optimistic-concurrency token, same two-way optionality as `Basket.version`:
 		// omit it for an unconditional write, send it to make the write a CAS whose
