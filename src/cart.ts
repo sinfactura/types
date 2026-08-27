@@ -281,9 +281,9 @@ declare global {
 	 * ⚠️ `droppedSkus` is a SIBLING of `data`, not a field inside it. That follows
 	 * the house envelope — `{ message, data, LastEvaluatedKey?, truncated? }` — where
 	 * properties of the OPERATION hang off the envelope while `data` stays the
-	 * entity. `mergeMeta` already occupies this slot on this very route
-	 * (`basketWriteCore.ts`'s `basketMergeBody`). Nesting the cart one level deeper
-	 * would buy the same isolation while spending a convention to get it.
+	 * entity. Nesting the cart one level deeper would buy the same isolation while
+	 * spending a convention to get it. (`mergeMeta` used to occupy this slot on
+	 * this very route; it is gone, and `BasketMergeMeta` is deprecated.)
 	 *
 	 * ⚠️ It is REQUIRED and always present — an empty array when nothing was
 	 * dropped — so an FE cannot treat it as an optional diagnostic. An unresolvable
@@ -296,10 +296,69 @@ declare global {
 	 * deleted, unable to remove it because removing it is itself a write that
 	 * re-validates the product.
 	 */
+	/**
+	 * One cart line the store could not fully satisfy, reported AFTER the write.
+	 *
+	 * ⚠️ This is a READ, never a reservation, and never a refusal. The line LANDED
+	 * — a `200` carrying entries means "written, with a caveat", and nothing here
+	 * produces a non-2xx. That separation is load-bearing and was collapsed once
+	 * already by a consumer who agreed to it in writing first: a landed
+	 * `notOffered` was published under the same token that meant "the write did
+	 * not land", so an operator saw a line that IS in the cart reported as one
+	 * that never made it. The two conditions want the same RENDERING — both are
+	 * red, both stop the cashier — which is why the contract has to keep them
+	 * apart rather than trusting each consumer to.
+	 *
+	 * Entries appear ONLY for constrained lines. A fully available line produces
+	 * none, so absence means "nothing to say" — never "in stock".
+	 */
+	interface CartLineAvailability {
+		// The line as written. Post-write, so it names a line that exists.
+		lineId: string;
+		/*
+		 * ⚠️ Carried even though `lineId` identifies the line, because it is the
+		 * only stable key across the write. A newly created line's `lineId` did not
+		 * exist before the request, so a client holding the product the operator
+		 * just acted on has nothing to match `lineId` against until it has the
+		 * echoed row — and that is the FIRST-add-of-a-product case, which for a
+		 * shortfall warning is the common one, not the edge. Without it a consumer
+		 * falls back to naming no product at all.
+		 */
+		productId: string;
+		// The quantity now ON the line, not the increment that was requested.
+		requested: number;
+		/*
+		 * ⚠️ Guaranteed `>= 0`, clamped server-side. Stock is advisory on this path
+		 * — the write lands regardless — so the underlying figure goes negative in
+		 * exactly the case this signal exists to describe, and the raw number
+		 * reaches an operator as "quedan -2". `Number.isFinite(-2)` is `true`, so a
+		 * finiteness check does not catch it. Clamped once here rather than in
+		 * every consumer.
+		 */
+		available: number;
+		/*
+		 * ⚠️ Treat an UNRECOGNISED value as the softer case rather than discarding
+		 * the entry — a reason added later must degrade, not vanish. `notOffered`
+		 * is `hiddenFromStorefront` and is reported regardless of real stock.
+		 */
+		reason: 'insufficientStock' | 'notOffered';
+	}
+
 	interface CartActionResponse {
 		message: string;
 		data: Cart;
 		droppedSkus: string[];
+		/*
+		 * ⚠️ REQUIRED and always present — an empty array when every line was
+		 * satisfied — for the same reason `droppedSkus` is. A key that vanishes
+		 * when empty is one no client remembers to handle.
+		 *
+		 * Empty ALSO when the store has stock control off (`store.config.stock`),
+		 * which is not the same statement as "everything is in stock": it means the
+		 * store does not track stock, so there is nothing to report. Consumers must
+		 * not render an empty array as an availability guarantee.
+		 */
+		availability: CartLineAvailability[];
 	}
 
 
