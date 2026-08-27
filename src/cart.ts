@@ -384,8 +384,28 @@ declare global {
 		| 'COUPON_NOT_ACTIVE'
 		| 'COUPON_EXPIRED'
 		| 'COUPON_EXHAUSTED'
+		| 'COUPON_EXHAUSTED_AT_CHECKOUT'
 		| 'COUPON_MIN_SUBTOTAL'
 		| 'COUPON_REQUIRES_CUSTOMER';
+
+	/*
+	 * ⚠️ `COUPON_EXHAUSTED` and `COUPON_EXHAUSTED_AT_CHECKOUT` are the same
+	 * condition reached two different ways, and they are split because the
+	 * SHOPPER-FACING answer differs:
+	 *
+	 *  - `COUPON_EXHAUSTED` — the cap was already known spent when the request
+	 *    was evaluated. The shopper is told the code is used up. Nothing they did
+	 *    caused it and nothing they can do changes it.
+	 *  - `COUPON_EXHAUSTED_AT_CHECKOUT` — the cap was NOT spent at evaluation and
+	 *    the conditional increment then lost a race to a concurrent checkout. The
+	 *    shopper watched this code be ACCEPTED on their own cart and then be
+	 *    refused at the till. The right answer is an apology and a retry
+	 *    affordance, not "this coupon is used up", which reads as blaming them for
+	 *    a code the system already told them was good.
+	 *
+	 * Only the checkout leg can emit the second one — applying a coupon does not
+	 * consume a redemption, so there is no race to lose there.
+	 */
 
 	/**
 	 * The PHYSICAL key a cart was read from.
