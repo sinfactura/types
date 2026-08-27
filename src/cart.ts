@@ -305,6 +305,25 @@ declare global {
 		value: number;
 		/** When the shopper applied it. */
 		appliedAt: number;
+		/**
+		 * The coupon's minimum-subtotal floor at apply time, frozen with the rest
+		 * of the terms. Absent means the coupon had no floor.
+		 *
+		 * ⚠️ Frozen here rather than re-read because the floor is CART-DEPENDENT and
+		 * therefore has to be re-judged on every write, not only at apply. Without
+		 * it, the terms were frozen incompletely: the grant survived and the
+		 * condition on the grant did not, so a shopper could meet a floor, apply the
+		 * code, remove lines back below it, and keep the cut. Freezing it lets that
+		 * check run on the cart the write produces with no second read of the
+		 * coupon row — which matters because it runs on EVERY cart write.
+		 *
+		 * ⚠️ Deliberately NOT re-read from the coupon row, for the same reason the
+		 * grant is not: a coupon edited after a shopper applied it must not reprice
+		 * them mid-session. The store's control point is checkout, which
+		 * re-validates against the live row. This field is what the CART promised,
+		 * not what the coupon currently says.
+		 */
+		minSubtotal?: number;
 	}
 
 	/**
