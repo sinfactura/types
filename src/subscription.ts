@@ -112,7 +112,9 @@ declare global {
 		| 'mobileApp'
 		| 'customDomain'
 		| 'advancedPricing' // boolean gate: absolute / per-list-currency / breaks / promos
-		| 'marketplaceChannels'; // NEW — boolean gate: marketplace integrations (MercadoLibre first); PLAN#{tier} rows PATCHed per the marketplace-channels ceremony
+		| 'marketplaceChannels' // NEW — boolean gate: marketplace integrations (MercadoLibre first); PLAN#{tier} rows PATCHed per the marketplace-channels ceremony
+		// Canales de venta
+		| 'storefront'; // NEW — gates the public e-commerce storefront sales channel
 
 	/** Full feature matrix — every tier declares every feature. */
 	type FeatureMatrix = Record<PlanTier, Record<FeatureKey, Entitlement>>;

@@ -7,6 +7,26 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.150
+
+- **feat(subscription):** add the `storefront` member to `FeatureKey`, gating
+  the public e-commerce storefront sales channel. The union goes from 24 to 25
+  members.
+- ⚠️ **`FeatureMatrix` is `Record<PlanTier, Record<FeatureKey, Entitlement>>`,
+  so the union is EXHAUSTIVE over the matrix** — every tier row must declare the
+  new key or it does not typecheck. Consumers pinning this version and holding a
+  `FeatureMatrix` literal will go red until they add the key to every row. That
+  is the intended ordering, not a regression.
+- ⚠️ **Published AHEAD of its consumers, deliberately.** A consumer cannot
+  compile a reference to the key against an unreleased contract, so the publish
+  leads. `FeatureKey` is also mirrored by a local union in the api
+  (`stacks/services/planSeed.ts`); the two must move in lockstep, and the order
+  is publish → bump the pin → `yarn install` → only then edit the local union.
+- ⚠️ **Union type aliases do NOT declaration-merge**, so no consumer-side
+  `declare global` can add this key locally. Publishing first is the only route.
+- **Types only.** This adds a compile-time contract and no runtime one — the Zod
+  mirrors and the runtime entitlement checks stay in the api.
+
 ## 1.10.149
 
 - **feat(pricing):** add the optional `PriceSlot['absolute'].baseAmount` — the
