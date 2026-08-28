@@ -274,9 +274,23 @@ export interface StoreOverridesEnvelope {
 export interface TenantUserSessionSummary {
 	jti: string;
 	family: string;
-	/** Unix ms. */
+	/**
+	 * ⚠️ Unix SECONDS, not milliseconds — the api stamps it from
+	 * `Math.floor(Date.now() / 1000)` and derives the session row's DynamoDB TTL
+	 * from it, and a TTL attribute is seconds by definition, so the unit is
+	 * load-bearing rather than incidental. The millisecond timestamps on other
+	 * entities in this file are a genuine inconsistency, correct for those
+	 * entities — do not reconcile them against this one. Tell:
+	 * `new Date(issuedAt)` renders 1970, and an already-correct value "fixed" by
+	 * multiplying renders ~year 57000.
+	 */
 	issuedAt: number;
-	/** Unix ms. */
+	/**
+	 * ⚠️ Unix SECONDS, not milliseconds. See `issuedAt`: this is
+	 * `issuedAt + ttlSeconds`, so the two share a unit by construction, and
+	 * comparing it against a millisecond clock reads every live session as long
+	 * expired while never throwing.
+	 */
 	expiresAt: number;
 	userAgent?: string;
 	ip?: string;
@@ -288,6 +302,34 @@ export interface TenantUserSessionSummary {
  */
 export interface TenantUserSessionsResponse {
 	sessions: TenantUserSessionSummary[];
+	complete: boolean;
+}
+
+/**
+ * One row of the tenant-wide active-session roster: the per-user summary plus
+ * the user it belongs to. Extends `TenantUserSessionSummary` rather than
+ * restating its fields so the two cannot drift — in particular `issuedAt` and
+ * `expiresAt` keep the SECONDS unit documented there.
+ */
+export interface TenantActiveSessionSummary extends TenantUserSessionSummary {
+	userId: string;
+	/**
+	 * Absent when the user row carries no name. Normal for service and agent
+	 * accounts, not a gap to backfill — render the `userId` instead of blank.
+	 */
+	fullName?: string;
+}
+
+/**
+ * `complete: false` means the list is a prefix, not the whole set — never
+ * render it as "these are all the sessions". On this endpoint it drops for
+ * either of two independent reasons: the fan-out over the store's users was
+ * capped, or one user's session page was. The response does not distinguish
+ * them, so a caller cannot conclude "every user, some sessions" from it.
+ */
+export interface TenantActiveSessionsResponse {
+	storeId: string;
+	sessions: TenantActiveSessionSummary[];
 	complete: boolean;
 }
 

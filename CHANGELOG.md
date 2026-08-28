@@ -7,6 +7,18 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.133
+
+- **fix(platform):** correct `TenantUserSessionSummary.issuedAt`/`expiresAt` to
+  **Unix seconds** — they were annotated as milliseconds, so a consumer doing
+  `new Date(issuedAt)` renders 1970. The api writes both from
+  `Math.floor(Date.now() / 1000)` and derives the row's DynamoDB TTL from
+  `expiresAt`. Annotation only; no shape change.
+- **feat(platform):** add `TenantActiveSessionSummary` and
+  `TenantActiveSessionsResponse` for the tenant-wide active-session roster.
+  `complete: false` there can mean either a capped user fan-out or a capped
+  per-user page.
+
 ## 1.10.95
 
 - **feat(platform):** add `PlatformDashboardResponse` for `GET /platform/dashboard` —
