@@ -418,9 +418,25 @@ declare global {
 	/**
 	 * Compact subscription summary attached to `Store.subscription` on
 	 * `GET /tenants` (list) and `GET /tenants?storeId=X` (single-store)
-	 * responses — the only subscription data SUPERVISOR can read (managerToken
-	 * still owns the full audit/override surface). No Stripe ids or amounts
-	 * (least-privilege). Absent entirely on a store with no SUBSCRIPTION row.
+	 * responses. Absent entirely on a store with no SUBSCRIPTION row.
+	 *
+	 * This is the STORE-LIST row, not the whole of what SUPERVISOR may read. The
+	 * cross-tenant billing roll-up behind `GET /tenants/billing`
+	 * (`TenantBillingRollupRow`) is supervisorToken too and is deliberately
+	 * wider: a billing grid that cannot show what a tenant was charged is not a
+	 * billing grid, so amounts and live provider history are emitted there. What
+	 * stays MANAGER-only is the audit/override surface — reading who changed a
+	 * subscription out of band, and changing it.
+	 *
+	 * Least-privilege did not die, it moved. The widening adds AMOUNTS and adds
+	 * no provider IDENTIFIERS: `externalCustomerId`, `externalSubscriptionId`,
+	 * `stripeCustomerId`, `stripeSubscriptionId` and every token or secret stay
+	 * unemittable on both types, and the roll-up reads those ids only to decide
+	 * whether a provider round-trip is worth making. Two ways to misread that,
+	 * both seen: treating the roll-up's amounts as a leak because this type
+	 * forbids them, and widening THIS type toward the roll-up — a store list
+	 * renders for every tenant on every page load and has no reason to carry
+	 * money.
 	 */
 	interface StoreRowSubscriptionSummary {
 		planTier: PlanTier;
@@ -469,6 +485,36 @@ declare global {
 		before: Pick<Subscription, 'planTier' | 'status' | 'billingCycle' | 'freeUntil' | 'trialEndsAt'>;
 		after: Pick<Subscription, 'planTier' | 'status' | 'billingCycle' | 'freeUntil' | 'trialEndsAt'>;
 		reason: string;
+	}
+
+	// Provider billing history
+
+	/**
+	 * One charge SINFACTURA made against a tenant, normalized out of whichever
+	 * billing provider holds the money. Backs the per-tenant payment history and
+	 * the `invoices` array on the cross-tenant `TenantBillingRollupRow`.
+	 *
+	 * ⚠️ NOT the fiscal `Invoice` entity, despite the name. That one is an
+	 * AFIP/ARCA comprobante a tenant issues to THEIR customer and is stored;
+	 * this one is what the tenant paid US. Subscription billing persists status
+	 * only — no amount, no charge id — so nothing here comes off a row: every
+	 * field is read live from the provider at request time. The two never
+	 * reconcile and must not be joined.
+	 */
+	interface InvoiceSummary {
+		id: string;
+		/** Smallest currency unit (cents/centavos), never a decimal — dividing twice is the tell. */
+		amount: number;
+		currency: string;
+		status: 'paid' | 'open' | 'void' | 'failed';
+		/** Unix ms the invoice was issued / the charge was attempted. */
+		issuedAt: number;
+		/**
+		 * Provider-hosted PDF or hosted-invoice page. Optional because not every
+		 * provider mints one — render the row without a link rather than treating
+		 * its absence as a broken charge.
+		 */
+		pdfUrl?: string;
 	}
 }
 

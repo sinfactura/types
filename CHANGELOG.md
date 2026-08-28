@@ -7,6 +7,34 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.135
+
+- **feat(platform):** add `TenantBillingRollupRow` and `TenantBillingHistoryError`,
+  the response contract for `GET /tenants/billing` (supervisorToken) — the
+  cross-tenant subscription + payment-history grid. Served in the house envelope
+  as `ResponseApi<TenantBillingRollupRow[]>`; no bespoke wrapper was added,
+  because the cursor is the underlying STORE query's raw key and
+  `ResponseApi.LastEvaluatedKey` already covers it.
+- **feat(subscription):** add `InvoiceSummary`, the normalized provider charge
+  the roll-up embeds and the per-tenant payment history returns. Previously
+  api-local. It is NOT the fiscal `Invoice`: this is what a tenant paid US, is
+  never stored (subscription billing persists status only), and is read live
+  from the provider on every request.
+- `TenantBillingRollupRow.freeUntil` is `string | null` in `YYYY-MM-DD` — a
+  calendar cutoff, not epoch ms, matching `Subscription.freeUntil` and
+  `StoreRowSubscriptionSummary.freeUntil`. It has been published as `number`
+  once before; the tell is `new Date(freeUntil)` landing near 1970 so a live
+  courtesy gift renders as long expired, with nothing thrown.
+- `historyError` is a closed union and its PRESENCE is the contract: an empty
+  `invoices` array cannot tell "this tenant has no charges" from "we could not
+  ask the provider", and only one of those is an incident.
+- **docs(subscription):** amend `StoreRowSubscriptionSummary`. It claimed to be
+  "the only subscription data SUPERVISOR can read" with "no Stripe ids or
+  amounts (least-privilege)", which the roll-up above makes false — that route
+  is supervisorToken and emits amounts. Restated as the store-list row, with the
+  rule that actually holds across both: the widening adds amounts and adds no
+  provider identifiers. Annotation only; no shape change.
+
 ## 1.10.134
 
 - **fix(platform):** retype `StoreOverridesEnvelope.resolved` from

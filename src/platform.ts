@@ -377,6 +377,100 @@ export interface PlatformOverridesRosterResponse {
 }
 
 /**
+ * Why one tenant's payment history is missing from the billing roll-up. Its
+ * PRESENCE is the whole point: an empty `invoices` array cannot distinguish a
+ * tenant who has never been charged from one whose provider we could not
+ * reach, and rendering the second as the first is how a billing outage reads
+ * as a quiet month. Absent on success, including the legitimate empty case.
+ *
+ * - `BILLING_NOT_CONFIGURED` — the adapter exists but has not implemented the
+ *   history call. Ours to fix; retrying never changes it.
+ * - `EXTERNAL_RESOURCE_NOT_FOUND` — we hold a provider-side id the provider no
+ *   longer recognizes, typically because the tenant cancelled or deleted it in
+ *   the provider's own dashboard. Permanent until the linkage is re-made.
+ * - `INVALID_PROVIDER` — the stored provider value names no adapter we have. A
+ *   data defect on the SUBSCRIPTION row, not an outage.
+ * - `PROVIDER_UNAVAILABLE` — everything else: an outage, a rate limit, an
+ *   expired token. The only one of the four worth retrying, and the only one
+ *   expected to clear on its own.
+ */
+export type TenantBillingHistoryError =
+	| 'BILLING_NOT_CONFIGURED'
+	| 'EXTERNAL_RESOURCE_NOT_FOUND'
+	| 'INVALID_PROVIDER'
+	| 'PROVIDER_UNAVAILABLE';
+
+/**
+ * One row of the cross-tenant billing grid behind `GET /tenants/billing`
+ * (supervisorToken). Served in the house envelope —
+ * `ResponseApi<TenantBillingRollupRow[]>` — with no bespoke wrapper: the page
+ * cursor is the raw `{ PK: 'STORE', SK }` of the underlying STORE query, which
+ * `ResponseApi.LastEvaluatedKey` already covers, and the caller round-trips its
+ * `SK` back as the next request's offset.
+ *
+ * An ALLOW-LIST, not a projection. STORE rows embed live secrets and the
+ * SUBSCRIPTION row carries provider-side identifiers; nothing is spread into
+ * this shape, so a field reaches a consumer only by being named here. A
+ * consumer that "simplifies" by widening back toward either stored row is
+ * undoing the only thing keeping those out of an operator console.
+ *
+ * It is deliberately wider than the `StoreRowSubscriptionSummary` carried on
+ * `GET /tenants` rows — amounts, through `invoices` — and deliberately no
+ * wider in the other direction: `externalCustomerId`,
+ * `externalSubscriptionId`, `stripeCustomerId` and `stripeSubscriptionId` are
+ * unemittable on both. The roll-up reads those ids only to decide whether a
+ * provider round-trip is worth making.
+ *
+ * Every nullable field below is null together, for a tenant with no
+ * SUBSCRIPTION row at all. That is an ordinary state — a store that never
+ * subscribed — not a broken row to filter out of the grid.
+ */
+export interface TenantBillingRollupRow {
+	storeId: string;
+	/** The tenant's `Store.name`. */
+	name: string;
+	planTier: PlanTier | null;
+	status: SubscriptionStatus | null;
+	billingCycle: BillingCycle | null;
+	/** Unix ms. */
+	currentPeriodStart: number | null;
+	/** Unix ms. */
+	currentPeriodEnd: number | null;
+	/** Unix ms. Only meaningful while `status === 'trialing'`. */
+	trialEndsAt: number | null;
+	/**
+	 * ⚠️ `YYYY-MM-DD`, NOT epoch ms — the one field on this row that does not
+	 * share its neighbours' unit, and it has been published as `number` once
+	 * already. Tell: `new Date(freeUntil)` lands near 1970-01-01 for a value in
+	 * the 2020s, so a live courtesy gift renders as long expired and nothing
+	 * throws. It is a calendar cutoff rather than an instant, so there is no
+	 * timezone to reconcile either — compare it as a string, never convert it.
+	 */
+	freeUntil: string | null;
+	/** Unix ms. */
+	cancelAt: number | null;
+	/** Unix ms. */
+	canceledAt: number | null;
+	/**
+	 * The resolved billing provider. `string` rather than a union because it is
+	 * the SUBSCRIPTION row's own raw value and nothing validates it on write — a
+	 * union here would assert a guarantee the data does not carry, and the value
+	 * matching no adapter is exactly the one `historyError` reports as
+	 * `INVALID_PROVIDER`.
+	 */
+	provider: string | null;
+	/**
+	 * The tenant's last few charges, capped at a handful per row: a cross-tenant
+	 * grid renders recent activity, and a deep read belongs on the per-tenant
+	 * history endpoint. Empty both for a tenant with no provider linkage and for
+	 * one whose provider read failed — `historyError` is what separates those.
+	 */
+	invoices: InvoiceSummary[];
+	/** Present only when THIS tenant's provider read failed; see `TenantBillingHistoryError`. */
+	historyError?: TenantBillingHistoryError;
+}
+
+/**
  * Why a plan's marketing copy disagrees with the entitlements actually backing
  * that tier. Advisory only — `PATCH /platform/billing/plans/{tier}` reports
  * these and still applies the write. It never blocks: tiers are hand-tuned
