@@ -7,6 +7,54 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.137
+
+- **feat(order):** the two-axis order state model — `OrderFulfilmentStatus`
+  (`pending` | `ready` | `delivered` | `not_delivered`), `OrderFinancialStatus`
+  (`pending` | `partial` | `paid`), the optional `Order.fulfilmentStatus` /
+  `Order.financialStatus` / `Order.statusHistory` fields, and the two exhaustive
+  transition tables `ORDER_FULFILMENT_TRANSITIONS` / `ORDER_FINANCIAL_TRANSITIONS`
+  as importable values. Purely additive; nothing existing changed shape.
+- Both status fields are **optional and permanently so**. Every ORDER row written
+  before this release carries no status-shaped attribute, and the platform is
+  forward-only with no backfill — absent is a legal, permanent state of the data,
+  not a migration gap. Readers fall back to the documented derivation; write-time
+  guards must be `attribute_not_exists(X) OR X = :expected`.
+- The fulfilment derivation is stated on the type because getting its ORDER wrong
+  moves operator bucket counts: **`deliveredAt` outranks `readyAt`**, so an order
+  delivered without ever being marked ready is `delivered`, never `pending`. The
+  api's `assessLock` tests `readyAt` first — correct for a lock reason, wrong as a
+  derivation, and the docblock says so by name so the api half cannot reach for it.
+  Every predicate is `> 0`, never a presence test, since order creation stamps all
+  three delivery timestamps at `0`.
+- `disabled` and `cancelled` are deliberately NOT fulfilment values. A soft-deleted
+  order still occupies its bucket, and cancellation is a genuine THIRD axis
+  (`cancelledAt`/`cancelledBy`/`cancellationSource`) that the two-axis model cannot
+  express — folding either in would empty operator bucket counts on screens that
+  work today. Both docblocks say this explicitly rather than leaving it to be
+  rediscovered.
+- `not_delivered` is the one value no existing row can derive: a delivery ATTEMPT
+  that failed or was cancelled by the carrier, currently dropped on the floor by the
+  MercadoLibre shipment sync for want of a field to write it into. It sits LATERAL to
+  `ready` in the table — reachable from `pending` and `ready`, leading back to either
+  `ready` or `delivered`, and not reachable from `delivered`.
+- `pending -> delivered` is legal DIRECTLY, and `delivered -> ready` exists because
+  operator un-delivery is real (same-calendar-day only). So there is **no terminal
+  fulfilment state**: `ORDER_FULFILMENT_TERMINAL_STATUSES` is derived from the table
+  rather than hand-listed, and is empty by construction rather than by oversight.
+- The financial table is fully connected on purpose — the axis is a derived,
+  reversible verdict over the ledger (unlink, refund, credit note), so no move is
+  illegal. Stated in the docblock rather than dressed up as a constraint.
+- `ORDER_FULFILMENT_STATUSES` / `ORDER_FINANCIAL_STATUSES` are DERIVED from the
+  tables' keys, not written out a second time: a hand-written `satisfies` array
+  proves membership but not completeness, so a new status would compile clean while
+  a validator built on the array silently rejected it.
+- `statusHistory` is a discriminated union over the axis that moved, because
+  `pending` belongs to BOTH unions and `status` alone cannot say which axis an entry
+  describes. Appended with `list_append(if_not_exists(...))`, never read-modify-write
+  — two writers advancing different axes at once is ordinary, and a
+  read-modify-write drops one entry with no error anywhere.
+
 ## 1.10.136
 
 - **fix(auth):** reshape `VerifyInviteResponse` to what `verify-invite` has

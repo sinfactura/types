@@ -44,6 +44,58 @@ declare global {
 		readyAt?: number;
 		deliveredAt?: number;
 		deliveredDate?: number;
+
+		/**
+		 * FULFILMENT axis of the two-axis order state model — where the goods
+		 * are. See {@link OrderFulfilmentStatus} for the derivation rule and
+		 * `ORDER_FULFILMENT_TRANSITIONS` for the legal moves.
+		 *
+		 * ⚠️ OPTIONAL, and permanently so. Every ORDER row written before this
+		 * field existed carries no status-shaped attribute at all, and this
+		 * platform is forward-only — nothing will ever backfill them. Absent is
+		 * therefore a LEGAL, PERMANENT state of the data, not a migration gap:
+		 * a reader must fall back to deriving from `deliveredAt`/`readyAt`, and
+		 * every write-time guard must tolerate absence, i.e.
+		 * `attribute_not_exists(fulfilmentStatus) OR fulfilmentStatus = :expected`
+		 * — the idiom the delivery and disable writers already use for the
+		 * timestamps themselves.
+		 *
+		 * ⚠️ Spelled with ONE `l` throughout (`fulfilment`, `Fulfilment`).
+		 */
+		fulfilmentStatus?: OrderFulfilmentStatus;
+		/**
+		 * FINANCIAL axis — what the customer still owes on this order. See
+		 * {@link OrderFinancialStatus}; legal moves in
+		 * `ORDER_FINANCIAL_TRANSITIONS`.
+		 *
+		 * ⚠️ Optional and permanently so, exactly as `fulfilmentStatus` above,
+		 * and with the same absent-tolerant guard requirement.
+		 *
+		 * ⚠️ This is a CACHE of a figure the ledger owns. The `ACCOUNT`
+		 * partition is authoritative for what is owed; this field is the
+		 * ledger's verdict stamped onto the order so a list query does not have
+		 * to replay a customer's whole account to colour one row. When the two
+		 * disagree, the ledger is right and this field is stale.
+		 */
+		financialStatus?: OrderFinancialStatus;
+		/**
+		 * Append-only audit trail of every state move on either axis, oldest
+		 * first.
+		 *
+		 * ⚠️ Appended with `SET statusHistory = list_append(if_not_exists(statusHistory, :empty), :entry)`
+		 * — NEVER read-modify-write. Two writers advancing different axes of the
+		 * same order in the same instant is ordinary (an operator marks it
+		 * delivered while a payment webhook lands), and a read-modify-write
+		 * silently drops one of the two entries with no error anywhere.
+		 * `if_not_exists` is what makes the first append work on the whole
+		 * back-catalogue, none of which carries the attribute.
+		 *
+		 * NOT capped, unlike `returns` — an order moves state a handful of
+		 * times, so the list stays small. The one path that can oscillate is
+		 * the financial axis under repeated payment link/unlink; a writer that
+		 * finds itself appending in a loop is the bug, not the list.
+		 */
+		statusHistory?: OrderStatusEntry[];
 		comments?: string;
 		currency: string; // catalogId — FK to PlatformCurrency
 		// Self-describing currency stamp (ADR-0013): FX rate and the Unix ms at which it was effective.
@@ -312,6 +364,153 @@ declare global {
 	 */
 	type OrderLockReason = 'ready' | 'delivered' | 'disabled' | 'invoiced' | 'payment-linked' | 'cancelled';
 
+	/**
+	 * FULFILMENT axis of the order state model: where the goods are.
+	 *
+	 * The frontend has run this axis in production for years with no server
+	 * field to lean on, deriving it from the timestamps. This union names what
+	 * it already computes, so a consumer can switch from the derivation to the
+	 * stored field WITHOUT any bucket count moving.
+	 *
+	 * ⚠️ **DERIVATION, when the field is absent — `deliveredAt` OUTRANKS
+	 * `readyAt`, in that order, and nothing else participates:**
+	 *
+	 * ```
+	 * deliveredAt > 0            -> 'delivered'
+	 * else readyAt > 0           -> 'ready'
+	 * else                       -> 'pending'
+	 * ```
+	 *
+	 * The order of those two tests is load-bearing, not stylistic. The
+	 * lifecycle is monotone, so a delivery stamp outranks a MISSING ready
+	 * stamp: an order delivered without ever being marked ready is
+	 * `delivered`, never `pending`. Testing `readyAt` first is a bug the app
+	 * already had and fixed — it sent delivered orders back to the first
+	 * bucket on one screen while another screen counted them under the last.
+	 *
+	 * ⚠️ The api's `assessLock` tests `readyAt` FIRST. That is correct for a
+	 * LOCK reason (both answers lock the order, so nothing observable differs)
+	 * and WRONG as a derivation of this axis. Do not reuse it here.
+	 *
+	 * ⚠️ Every predicate is `> 0`, never a presence test: `POST /orders` stamps
+	 * `readyAt`/`deliveredAt`/`deliveredDate` at `0` on creation, so
+	 * `attribute_exists` matches every order ever written and inverts the rule.
+	 *
+	 * ⚠️ `deliveredAt` (Unix ms) is the authoritative delivery input, NOT
+	 * `deliveredDate` (`YYYYMMDD`). The two are written and cleared together by
+	 * every delivery writer, so they agree today; `deliveredDate` exists for
+	 * same-calendar-day reconciliation of the balance movement, and deriving
+	 * this axis from it would couple the state model to that accounting rule.
+	 *
+	 * **`disabled` is NOT a value here and must never become one.** A
+	 * soft-deleted order still occupies its fulfilment bucket and is still
+	 * rendered; it drops out of the MONEY instead, through the net-total rule.
+	 * Folding the flag into this union would silently empty operator bucket
+	 * counts on screens that work today. (Be aware of the api's own wrinkle:
+	 * its soft-delete writer stamps `readyAt`/`deliveredAt`/`deliveredDate`
+	 * with real timestamps as a hiding mechanism, so a disabled order DERIVES
+	 * as `delivered` and its re-enable zeroes all three back to `pending`.
+	 * Those two writes rewrite the underlying timestamps wholesale — they
+	 * RECOMPUTE this field rather than requesting a transition, and are the one
+	 * documented exemption from the transition table below.)
+	 *
+	 * **`cancelled` is NOT a value here either — cancellation is a THIRD
+	 * axis**, carried by `cancelledAt`/`cancelledBy`/`cancellationSource`. It
+	 * is orthogonal by construction: a cancelled order keeps whatever
+	 * fulfilment state it had reached, and the two flags are already tested
+	 * separately everywhere (`cancelledAt` is deliberately distinct from
+	 * `disabled`, and the customer-cancellation handler short-circuits on it
+	 * before any lock assessment runs). Collapsing it into this union would
+	 * both destroy that information and move a cancelled order out of the
+	 * bucket the app still shows it in.
+	 *
+	 * `not_delivered` is the one value NOT derivable from today's rows: it
+	 * means a delivery ATTEMPT failed or was cancelled by the carrier, which no
+	 * timestamp can express and which is currently dropped on the floor by the
+	 * MercadoLibre shipment sync. Adding it is therefore additive — no existing
+	 * row derives it, so no bucket moves. Its wire spelling matches the
+	 * marketplace's own `not_delivered` shipment status.
+	 */
+	type OrderFulfilmentStatus = 'pending' | 'ready' | 'delivered' | 'not_delivered';
+
+	/**
+	 * FINANCIAL axis of the order state model: what the customer still owes on
+	 * this order.
+	 *
+	 * English values for a verdict the frontend renders in Spanish. The
+	 * bucketing must agree with the FIFO allocation the app already runs over
+	 * the customer's whole `ACCOUNT` ledger:
+	 *
+	 * ```
+	 * 'paid'    <- 'Pagada'    debit - paid <= epsilon
+	 * 'partial' <- 'Parcial'   still owing, and something has been paid
+	 * 'pending' <- 'Pendiente' still owing, and nothing has been paid
+	 * ```
+	 *
+	 * ⚠️ `epsilon` is half a display unit, derived from the store's
+	 * `priceDecimals`: a shortfall the store cannot even render is not a
+	 * shortfall. An exact-zero test disagrees with the app on every order whose
+	 * FIFO allocation leaves a sub-centavo residual, and puts a live "collect"
+	 * button next to a paid chip.
+	 *
+	 * ⚠️ A zero-debit order is `paid`, not `pending` — `0 - 0 <= epsilon`. An
+	 * overpaid order is also `paid`; the surplus is the customer's balance, not
+	 * this order's business.
+	 *
+	 * ⚠️ One order can carry debits in more than one denomination. These three
+	 * values describe the PRIMARY (most open) slice only, exactly as the app's
+	 * per-document status does — a consumer asking "is this settled?" must
+	 * consult the ledger's open-balance answer, not just this field.
+	 *
+	 * ⚠️ **This axis is REVERSIBLE and not monotone.** A payment can be
+	 * unlinked from an order and a provider payment can be refunded, both of
+	 * which move `paid` back to `partial` or `pending`; a credit note or return
+	 * moves it the other way by shrinking the debit. See
+	 * `ORDER_FINANCIAL_TRANSITIONS`, which has no terminal state for exactly
+	 * this reason.
+	 */
+	type OrderFinancialStatus = 'pending' | 'partial' | 'paid';
+
+	/**
+	 * One entry in an order's append-only status history — a discriminated
+	 * union over the axis that moved, because `pending` is a member of BOTH
+	 * status unions and `status` alone therefore cannot tell you which axis an
+	 * entry describes.
+	 */
+	type OrderStatusEntry = OrderFulfilmentStatusEntry | OrderFinancialStatusEntry;
+
+	interface OrderStatusEntryBase {
+		/** Unix ms when the move was committed. */
+		timestamp: number;
+		/**
+		 * Who moved it. ABSENT when the mover was the platform itself — a
+		 * marketplace shipment webhook, a payment provider hook, a scheduled
+		 * drain. Those writers have no operator, and stamping a placeholder id
+		 * would make the audit trail lie about who acted.
+		 */
+		userId?: string;
+		/** Operator free text. Operator-only — never broadcast to a customer socket. */
+		notes?: string;
+	}
+
+	interface OrderFulfilmentStatusEntry extends OrderStatusEntryBase {
+		axis: 'fulfilment';
+		status: OrderFulfilmentStatus;
+		/**
+		 * The state moved FROM. Absent when the row carried no
+		 * `fulfilmentStatus` at the time — the whole back-catalogue, and
+		 * permanently so under the forward-only rule.
+		 */
+		from?: OrderFulfilmentStatus;
+	}
+
+	interface OrderFinancialStatusEntry extends OrderStatusEntryBase {
+		axis: 'financial';
+		status: OrderFinancialStatus;
+		/** The state moved FROM; absent when the row carried no `financialStatus`. */
+		from?: OrderFinancialStatus;
+	}
+
 	// WRITE-side shape of the credit-note stamp above — what
 	// `stampCreditNoteStatus` persists onto `Order.mercadolibreCreditNote`.
 	// `source` is REQUIRED here; on the READ projection it stays optional
@@ -462,5 +661,128 @@ declare global {
 	}
 
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Order state model — the legal moves on each axis                          */
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Deliberately NOT `declare global`, unlike everything above: a transition
+ * table is needed as a VALUE (to answer "is this move legal", to build the
+ * `allowed` set a 409 echoes back, and to seed a request validator), so import
+ * it:
+ *
+ * ```ts
+ * import { ORDER_FULFILMENT_TRANSITIONS, ORDER_FULFILMENT_STATUSES } from 'sinfactura-types';
+ * ```
+ *
+ * Both tables are `Record<Status, …>` over the whole union, so adding a status
+ * without giving it a row is a TYPECHECK FAILURE. That is the point: a table
+ * built from an array of pairs, or a `Partial<Record<…>>`, compiles clean while
+ * one status silently has no legal move at all.
+ *
+ * These tables state which moves are LEGAL, not which guards a given writer
+ * applies. A writer may be more restrictive than the table — the marketplace
+ * shipment sync is, treating `delivered` as terminal for itself so a replayed
+ * or out-of-order webhook can never un-deliver an order — and that stays a
+ * property of the writer.
+ */
+
+/**
+ * Legal moves on the fulfilment axis.
+ *
+ * `pending -> delivered` is legal DIRECTLY and must stay that way: the
+ * marketplace shipment sync writes a delivery onto an order that was never
+ * marked ready, and the derivation rule on {@link OrderFulfilmentStatus} maps
+ * exactly that row to `delivered`. A table that forced delivery through `ready`
+ * would 409 a webhook that describes something that already happened.
+ *
+ * `not_delivered` sits LATERAL to `ready`, reachable from both `pending` and
+ * `ready` and leading back to either `ready` (the carrier re-attempts) or
+ * `delivered` (it succeeds on the retry). It is not terminal — a failed
+ * delivery attempt is a setback, not an ending — and it is not reachable from
+ * `delivered`, because nothing un-delivers an order by failing to deliver it.
+ *
+ * `delivered -> ready` is the operator's explicit un-delivery, which exists and
+ * is same-calendar-day only (it reverses a balance movement and an account row
+ * that are reconciled per day). It lands on `ready` rather than `pending`
+ * because un-delivery does not clear `readyAt`. There is therefore NO terminal
+ * fulfilment state — `ORDER_FULFILMENT_TERMINAL_STATUSES` is empty by
+ * construction, and it is derived rather than hand-listed so it can never
+ * disagree with the table.
+ *
+ * There are no self-edges: re-requesting the current status is a no-op, not a
+ * transition.
+ */
+export const ORDER_FULFILMENT_TRANSITIONS: Readonly<Record<OrderFulfilmentStatus, readonly OrderFulfilmentStatus[]>> = {
+	pending: ['ready', 'delivered', 'not_delivered'],
+	ready: ['delivered', 'not_delivered'],
+	not_delivered: ['ready', 'delivered'],
+	delivered: ['ready'],
+};
+
+/**
+ * Legal moves on the financial axis — every one of them, in both directions.
+ *
+ * This table is fully connected ON PURPOSE, and saying so is more honest than
+ * inventing a restriction. The financial state is a DERIVED, reversible verdict
+ * over the ledger: linking a payment moves it forward, unlinking or refunding
+ * one moves it back, and a credit note or return can settle an order by
+ * shrinking the debit rather than by paying it. No sequence of those is
+ * illegal, so this table can never return an illegal move.
+ *
+ * It exists for the two things it still buys: the `Record` proves every status
+ * has been considered, and the resolver built on it gives the financial axis
+ * the same no-op detection and same compare-and-set precondition shape as the
+ * fulfilment axis, so one writer pattern covers both.
+ */
+export const ORDER_FINANCIAL_TRANSITIONS: Readonly<Record<OrderFinancialStatus, readonly OrderFinancialStatus[]>> = {
+	pending: ['partial', 'paid'],
+	partial: ['pending', 'paid'],
+	paid: ['pending', 'partial'],
+};
+
+/*
+ * The value lists are DERIVED from the tables' keys rather than written out a
+ * second time. A hand-written `as const satisfies readonly Status[]` array
+ * proves every member is valid but NOT that the list is complete, so a new
+ * status would compile clean while a request validator built on the array
+ * silently 400s it. Taking the keys of an exhaustive `Record` cannot omit one.
+ *
+ * The assertion to a non-empty tuple is sound for the same reason — the record
+ * type has at least one key — and it is what a schema builder needs.
+ */
+
+/** Every fulfilment status, in lifecycle order. */
+export const ORDER_FULFILMENT_STATUSES = Object.keys(ORDER_FULFILMENT_TRANSITIONS) as [
+	OrderFulfilmentStatus,
+	...OrderFulfilmentStatus[],
+];
+
+/** Every financial status, from unpaid to settled. */
+export const ORDER_FINANCIAL_STATUSES = Object.keys(ORDER_FINANCIAL_TRANSITIONS) as [
+	OrderFinancialStatus,
+	...OrderFinancialStatus[],
+];
+
+export const isOrderFulfilmentStatus = (value: unknown): value is OrderFulfilmentStatus =>
+	(ORDER_FULFILMENT_STATUSES as readonly string[]).includes(value as string);
+
+export const isOrderFinancialStatus = (value: unknown): value is OrderFinancialStatus =>
+	(ORDER_FINANCIAL_STATUSES as readonly string[]).includes(value as string);
+
+/**
+ * The fulfilment statuses nothing transitions out of — DERIVED from the table,
+ * never hand-listed, so it cannot drift from it.
+ *
+ * Empty today, and that is the correct answer rather than an oversight:
+ * operator un-delivery gives `delivered` an outgoing edge. Read it, do not
+ * assume it.
+ */
+export const ORDER_FULFILMENT_TERMINAL_STATUSES: readonly OrderFulfilmentStatus[] =
+	ORDER_FULFILMENT_STATUSES.filter((status) => ORDER_FULFILMENT_TRANSITIONS[status].length === 0);
+
+export const isTerminalOrderFulfilmentStatus = (status: OrderFulfilmentStatus): boolean =>
+	ORDER_FULFILMENT_TRANSITIONS[status].length === 0;
 
 export {}; // NOSONAR
