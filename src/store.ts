@@ -623,6 +623,26 @@ declare global {
        */
       pricePaused?: boolean;
     };
+    /**
+     * Unix ms of the last FULLY DRAINED run of the daily Conciliación
+     * Financiera settlement poller for this tenant.
+     *
+     * ⚠️ It advances ONLY on a clean run — every period this tenant owed was
+     * pulled and written with no error and no `206`. A partial or errored run
+     * leaves it where it was, so the next tick re-covers the same ground.
+     * That is deliberate: ML rate-limits these reports **by IP** (a 429 is a
+     * preventive block, not a soft throttle), and the cost of re-pulling a
+     * period is one call, while the cost of walking past one is a month of
+     * billing the tenant never reconciles.
+     *
+     * ⚠️ Read it as "when we last KNEW we were complete", never as "when we
+     * last polled" — a store polled every day but never clean keeps an old
+     * value here, and that gap is the signal, not a bug.
+     *
+     * Absent = never drained (a newly connected tenant, or one that has never
+     * completed a run).
+     */
+    settlementCheckpoint?: number;
   }
 
   // Mercadolibre PATCH write shape
