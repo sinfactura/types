@@ -96,6 +96,27 @@ declare global {
 		 * finds itself appending in a loop is the bug, not the list.
 		 */
 		statusHistory?: OrderStatusEntry[];
+		/**
+		 * When this order's lines were applied to inventory — the `Product.stock`
+		 * decrement and the `SALE#` rows.
+		 *
+		 * ⚠️ **A WRITE-ONCE LATCH, not a timestamp anyone reads for time.** It exists
+		 * so a channel whose order write can fire more than once for the same order
+		 * can still move stock exactly once: the applying transaction stamps it under
+		 * `attribute_not_exists(stockAppliedAt)`, so a replay loses the condition and
+		 * the whole transaction — decrement included — is rejected as a unit.
+		 *
+		 * ⚠️ Written ONLY by a channel that needs the latch. The ordinary counter and
+		 * storefront checkouts mint an order exactly once by construction and do NOT
+		 * stamp it, so **absent does not mean "stock was never applied"** — it is not
+		 * a field to gate a report or a repair sweep on. Today the one writer is the
+		 * MercadoLibre `orders_v2` ingest, whose upsert runs on every notification for
+		 * an order's whole life.
+		 *
+		 * ⚠️ Optional and permanently so, like every other field added after rows
+		 * existed — this platform is forward-only and nothing backfills.
+		 */
+		stockAppliedAt?: number;
 		comments?: string;
 		currency: string; // catalogId — FK to PlatformCurrency
 		// Self-describing currency stamp (ADR-0013): FX rate and the Unix ms at which it was effective.
@@ -599,6 +620,21 @@ declare global {
 			priceMismatch?: boolean; // ML line unit_price ≠ SKU-linked Product price
 			oversell?: boolean; // ordered qty > SKU-linked Product available stock
 			missingCuit?: boolean; // billing info yields no valid CUIT for Factura A
+			/**
+			 * How many of this order's ML lines carried an `mlItemId` that resolves to
+			 * no local product, so the line could not move `Product.stock`.
+			 *
+			 * ⚠️ Unlike its three siblings this is a COUNT, not a boolean, and `0` is a
+			 * meaningful value: it says the order was graded and every line resolved.
+			 * Absent means not graded. A truthiness test therefore reads a fully-linked
+			 * order and an ungraded one identically — compare against `undefined`.
+			 *
+			 * It exists because an unlinked line is the one case where the sale is real
+			 * and the inventory move is silently impossible; leaving it unrecorded
+			 * reproduces the un-decremented counter for exactly the products most likely
+			 * to be mis-linked.
+			 */
+			unlinkedLines?: number;
 		};
 		// fiscal_documents upload outcome: 'pending' while in flight, 'uploaded'
 		// on success, 'failed' on error. Absent = no invoice issued yet.
