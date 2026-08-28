@@ -215,6 +215,37 @@ declare global {
 		};
 		cost: number;
 		total: number;
+		/**
+		 * Order-level discount as a PERCENTAGE (0–100), applied per line over the
+		 * GROSS line prices. Not money — the cart's `totals.discount` is the
+		 * absolute figure, and the two are different units.
+		 *
+		 * ⚠️ When a cart coupon AND an operator percentage are both present they
+		 * COMPOSE, multiplicatively:
+		 *
+		 * ```
+		 * discount = 100 × (1 − (1 − coupon/100) × (1 − operator/100))
+		 * ```
+		 *
+		 * NOT added. The two cuts stand on different bases — 30% off, then 20% off
+		 * the remainder, is 44%, not 50% — so adding them overstates the discount
+		 * and two legal grants can sum past 100. And NOT "operator wins": the
+		 * coupon's redemption is consumed whether or not its money survives, so
+		 * dropping the coupon's half would spend a shopper's coupon and charge them
+		 * full price.
+		 *
+		 * The full order of operations is `line discounts → coupon → order
+		 * percentage`, each stage taken on what the previous one left.
+		 *
+		 * ⚠️ Composed on the CREATE leg only. An update reaches no cart, so an
+		 * existing order's `discount` stands exactly as it was.
+		 *
+		 * ⚠️ A client must NOT re-derive this. The server applies the composed
+		 * percentage per line over gross prices; computing `grandTotal −
+		 * grandTotal × (operator/100)` on an already-netted total agrees only up to
+		 * per-line rounding, so a client-side preview disagrees with the printed
+		 * receipt by centavos rather than merely duplicating it.
+		 */
 		discount: number;
 		/**
 		 * The cart-level coupon(s) redeemed to mint this order, frozen at the
