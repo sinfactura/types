@@ -7,6 +7,50 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.140
+
+- **fix(return):** `ReturnCreditNoteErrorCode` gains `CBTE_ASOC_NOT_CREDITABLE`
+  — the api has been throwing it (`invoices/_post.ts`, the
+  `NC_FOR_DOMESTIC_VOUCHER_CLASS` guard on the matched voucher) while it was not
+  a member of the union, so `orders/_returnCreditNote.ts`'s
+  `KNOWN_ASSOCIATION_CODES` set could not hold it and
+  `toReturnCreditNoteErrorCode` collapsed it to `NC_EMISSION_FAILED`. The
+  operator was shown "ARCA rechazó la nota de crédito. Revisá los datos del
+  comprobante e intentá de nuevo" for a voucher class that is PERMANENTLY
+  non-creditable — copy that invites a retry which can never succeed.
+- **Documented as permanent, not retryable.** That distinction is what `app`'s
+  `NC_ERROR_RETRYABLE` (`src/domain/orderReturn.ts`, a
+  `Record<ReturnCreditNoteErrorCode, boolean>`) exists to encode; it was written
+  so a new api-owned code fails the build there rather than falling through to
+  `false`, and it had never fired because the union had never grown. Growing it
+  is what makes that guard work — `app` now owes the `false` entry plus a
+  `NC_ERROR_CAUSE_LITERALS` entry (`src/components/order/returnOrderDialogModel.ts`,
+  a second exhaustive `Record` over the same union) and its literal.
+- **Every other `InvoiceAssociationHttpError` throw site was audited**, not just
+  the reported one: `_post.ts` (`CBTE_ASOC_NOT_FOUND`, `CBTE_ASOC_NOT_CREDITABLE`,
+  `PARTIAL_NC_AFIP_DOWN`, `PARTIAL_NC_REQUIRES_CBTE`),
+  `helpers/makeNextAfipInvoice.ts` (`NC_EXCEEDS_FAC_TOTAL`),
+  `helpers/partialNcLedger.ts` (`CBTE_ASOC_NOT_FOUND`,
+  `NC_MULTI_FAC_UNSUPPORTED`) and `helpers/partialNcSubset.ts`
+  (`PARTIAL_NC_INVALID_SUBSET`). `CBTE_ASOC_NOT_CREDITABLE` was the only code
+  missing from the union; no other emitter is unrepresented.
+- **docs(cart):** `CouponRefusal`'s docblock corrected — it still described the
+  pre-split model, claiming `COUPON_EXHAUSTED` is reachable at both apply and
+  checkout and that clients must handle it on the checkout leg. That contradicted
+  the `COUPON_EXHAUSTED_AT_CHECKOUT` member sitting directly below it. Now
+  describes the split by leg, and states plainly that the API HALF IS NOT
+  IMPLEMENTED: `services/coupons.ts`'s `consumeCouponRedemption` returns plain
+  `COUPON_EXHAUSTED` from both conditional-check-failed catches, so nothing on
+  the wire emits `COUPON_EXHAUSTED_AT_CHECKOUT` today.
+- **No member removed.** The phantom is a missing handler, not a wrong contract:
+  `app` (`src/domain/cart.ts`'s `Record<CouponRefusal, true>`,
+  `src/app/literals/basket.ts`) and `storefront`
+  (`src/app/services/basket.ts`'s `COUPON_REFUSALS`,
+  `src/helpers/couponMessages.ts`) already branch on it live, and the api's own
+  `COUPON_REFUSAL_MESSAGE` (`helpers/cartDiscounts.ts`) carries its distinct
+  shopper copy. Removing it would break working client code to match an
+  incomplete handler. Type-only change; no runtime shape moved.
+
 ## 1.10.139
 
 - **feat(product):** `SaleChannel` (`'storefront' | 'counter' | 'service' |

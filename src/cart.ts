@@ -525,10 +525,32 @@ declare global {
 	 * Why a coupon was refused. All bare SCREAMING_SNAKE, matching the `error`
 	 * slot convention for a 4xx.
 	 *
-	 * ⚠️ `COUPON_EXHAUSTED` is reachable at BOTH apply and checkout, and means
-	 * different things: at apply the cap was already full; at checkout it filled
-	 * between the two. A client must handle it on the checkout leg too, where it
-	 * is the one refusal a shopper did nothing to cause.
+	 * ⚠️ Coupon exhaustion is SPLIT BY LEG, and the two codes are not
+	 * interchangeable — see the note below the union for the shopper-facing
+	 * reasoning:
+	 *
+	 *  - the APPLY leg (and the checkout leg's own pre-check) answers
+	 *    `COUPON_EXHAUSTED` — the cap was already known spent when the request
+	 *    was evaluated.
+	 *  - the CHECKOUT leg answers `COUPON_EXHAUSTED_AT_CHECKOUT` when the cap
+	 *    was NOT spent at evaluation and the conditional increment then lost a
+	 *    race. Applying a coupon consumes no redemption, so this one is
+	 *    structurally unreachable at apply.
+	 *
+	 * A client must handle exhaustion on the checkout leg too, where it is the
+	 * one refusal a shopper did nothing to cause — but it must branch on the
+	 * `_AT_CHECKOUT` member for that case, not on `COUPON_EXHAUSTED`.
+	 *
+	 * ⚠️ **The api half of the split is NOT implemented yet, so the wire does
+	 * not currently emit `COUPON_EXHAUSTED_AT_CHECKOUT` at all.** The
+	 * checkout-leg redemption path answers plain `COUPON_EXHAUSTED` from both
+	 * of its conditional-check-failed catches. This member's presence in the
+	 * union is therefore the INTENT, not evidence of an emitter — do not read
+	 * it as "the server sends this today", and do not remove it either: it is
+	 * already branched on by shipped `app` and `storefront` code, so the
+	 * incomplete half is the handler's, not the clients'. A consumer that
+	 * exhaustively maps this union (the established pattern in both clients)
+	 * keeps working unchanged the day the emitter lands.
 	 */
 	type CouponRefusal =
 		| 'COUPON_NOT_FOUND'
@@ -589,6 +611,12 @@ declare global {
 	 *
 	 * Only the checkout leg can emit the second one — applying a coupon does not
 	 * consume a redemption, so there is no race to lose there.
+	 *
+	 * ⚠️ Still UNEMITTED on the wire: the checkout leg answers plain
+	 * `COUPON_EXHAUSTED` for the lost race as well, which is precisely the
+	 * "blames the shopper" copy the split exists to avoid. Stated at the union
+	 * above; repeated here because this is the note that reads as a description
+	 * of shipped behaviour.
 	 */
 
 	/**

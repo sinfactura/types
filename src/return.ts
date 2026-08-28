@@ -100,6 +100,26 @@ declare global {
 	 *   fully-credited FAC refuses every further return NC.
 	 * - `CBTE_ASOC_NOT_FOUND` — no factura on the order matches the resolved
 	 *   `cbte_numero`.
+	 * - `CBTE_ASOC_NOT_CREDITABLE` — the matched voucher's own CbteTipo has no
+	 *   determinate credit-note class (a Factura E, an FCE voucher, an
+	 *   export/FCE ND — anything outside `NC_FOR_DOMESTIC_VOUCHER_CLASS`).
+	 *   ⚠️ **PERMANENT, and the only member whose permanence is a property of
+	 *   the VOUCHER rather than of a cap or a cause that could clear.** No
+	 *   operator action brings it back: the invoice being credited is the wrong
+	 *   KIND of invoice, so retrying the identical request can only ever produce
+	 *   the identical refusal. Retryability is encoded consumer-side —
+	 *   `app`'s `NC_ERROR_RETRYABLE` (`src/domain/orderReturn.ts`) is a
+	 *   `Record<ReturnCreditNoteErrorCode, boolean>` written so that a code
+	 *   added here fails that build rather than falling through — and this
+	 *   member is `false` there.
+	 *   ⚠️ It was emitted for one published version WITHOUT being a member of
+	 *   this union, and the failure mode is exactly the one the api's own
+	 *   `KNOWN_ASSOCIATION_CODES` comment predicted for a different cause: a
+	 *   code absent from a set typed by this union collapses through
+	 *   `toReturnCreditNoteErrorCode` to `NC_EMISSION_FAILED`, whose shopper/
+	 *   operator copy is "revisá los datos e intentá de nuevo" — inviting a
+	 *   retry that cannot succeed. Adding a code to the emitter without adding
+	 *   it here does not fail any build; nothing but this docblock guards it.
 	 * - `PARTIAL_NC_INVALID_SUBSET` — billed subset out of range,
 	 *   over-quantity, or repeats a line index.
 	 * - `PARTIAL_NC_REQUIRES_CBTE` — `partialItems` sent with no
@@ -111,6 +131,7 @@ declare global {
 		| 'NC_MULTI_FAC_UNSUPPORTED'
 		| 'NC_EXCEEDS_FAC_TOTAL'
 		| 'CBTE_ASOC_NOT_FOUND'
+		| 'CBTE_ASOC_NOT_CREDITABLE'
 		| 'PARTIAL_NC_INVALID_SUBSET'
 		| 'PARTIAL_NC_REQUIRES_CBTE'
 		| 'NC_EMISSION_FAILED';
