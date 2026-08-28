@@ -229,11 +229,12 @@ declare global {
 	 *
 	 * ⚠️ `issuedAt`, `expiresAt` and `revokedAt` are **Unix SECONDS**, not
 	 * milliseconds — they are written as `Math.floor(Date.now() / 1000)`. The
-	 * sibling `GET /auth?mode=login-history` row on the SAME `/auth` path
-	 * carries `createdAt` in **milliseconds**, and a customer security screen
-	 * typically renders both lists side by side. Passing these three straight to
-	 * a `Date` constructor dates every session to January 1970; multiply by
-	 * 1000 here, and do NOT multiply the login-history value.
+	 * sibling `CustomerLoginAttempt` row from `GET /auth?mode=login-history`,
+	 * on the SAME `/auth` path, carries `createdAt` in **milliseconds**, and a
+	 * customer security screen typically renders both lists side by side.
+	 * Passing these three straight to a `Date` constructor dates every session
+	 * to January 1970; multiply by 1000 here, and do NOT multiply the
+	 * login-history value.
 	 *
 	 * `userAgent` and `ip` are OPTIONAL, not empty strings: the writer omits
 	 * each attribute entirely when it had no value at login time, so a real row
@@ -345,6 +346,135 @@ declare global {
 		revokedCount: number;
 		/** Always `true` on a 200 — an incomplete sweep answers 502 instead. */
 		complete: true;
+	}
+
+	/**
+	 * How one recorded login attempt ended. The discriminator on
+	 * `CustomerLoginAttempt`.
+	 *
+	 * - `success` — authenticated.
+	 * - `wrong_password` — credentials rejected.
+	 * - `disabled` — the account exists but is disabled.
+	 * - `blocked` — brute-force lockout on the password leg; the attempt was
+	 *   refused before the credentials were checked.
+	 * - `requires_2fa` — password accepted, TOTP step-up issued. NOT a
+	 *   completed login: a run of these with no following `success` means
+	 *   somebody holds the password and stalled at the second factor.
+	 * - `wrong_totp` — the step-up code was wrong.
+	 * - `totp_replay` — an already-used code was presented again and rejected.
+	 * - `totp_locked` — brute-force lockout active on the TOTP leg.
+	 */
+	type LoginOutcome =
+		| 'success'
+		| 'wrong_password'
+		| 'disabled'
+		| 'blocked'
+		| 'requires_2fa'
+		| 'wrong_totp'
+		| 'totp_replay'
+		| 'totp_locked';
+
+	/**
+	 * One row of `GET /auth?mode=login-history[&days=N]` — a storefront
+	 * customer's own login audit trail. The stored row reaches the wire
+	 * unmapped (only the DynamoDB keys are dropped), so this is the row shape,
+	 * not a projection of it.
+	 *
+	 * ⚠️ MIXED TIME UNITS in one row. `createdAt` is **Unix MILLISECONDS**
+	 * (`Date.now()`), while `ttl` is **Unix SECONDS** because it is a DynamoDB
+	 * TTL attribute. And the sessions row on the SAME `/auth` path
+	 * (`CustomerSession.issuedAt`/`expiresAt`/`revokedAt`) is **Unix SECONDS**.
+	 * One storefront security screen renders both lists, so the same helper
+	 * cannot format both: multiply the session timestamps by 1000, pass
+	 * `createdAt` to a `Date` directly.
+	 *
+	 * ⚠️ AN EMPTY HISTORY IS NOT PROOF THAT NOTHING WAS ATTEMPTED. Attempts on
+	 * an unknown email are deliberately NOT recorded — a documented anti-DoS
+	 * choice, since recording them would let anyone grow an unbounded partition
+	 * for an account that does not exist — and neither is any leg that resolved
+	 * no single principal to attribute the row to. Never render "no login
+	 * attempts" as "nobody tried".
+	 *
+	 * `jti` is the same identifier as `CustomerSession.jti`, so a `success` row
+	 * can be joined to the session it created — that is how a customer tells
+	 * "this unfamiliar sign-in is the device still listed as live" from "it has
+	 * since expired".
+	 */
+	interface CustomerLoginAttempt {
+		outcome: LoginOutcome;
+		/** Unix MILLISECONDS. */
+		createdAt: number;
+		/** Absent when the attempt recorded no client IP. */
+		ip?: string;
+		/** Absent when the attempt recorded no user agent. */
+		userAgent?: string;
+		/** Client build string, when the caller sent one. */
+		clientVersion?: string;
+		/**
+		 * The refresh token id this attempt minted. Present on `success` rows
+		 * only, and joins to `CustomerSession.jti`.
+		 */
+		jti?: string;
+		/**
+		 * Unix SECONDS — a DynamoDB TTL, thirty days after the attempt. Not a
+		 * millisecond timestamp like `createdAt` on the same row.
+		 */
+		ttl?: number;
+		/**
+		 * How the customer authenticated.
+		 *
+		 * ⚠️ OPTIONAL, and the optionality is load-bearing. Writes are
+		 * forward-only: every row recorded before this field shipped has no
+		 * `provider` and never will. A reader MUST treat absence as UNKNOWN.
+		 * Defaulting it to `'password'` mislabels the entire existing history as
+		 * password logins, including every social sign-in already recorded —
+		 * which is the exact opposite of what this field is for.
+		 *
+		 * It exists because the screen's question is "did someone else get in".
+		 * "Somebody signed in" is far weaker than "somebody signed in with
+		 * Google" to a customer who knows they only ever use a password.
+		 *
+		 * ⚠️ Spelled `'password'` here, NOT `'email'`. The already-published
+		 * `CustomerLoggedInEvent.method` union models the same three cases as
+		 * `'email' | 'google' | 'facebook'`, so the analytics value cannot be
+		 * assigned to this field unchanged — map the password-via-Firebase case
+		 * across explicitly rather than reusing the variable.
+		 */
+		provider?: 'google' | 'facebook' | 'password';
+	}
+
+	/**
+	 * `GET /auth?mode=login-history[&days=N]` — the 200 body. `days` is clamped
+	 * server-side to at most 30, which is also the default and the row TTL.
+	 *
+	 * ⚠️ POLARITY, and it is the inverse of its neighbour. `truncated` is TRUE
+	 * when rows are MISSING. The sibling `GET /auth?mode=sessions` on the same
+	 * `/auth` path answers with `complete`, which is TRUE when its list is
+	 * WHOLE. Both flags are root siblings of `data`, both ship today, and one
+	 * screen renders both lists — a consumer that assumes one spelling covers
+	 * the whole endpoint gets the DANGEROUS reading on exactly one of the two,
+	 * because a missing key reads as falsy and falsy means "fine" on one flag
+	 * and "rows are gone" on the other. Read each by its own name.
+	 *
+	 * ⚠️ `truncated: true` here is not routine paging. The read cap is a wide
+	 * multiple of an organic partition, and the partition is written by the
+	 * FAILURE path too — so anyone who can reach the login endpoint for a known
+	 * address can inflate it. Hitting the cap is itself evidence that this
+	 * account has been hammered, which is precisely what the customer opened
+	 * the screen to learn. Surface it as a finding, not as a "load more".
+	 *
+	 * ⚠️ The rows dropped when it truncates are the OLDEST in the window — the
+	 * list is newest-first — and there is no resume cursor. The start of an
+	 * attack is the end that gets lost.
+	 */
+	interface CustomerLoginHistoryResponse {
+		/** Newest first. */
+		data: CustomerLoginAttempt[];
+		/**
+		 * TRUE = rows are MISSING. Inverse polarity to `?mode=sessions`'s
+		 * `complete`.
+		 */
+		truncated: boolean;
 	}
 }
 

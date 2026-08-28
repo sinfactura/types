@@ -7,6 +7,51 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.147
+
+- **feat(auth):** publish the customer login-history row — `LoginOutcome`,
+  `CustomerLoginAttempt`, `CustomerLoginHistoryResponse`. Completes the pair
+  started in 1.10.146: `GET /auth?mode=login-history` returns its rows
+  **unmapped** (only the DynamoDB keys are dropped) and the storefront renders
+  them today with no shared type, the same gap the sessions endpoint had. Both
+  lists live on one security screen.
+- ⚠️ **The polarity inversion now has both halves published, and neither was
+  normalised.** `?mode=login-history` answers `truncated` (TRUE = rows are
+  MISSING); `?mode=sessions` one mode apart on the same path answers `complete`
+  (TRUE = list is WHOLE). Both are root siblings of `data`. A consumer assuming
+  one spelling covers the endpoint gets the dangerous reading on exactly one of
+  the two, because an absent key is falsy and falsy means "fine" on one flag and
+  "rows are gone" on the other.
+- **`truncated: true` is documented as a FINDING, not a "load more".** The read
+  cap is a wide multiple of an organic partition and the partition is written by
+  the FAILURE path too, so anyone who can reach the login endpoint for a known
+  address can inflate it — hitting the cap is itself evidence the account has
+  been hammered. The rows dropped are the OLDEST in the window (newest-first,
+  no resume cursor), so the start of an attack is the end that gets lost.
+- **`provider?: 'google' | 'facebook' | 'password'` is published AHEAD of the
+  api**, which does not yet write it — the publish has to lead the consumption.
+  ⚠️ Optional, and the optionality is load-bearing: writes are forward-only, so
+  every row already recorded has no `provider` and never will. Absence means
+  UNKNOWN. Defaulting it to `'password'` mislabels the entire existing history
+  as password logins, including every social sign-in in it.
+- ⚠️ **It is spelled `'password'`, not `'email'`.** The already-published
+  `CustomerLoggedInEvent.method` models the same three cases as
+  `'email' | 'google' | 'facebook'`, so the analytics value cannot be assigned
+  to this field unchanged — the password-via-Firebase case must be mapped
+  across explicitly. Both spellings now ship; this is documented on the field
+  rather than reconciled, since `method` is an established analytics contract.
+- **Mixed time units, twice over, documented on both types.**
+  `CustomerLoginAttempt.createdAt` is Unix **milliseconds** while its own `ttl`
+  is Unix **seconds** (a DynamoDB TTL), and `CustomerSession`'s three timestamps
+  are Unix **seconds**. One screen, three unit conventions.
+- **An empty history is not proof that nothing was attempted** — attempts on an
+  unknown email are deliberately not recorded (an anti-DoS choice), nor is any
+  leg that resolved no single principal. Never render "no login attempts" as
+  "nobody tried".
+- `jti` on a `success` row joins to `CustomerSession.jti`, which is how a
+  customer tells an unfamiliar sign-in that is still live from one that has
+  since expired.
+
 ## 1.10.146
 
 - **feat(auth):** publish the customer session/device shapes the storefront's
