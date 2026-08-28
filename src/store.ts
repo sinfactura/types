@@ -824,6 +824,31 @@ declare global {
     actividades?: number[] | null;
   }
 
+  // Config PATCH write shape
+
+  /**
+   * Write shape for the `config` key of `PATCH /store`'s body. Two things the
+   * read-side `Store['config']` cannot say, both WRITE-ONLY:
+   *
+   * - it is **partial** — a PATCH sends only the leaves it is changing, while the
+   *   read side declares `priceDecimals`/`stock`/`changePrice` as always present;
+   * - `maxLineDiscountPercent` additionally accepts `null` to mean **clear it**.
+   *   The BE deletes the leaf rather than ever persisting a DynamoDB `null`, so
+   *   the read side is correctly `number | undefined` and must stay that way.
+   *
+   * Same convention as `MercadolibrePatchInput`/`AfipPatchInput` above. Prefer
+   * this over `Partial<Store['config']>` for PATCH bodies.
+   *
+   * ⚠️ Omitting the key keeps the stored ceiling; **emptying a form field is not
+   * a clear**. Only an explicit `null` removes it, and only through this route —
+   * the MANAGER cross-tenant `PUT /platform/stores/{storeId}` declares the field
+   * WITHOUT `null` (see `StoreConfigAdminOverrideInput`) and 400s on one.
+   */
+  type StoreConfigPatchInput = Partial<Omit<Store['config'], 'maxLineDiscountPercent'>> & {
+    /** `null` clears the ceiling; omitted keeps it. Bounded 0-100 inclusive BE-side. */
+    maxLineDiscountPercent?: number | null;
+  };
+
   type StoreAttributeNames = keyof Store;
 
   /**
@@ -841,7 +866,14 @@ declare global {
    * BE; `afip`/`mercadopago` bodies are re-routed to per-leaf integration
    * writes rather than SET wholesale.
    */
-  interface StoreUpdateInput extends Partial<Omit<Store, 'photoData' | 'removePhotoURL'>> {
+  interface StoreUpdateInput
+    extends Partial<Omit<Store, 'photoData' | 'removePhotoURL' | 'config'>> {
+    /**
+     * Partial, and `maxLineDiscountPercent` is nullable to clear it — neither
+     * of which `Partial<Store>['config']` can express, which is why `config`
+     * is omitted from the extends clause above rather than inherited.
+     */
+    config?: StoreConfigPatchInput;
     /** Transient base64 image upload; the BE stores the derived `photoURL`, never this. */
     photoData?: string;
     /** Request-only: asks the BE to delete the current photo. */
@@ -901,6 +933,13 @@ declare global {
       changePrice?: boolean;
       displayCurrency?: string;
       defaultProductCurrency?: string;
+      /**
+       * Ceiling on a single line's discount percentage, 0-100 inclusive.
+       * ⚠️ NOT nullable here: this plane has no clear-a-leaf idiom, so a `null`
+       * is a 400 rather than an instruction. Clearing stays the tenant's own
+       * `PATCH /store` — see `StoreConfigPatchInput`.
+       */
+      maxLineDiscountPercent?: number;
       /** @deprecated Same retirement as `Store['config']['defaultAccountCurrency']` — still accepted by `platform/_storeConfigPut.ts`, no new writers. */
       defaultAccountCurrency?: string;
     };
