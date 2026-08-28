@@ -7,6 +7,54 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.138
+
+- **feat(stock):** the audited stock-adjustment contract — `adjustmentReason`,
+  `adjustmentNote` and `stocktakeId` on both `StockIncomeWrite` and
+  `StockSaleWrite`, the `StockAdjustmentReason` union with its two
+  direction-narrowed variants, the three runtime reason tuples
+  (`STOCK_ADJUSTMENT_REASONS`, `STOCK_INCOME_ADJUSTMENT_REASONS`,
+  `STOCK_SALE_ADJUSTMENT_REASONS`), `MAX_STOCK_ADJUSTMENT_NOTE_BYTES`, and a
+  `StockAdjustedEvent` user-activity variant plus its union member. Purely
+  additive; nothing existing changed shape.
+- **Adjustments ride the two partitions that already exist.** A manual increase
+  is an `INCOME#` row, a manual decrease is a `SALE#` row, and the presence of
+  `adjustmentReason` is the only discriminator — the same rider pattern
+  `returnId` and `serviceOrderId` already use, and for the same reason: on-hand
+  is `Σ INCOME − Σ SALE`, so a rider needs no ledger-reader change at all. A
+  third `ADJUST#` partition would force every reader to learn a third query and
+  a sign convention, and any reader that was missed would silently under-count
+  on-hand instead of failing.
+- **Direction lives in the partition, never in the sign.** `quantity` on an
+  adjustment row is always positive. The two narrowed unions make the compiler
+  refuse a `breakage` that increases stock or a `found` that decreases it, so
+  the rule is checked rather than documented.
+- **The reason set is closed and the note is free text — both, not either.** A
+  category is what makes adjustments aggregatable across a quarter; a note is
+  what makes one adjustment defensible at a stocktake. The note is capped in
+  UTF-8 BYTES, and carries an explicit no-personal-data prohibition: it is
+  operator-authored, nothing scrubs it, and it rides an append-only partition
+  with no TTL.
+- **`stocktakeId` is published before the first adjustment row exists, on
+  purpose.** A correlation id cannot be retrofitted onto rows already written on
+  a forward-only platform, and a stock-count finalise emits many adjustments at
+  once across BOTH partitions. Its documented value shape (1–64 chars of
+  `[A-Za-z0-9_-]`) is chosen so a future server-minted `STK000001` id is legal
+  and rows written before that entity exists stay readable beside rows written
+  after it.
+- **Every new field is optional and its absence is permanent, not a migration
+  gap.** Absent `adjustmentReason` means "this is a purchase, return, sale or
+  service part" — which is what every row written before this release is.
+- `StockAdjustedEvent` deliberately carries NO `stock_before`/`stock_after`. The
+  counter and the ledger are permitted to disagree, so freezing either into an
+  immutable audit row would record a figure the operator may never have been
+  shown. It carries a signed `quantity_delta` instead, plus an optional
+  `counted_quantity` — the physical count that JUSTIFIES the movement, present
+  only alongside `stocktake_id`.
+- It is BE-emitted and is **not** in `UI_ONLY_USER_ACTIVITY_VARIANTS`: the FE
+  must not be able to post a stock adjustment into the audit trail without one
+  having happened.
+
 ## 1.10.137
 
 - **feat(order):** the two-axis order state model — `OrderFulfilmentStatus`

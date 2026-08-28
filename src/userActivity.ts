@@ -275,6 +275,68 @@ declare global {
 		supplier_id?: string;
 	}
 
+	/**
+	 * A manual, audited stock adjustment: shrinkage, breakage, a physical count
+	 * correction, or stock found after being written off. Distinct from
+	 * `Stock Income Created`, which records a PURCHASE — an adjustment buys
+	 * nothing and sells nothing, it reconciles the books to reality.
+	 *
+	 * BE-emitted from the mutating handler, exactly like `Stock Income Created`.
+	 * Never add it to `UI_ONLY_USER_ACTIVITY_VARIANTS`: the FE must not be able
+	 * to POST a stock adjustment into the audit trail without one having
+	 * happened.
+	 */
+	interface StockAdjustedEvent extends UserActivityEventBase {
+		event: 'Stock Adjusted';
+		product_id: string;
+		/**
+		 * SIGNED change applied to on-hand: negative for shrinkage/breakage/a
+		 * count that came out short, positive for found stock/a count that came
+		 * out long. Signed here even though the underlying ledger row always
+		 * carries a positive `quantity` — the ledger encodes direction in which
+		 * partition the row lands in, and an audit reader has no partition to
+		 * look at.
+		 */
+		quantity_delta: number;
+		reason: StockAdjustmentReason;
+		/**
+		 * The operator's free-text justification, if given. Mirrors
+		 * `adjustmentNote` on the ledger row and carries the same prohibition:
+		 * no personal data, ever. This feed is append-only and anti-erasure.
+		 */
+		note?: string;
+		/**
+		 * Groups every adjustment emitted by one physical stock-count session's
+		 * finalise step, mirroring `stocktakeId` on the ledger rows. Absent when
+		 * the operator adjusted a single product directly.
+		 */
+		stocktake_id?: string;
+		/**
+		 * The physical count the operator actually entered, which is the EVIDENCE
+		 * an adjustment is defended with — `quantity_delta` alone says what
+		 * changed but not what was observed. Present only alongside
+		 * `stocktake_id`; absent for a direct adjustment, where nothing was
+		 * counted.
+		 *
+		 * It lives on the audit event and NOT on the ledger row on purpose: the
+		 * row records a movement, this records the act that justified it, and
+		 * this feed is the one with multi-year retention and anti-erasure.
+		 */
+		counted_quantity?: number;
+		/** Unit cost the adjustment is valued at — the product's cost at write time. */
+		cost: number;
+		currency: string;
+		/**
+		 * Deliberately NO `stock_before` / `stock_after`. On-hand has two
+		 * representations in this platform (the `Product.stock` counter and the
+		 * `Σ INCOME − Σ SALE` ledger) which are permitted to disagree, so
+		 * stamping either into an immutable audit row would freeze a figure that
+		 * may not be the one the operator was shown — and the audit trail would
+		 * then be quoted as authoritative for a number it never had. The delta
+		 * is unambiguous under both.
+		 */
+	}
+
 	interface CategoryCreatedEvent extends UserActivityEventBase {
 		event: 'Category Created';
 		category_id: string;
@@ -944,6 +1006,7 @@ declare global {
 		| ProductCreatedEvent
 		| ProductUpdatedEvent
 		| StockIncomeCreatedEvent
+		| StockAdjustedEvent
 		| CategoryCreatedEvent
 		| CategoryUpdatedEvent
 		| BrandCreatedEvent
