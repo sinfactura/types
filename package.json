@@ -12,11 +12,11 @@
     }
   },
   "scripts": {
-    "build": "tsc && tsc -p tsconfig.cjs.json && node -e \"require('fs').writeFileSync('dist/cjs/package.json', JSON.stringify({ type: 'commonjs' }) + '\\n')\"",
+    "build": "node scripts/lowpri.mjs tsc && node scripts/lowpri.mjs tsc -p tsconfig.cjs.json && node -e \"require('fs').writeFileSync('dist/cjs/package.json', JSON.stringify({ type: 'commonjs' }) + '\\n')\"",
     "prepublishOnly": "npm run build",
     "login": "npm login",
     "release": "npm version patch --no-git-tag-version",
-    "lint": "eslint ."
+    "lint": "node scripts/lowpri.mjs eslint ."
   },
   "publishConfig": {
     "access": "public",
