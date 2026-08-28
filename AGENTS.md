@@ -47,6 +47,16 @@ Enforced by ESLint — the local `sinfactura/no-issue-refs-in-comments` rule (wi
 - **`ADR-NNNN` is exempt** — an ADR is in-repo and immutable, so citing one is a stable pointer, not a lookup.
 - **JSDoc must stand alone.** This package is consumed by every service, so its comments _are_ the contract's documentation: state the rule/constraint inline rather than citing a cross-repo issue, which is meaningless from another repo.
 
+## ⚙️ CPU budget on a loaded machine
+
+`yarn build` and `yarn lint` route through `scripts/lowpri.mjs`, which runs `tsc`/`eslint` at a
+reduced macOS QoS class (`taskpolicy -c utility`) whenever the 1-minute load average is above
+half the machine's logical core count — the normal state when several agent sessions are open
+across sibling repos. Below that threshold, in CI, and on Windows it is a transparent
+pass-through. `SINFACTURA_QOS=off` disables it unconditionally; `SINFACTURA_QOS=utility` or
+`=background` forces the clamp regardless of load. See the file's header comment for the
+measurements behind the default.
+
 ## 📁 Type Modules Structure
 
 ```
