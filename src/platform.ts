@@ -673,3 +673,121 @@ export interface MetricPoint {
 	t: number;
 	v: number;
 }
+
+/*
+ * ─────────────────────────────────────────────────────────────────────
+ * Cmd-K telemetry — `GET /platform/cmdk-stats` and its per-tenant
+ * drilldown (`/tenant/{storeId}`). Both managerToken, Ops API.
+ *
+ * ⚠️ **`truncated` is a ROOT sibling of `data`, not a field inside it** —
+ * see the two response envelopes at the bottom of this block. It is also
+ * NOT routine paging: both handlers read the whole telemetry partition in
+ * one pass against a fixed row cap and there is no resume cursor, so
+ * `truncated: true` means the figures below UNDERSTATE the platform and
+ * cannot be completed by asking again. Render it as a caveat on the
+ * numbers, never as a "load more".
+ *
+ * ⚠️ Every panel is computed in the Lambda from a single full-partition
+ * read, so `week` is a FILTER applied after the fact rather than a query
+ * bound. `week: null` means "all weeks the partition still holds", and
+ * `weeksAvailable` is the set actually present — a week absent from it has
+ * no data rather than zero usage.
+ * ─────────────────────────────────────────────────────────────────────
+ */
+
+/** Platform-wide totals for the selected week (or for all retained weeks). */
+export interface CmdkOverview {
+	totalOpens: number;
+	totalVerbUsages: number;
+	totalQueryTyped: number;
+	distinctStores: number;
+	distinctVerbs: number;
+}
+
+/** One command and how often it was invoked. `actionId` is the FE's own verb id. */
+export interface CmdkVerbCount {
+	actionId: string;
+	count: number;
+}
+
+/**
+ * The least-used commands.
+ *
+ * ⚠️ **This is NOT "verbs with zero use", and reading it that way inverts
+ * it.** The API has no view of the FE's command catalog — it only sees verbs
+ * that were actually invoked — so it reports the least-used among verbs that
+ * appear at least once. A command nobody has ever run is INVISIBLE here.
+ *
+ * ⚠️ **`lowSample: true` is a refusal to answer, and it returns `verbs: []`.**
+ * Below `minDistinctStores` contributing stores, per-verb usage is dominated
+ * by one or two operators' individual habits rather than platform behaviour,
+ * so "dead verb" would mean "a command this one person doesn't happen to
+ * use". An empty `verbs` under `lowSample` must never render as "every
+ * command gets used" — it means the question was not answerable.
+ */
+export interface CmdkDeadVerbs {
+	lowSample: boolean;
+	/** The threshold that produced `lowSample`. */
+	minDistinctStores: number;
+	/** How many stores actually contributed rows. */
+	distinctStores: number;
+	verbs: CmdkVerbCount[];
+}
+
+/** One bucket of the "how long was the query when a verb fired" histogram. */
+export interface CmdkQlenBucket {
+	bucket: number;
+	count: number;
+}
+
+/** Per-tenant totals, as listed on the platform dashboard. */
+export interface CmdkTenantSummary {
+	storeId: string;
+	totalOpens: number;
+	totalVerbUsages: number;
+	totalQueryTyped: number;
+}
+
+/** One tenant's totals plus its own verb and query-length breakdowns. */
+export interface CmdkTenantDrilldown extends CmdkTenantSummary {
+	verbs: CmdkVerbCount[];
+	qlen: CmdkQlenBucket[];
+}
+
+/** `data` of `GET /platform/cmdk-stats`. */
+export interface CmdkStatsData {
+	/** The `YYYY-Www` filter that was applied, or `null` for all retained weeks. */
+	week: string | null;
+	/** Every ISO week the partition still holds, ascending. */
+	weeksAvailable: string[];
+	overview: CmdkOverview;
+	topVerbs: CmdkVerbCount[];
+	deadVerbs: CmdkDeadVerbs;
+	qlen: CmdkQlenBucket[];
+	tenants: CmdkTenantSummary[];
+}
+
+/** `data` of `GET /platform/cmdk-stats/tenant/{storeId}`. */
+export type CmdkTenantStatsData = CmdkTenantDrilldown & {
+	/** The `YYYY-Www` filter that was applied, or `null` for all retained weeks. */
+	week: string | null;
+};
+
+/**
+ * `GET /platform/cmdk-stats` response.
+ *
+ * ⚠️ `truncated` sits HERE, beside `data` — not inside it. See the block
+ * comment above for why it is a completeness caveat and not a paging signal.
+ */
+export interface CmdkStatsResponse {
+	message: string;
+	data: CmdkStatsData;
+	truncated: boolean;
+}
+
+/** `GET /platform/cmdk-stats/tenant/{storeId}` response. Same `truncated` contract. */
+export interface CmdkTenantStatsResponse {
+	message: string;
+	data: CmdkTenantStatsData;
+	truncated: boolean;
+}
