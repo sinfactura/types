@@ -11,18 +11,24 @@ Any repo that imports `sinfactura-types` must stay green against a new release:
 | Repo                                                                | Channel                   |
 | ------------------------------------------------------------------- | ------------------------- |
 | [`sinfactura/api`](https://github.com/sinfactura/api)               | npm, **exact** pin        |
-| [`sinfactura/app`](https://github.com/sinfactura/app)               | npm, **exact** pin        |
+| [`sinfactura/app`](https://github.com/sinfactura/app)               | npm, caret range — see ⚠️ |
 | [`sinfactura/storefront`](https://github.com/sinfactura/storefront) | npm, caret range — see ⚠️ |
 | [`sinfactura/mobile`](https://github.com/sinfactura/mobile)         | npm, **exact** pin        |
 | [`sinfactura/landing`](https://github.com/sinfactura/landing)       | none — no dependency      |
 
-> ⚠️ **`storefront` is the one caret pin (`^1.8.2`), and that is a latent hazard.**
-> Yarn Berry holds it at exactly 1.8.2 in `yarn.lock`, so it has NOT silently
-> taken anything since — but the next `yarn up sinfactura-types` or lockfile
-> regeneration jumps it 1.8.2 → latest in one hop, crossing every reshape in
-> between (e.g. 1.9.0 narrowed `Order.returns` and renamed `OrderAudit`) with no
-> per-version gate. It survives today only because it touches none of those
-> fields. Move it to an exact pin when it next needs a bump.
+> ⚠️ **TWO consumers pin by caret, and that is a latent hazard.** Do not read
+> any version number in this note as current — read the consumer's own `package.json`
+> at decision time; this note has already gone stale once (it claimed storefront
+> was the ONLY caret pin, at `^1.8.2`, long after `app` had become one too). Yarn
+> Berry holds a caret at whatever its `yarn.lock` resolved to, so neither has
+> silently taken anything — but the next `yarn up sinfactura-types` or lockfile
+> regeneration jumps it to `latest` in one hop, crossing every reshape in between
+> (e.g. 1.9.0 narrowed `Order.returns` and renamed `OrderAudit`) with no
+> per-version gate. Move each to an exact pin when it next needs a bump.
+>
+> The flip side is the reason a publish is not a delivery: a caret consumer only
+> picks a new field up when it re-resolves, so "published" never means "the
+> consumer can see it".
 
 > **Ownership.** `api/` is the canonical author of schema-shaped contracts
 > (DynamoDB entities, REST/WSS wire shapes, event unions). `app`, `web`, and
