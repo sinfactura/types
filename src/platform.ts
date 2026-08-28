@@ -183,6 +183,101 @@ export interface TenantHealthEnvelope {
 	maintenance: { active: boolean; scope: 'platform' | 'store' | null };
 }
 
+
+/**
+ * Why ONE tenant's row on a cross-tenant roll-up is missing data, on a walk
+ * that otherwise completed.
+ *
+ * ⚠️ A page-level flag cannot express this and must not be added instead. Both
+ * roll-ups walk the `PK='STORE'` partition and are RESUMABLE, so page
+ * truncation is answered by `LastEvaluatedKey` — a cursor the grid can actually
+ * finish the walk with, rather than a boolean it can only warn about. This
+ * marker is the other case entirely: the walk finished, the row is present, and
+ * one tenant's data is missing anyway. A page-level `complete: true` beside such
+ * a row is a confidently wrong answer.
+ *
+ * A CLOSED set, not a free string: the grid renders a different explanation per
+ * value, and a widened `string` would let a new failure path ship a code no
+ * consumer handles.
+ *
+ * `SUBSCRIPTION_READ_UNRESOLVED` is the subtlest and the reason this type
+ * exists. The batched subscription read retries `UnprocessedKeys` with bounded
+ * backoff and then gives up; a tenant lost that way is simply ABSENT from the
+ * result, which is indistinguishable from a tenant that genuinely has no
+ * subscription row — and that absence resolves to the documented
+ * profesional/active default. Without this marker a throttled read renders as a
+ * healthy tenant.
+ */
+export type TenantRollupRowError = 'SUBSCRIPTION_READ_UNRESOLVED' | 'USAGE_READ_FAILED';
+
+/**
+ * One row of `GET /tenants/health` — the cross-tenant health grid.
+ *
+ * Deliberately the per-tenant envelope PLUS the two things a grid needs that a
+ * single-tenant read does not: a display `name`, and the per-row failure
+ * marker. Extending rather than restating is the point — a hand-copied mirror
+ * of `TenantHealthEnvelope` is exactly how a roll-up and its per-tenant sibling
+ * drift while both keep compiling.
+ *
+ * ⚠️ Inherits the envelope's allow-list guarantee: every field is a boolean, an
+ * epoch or a small enum DERIVED from a row, and no part of a STORE row is
+ * echoed. The roll-up goes further than its sibling at the read itself — it
+ * projects the STORE query down to the handful of paths it needs, so the AFIP
+ * private key and the MercadoPago OAuth tokens never enter the process at all.
+ */
+export interface TenantHealthRollupRow extends TenantHealthEnvelope {
+	/** `Store.name`. */
+	name: string;
+	/** Absent on success. */
+	rowError?: TenantRollupRowError;
+}
+
+/**
+ * One row of `GET /tenants/usage` — the cross-tenant "usage vs plan limits"
+ * grid.
+ *
+ * ⚠️ The meters carry a RESOLVED `limit`, not just a counter. The per-tenant
+ * `GET /tenants/{storeId}/usage` returns `{ key, current }` with no denominator,
+ * and on a grid that is not a shortcut a consumer can take: filling the
+ * denominators client-side would mean resolving entitlements per tenant from
+ * the browser — the unbounded fan-out this endpoint exists to prevent,
+ * reintroduced one layer up. The limit is plan template PLUS per-store
+ * override, resolved api-side.
+ *
+ * `-1` in a `limit` means UNLIMITED, matching `StoreEntitlementOverride`. No new
+ * sentinel was introduced.
+ */
+export interface TenantUsageRollupRow {
+	storeId: string;
+	/** `Store.name`. */
+	name: string;
+	/** `null` when the tenant has no SUBSCRIPTION row at all. */
+	planTier: PlanTier | null;
+	status: SubscriptionStatus | null;
+	/** `YYYYMM`, Buenos Aires reckoning — the period the `metered` counters cover. */
+	period: string;
+	/**
+	 * The monthly counters, which RESET at the period boundary. A tenant at 95%
+	 * here is a forecast: worst case they wait a few days.
+	 */
+	metered: SubscriptionUsageEntry[];
+	/**
+	 * The lifetime caps — `maxProducts` / `maxCustomers` / `maxUsers`, whose
+	 * entries carry `period: null` because they never reset. A tenant at one of
+	 * these is ALREADY BLOCKED, right now, with no path out but an upgrade or an
+	 * override, which is why the harder half is here at all.
+	 *
+	 * ⚠️ OPTIONAL, and absence means "not resolved in this pass" — never "zero".
+	 * Render it when present and em-dash it when absent, the same treatment
+	 * `lastActivityAt` gets elsewhere. Declared optional from the start so that
+	 * populating it later is a DATA change rather than a layout change or a
+	 * contract break.
+	 */
+	lifetime?: SubscriptionUsageEntry[];
+	/** Absent on success. */
+	rowError?: TenantRollupRowError;
+}
+
 /** One operator-authored internal note about a tenant. NEVER tenant-facing. */
 export interface StoreNoteAuthor {
 	userId: string;

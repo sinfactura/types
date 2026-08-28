@@ -7,6 +7,29 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.151
+
+- **feat(platform):** add `TenantRollupRowError`, `TenantHealthRollupRow` and
+  `TenantUsageRollupRow` — the two row shapes behind the operator's
+  cross-tenant health and usage grids.
+- `TenantHealthRollupRow` **extends** `TenantHealthEnvelope` rather than
+  restating it, adding only `name` and the per-row marker. A hand-copied mirror
+  is how a roll-up and its per-tenant sibling drift while both keep compiling.
+- `TenantUsageRollupRow` reuses the published `SubscriptionUsageEntry` for its
+  meters, so a roll-up meter and a `GET /subscription` meter are one shape. Its
+  `limit` is the RESOLVED plan-plus-override value, not a bare counter: the
+  per-tenant usage read returns no denominator, and filling denominators
+  client-side would be the per-tenant fan-out a roll-up exists to prevent.
+- ⚠️ `lifetime` is **optional from the start, and absence means "not resolved in
+  this pass" — never "zero"**. The lifetime caps read off a second source
+  (`STORE.stats`), so declaring the block optional makes populating it later a
+  data change rather than a layout change or a contract break.
+- ⚠️ **Per-row marker, never a page-level flag.** Both walks are single-partition
+  and RESUMABLE, so truncation is answered by `LastEvaluatedKey`. The marker
+  covers the other case: the walk finished, the row is present, and one tenant's
+  data is missing anyway.
+- **Types only.** No runtime contract.
+
 ## 1.10.150
 
 - **feat(subscription):** add the `storefront` member to `FeatureKey`, gating
