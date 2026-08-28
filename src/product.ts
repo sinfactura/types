@@ -42,16 +42,22 @@ declare global {
 		 * service parts, search) are UNAFFECTED and keep seeing it regardless
 		 * of this flag.
 		 *
-		 * ⚠️ It is NOT read-only, and that is the half the name hides: the flag
-		 * also REFUSES THE SALE with a 409 `PRODUCT_NOT_AVAILABLE`, through the
-		 * api's shared `findHiddenProductIds` eligibility pass, on three order
-		 * paths — the operator/POS checkout (`stacks/lambdas/orders/_post.ts:900`),
-		 * the storefront checkout (`stacks/web/lambdas/orders/_post.ts:200`) and
-		 * service-order delivery (`stacks/lambdas/services/_deliverOrder.ts:543`).
-		 * A fourth, `stacks/lambdas/orders/_edit.ts`, carries no pass yet and is a
-		 * known gap: it must refuse what an edit ADDS or INCREASES. So a hidden
-		 * product is today unsellable at the counter too, which is rarely what the
-		 * operator meant — that is the whole reason `sellableOn` exists.
+		 * ⚠️ It is NOT read-only, and that is the half the name hides: it also
+		 * REFUSES THE SALE with a 409 `PRODUCT_NOT_AVAILABLE` — but only as the
+		 * DERIVATION SOURCE now, never directly. The api's shared eligibility
+		 * pass is `findIneligibleProductIds` (`stacks/helpers/saleEligibility.ts`),
+		 * it resolves `sellableOn` rather than reading this flag, and it binds
+		 * four order paths, each passing its own channel literal: the operator/POS
+		 * checkout and `POST /orders mode=edit` (`'counter'`), the storefront
+		 * checkout (`'storefront'`), and service-order delivery (`'service'`).
+		 * Cite the SYMBOL, not a line — the pass moved once already and every line
+		 * number this docblock used to carry sent a reader to nothing.
+		 *
+		 * The consequence for a LEGACY row is unchanged and deliberately so: with
+		 * no `sellableOn`, hidden still derives to "sellable nowhere", so such a
+		 * product remains unsellable at the counter too. That was rarely what the
+		 * operator meant, and it is the whole reason `sellableOn` exists — but the
+		 * fix is to WRITE the capability list, never to reinterpret this flag.
 		 *
 		 * `sellableOn` SUPERSEDES this flag for SELLABILITY: read it, not this, to
 		 * answer "may this be sold here". `hiddenFromStorefront` keeps owning
