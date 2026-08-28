@@ -141,25 +141,61 @@ declare global {
 	 */
 	type VerifyInviteResponse = VerifyInvitePendingResponse | VerifyInviteClosedResponse;
 
-	/** `POST /auth?mode=acceptInvite` request body. */
+	/**
+	 * `POST /auth {mode:'accept-invite'}` request body — exactly the three fields
+	 * `acceptInviteSchema` accepts (`stacks/lambdas/auth/_acceptInvite.ts:45-49`),
+	 * and no more.
+	 *
+	 * ⚠️ A `phone?` was published here through 1.10.138 and has never existed on
+	 * the wire: the schema is not `.loose()`, so the field was undeliverable, and
+	 * the app's mutation has always sent only these three. `token` is the 64-char
+	 * invitation token. There is deliberately NO `email` — it is read off the
+	 * INVITATION row server-side, so an invitee cannot redirect an invite to an
+	 * address it was not issued to.
+	 */
 	interface AcceptInviteInput {
 		token: string;
 		fullName: string;
 		password: string;
-		phone?: string;
 	}
 
 	/**
-	 * `INVITE_INVALID` collapses every non-accepting `VerifyInviteStatus` on the
-	 * accept path on purpose — by then the client has already seen the precise
-	 * status from `verify-invite`, and a second, more specific answer here would
-	 * turn accept into the probe `verify-invite` was shaped to avoid.
+	 * The `body.error` codes `POST /auth {mode:'accept-invite'}` can actually
+	 * return, each verified against a return site in
+	 * `stacks/lambdas/auth/_acceptInvite.ts`:
+	 *
+	 * - `VALIDATION_FAILED` (400) — `validateRequest` rejected the body against
+	 *   `acceptInviteSchema`; also the WEAK-PASSWORD case, since the minimum is a
+	 *   schema clause (`password: z.string().min(8)`) rather than its own code.
+	 * - `EMAIL_ALREADY_MEMBER` (400) — the invited address already belongs to a
+	 *   user (`:141`, from the email-constraint transaction collision).
+	 * - `INVITATION_NOT_FOUND` (404) — no such token, or the invitation's own
+	 *   store vanished mid-flight (`:145`, `:182`).
+	 * - `INVITATION_NOT_PENDING` (409) — already accepted, revoked or expired,
+	 *   including losing the accept race to a concurrent request (`:150`, `:188`).
+	 * - `INVALID_ROLE` (403) — the stored role is one this anonymous route
+	 *   refuses to grant; the invitation is BURNED as well as refused (`:208`).
+	 * - `PLAN_LIMIT_EXCEEDED` (403) — the seat cap re-check found no room (`:76`).
+	 *   Carries `feature`/`current`/`limit` alongside, unlike the others.
+	 *
+	 * ⚠️ Through 1.10.138 this union was `INVITE_INVALID | EMAIL_ALREADY_REGISTERED
+	 * | SEAT_LIMIT_REACHED | WEAK_PASSWORD` — four names sharing ZERO members with
+	 * what the handler emits, so a consumer switching on them matched nothing and
+	 * fell through to a generic error while compiling clean. This is a correction
+	 * of a contract that was never real, not a migration: nothing consumed the old
+	 * names.
+	 *
+	 * Not-found and real-but-expired deliberately collapse to the same 404 body as
+	 * `verify-invite`, so accept cannot be used as a finer-grained probe than the
+	 * pre-check already is.
 	 */
 	type AcceptInviteErrorCode =
-		| 'INVITE_INVALID'
-		| 'EMAIL_ALREADY_REGISTERED'
-		| 'SEAT_LIMIT_REACHED'
-		| 'WEAK_PASSWORD';
+		| 'VALIDATION_FAILED'
+		| 'EMAIL_ALREADY_MEMBER'
+		| 'INVITATION_NOT_FOUND'
+		| 'INVITATION_NOT_PENDING'
+		| 'INVALID_ROLE'
+		| 'PLAN_LIMIT_EXCEEDED';
 
 	/**
 	 * Success shape — acceptance logs the new user straight in, so this is a

@@ -7,6 +7,53 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.139
+
+- **feat(product):** `SaleChannel` (`'storefront' | 'counter' | 'service' |
+  'marketplace'`) and `Product.sellableOn?: SaleChannel[]` — per-channel
+  sellability as a CAPABILITY list, not an enum. An enum forbids
+  `['service','counter']` (a part you fit AND sell over the counter), which in a
+  repair shop is the normal case rather than an edge.
+- **Three states, all distinct.** ABSENT is derived from `hiddenFromStorefront`
+  (`[]` if hidden, every channel otherwise) — the forward-only rule, so every
+  pre-existing row keeps its exact current behaviour and nothing is backfilled.
+  `[]` is a LEGAL explicit value meaning "nowhere", and is NOT the same as
+  absent; a reader collapsing the two makes an explicit refusal sell everywhere.
+- **Adding a channel later is fail-closed.** A member added to the union is NOT
+  retroactively granted to a row already carrying an explicit list — absence
+  from the list reads as "the merchant has not said yes". That property is the
+  reason a list beat an enum, whose every stored member would need
+  re-interpreting on each addition.
+- **docs(product):** `Product.hiddenFromStorefront`'s docblock described only
+  READ visibility and never mentioned that the flag REFUSES THE SALE with a 409
+  `PRODUCT_NOT_AVAILABLE` on three order paths (operator checkout, storefront
+  checkout, service-order delivery), with a fourth edit path carrying no
+  eligibility pass yet. Amended to name the block, name the gap, and say
+  `sellableOn` supersedes it for sellability while `hiddenFromStorefront` keeps
+  owning visibility. No change to `CartLineDrop.reason` /
+  `CartLineAvailability.reason` — `notOffered` already reads "not sellable on
+  this channel", so the widening is semantics-preserving.
+- **fix(auth):** `AcceptInviteInput.phone` REMOVED — it has never existed on the
+  wire. `acceptInviteSchema` is exactly `{ token, fullName, password }` and is
+  not `.loose()`, so the field was undeliverable; the app has always omitted it.
+- **fix(auth):** `AcceptInviteErrorCode` replaced wholesale. The published union
+  (`INVITE_INVALID | EMAIL_ALREADY_REGISTERED | SEAT_LIMIT_REACHED |
+  WEAK_PASSWORD`) shared ZERO members with what the handler emits, so a consumer
+  switching on it matched nothing and fell through to a generic error while
+  compiling clean. The real six, each verified against its return site:
+  `VALIDATION_FAILED`, `EMAIL_ALREADY_MEMBER`, `INVITATION_NOT_FOUND`,
+  `INVITATION_NOT_PENDING`, `INVALID_ROLE`, `PLAN_LIMIT_EXCEEDED`. A correction
+  of a contract that was never real, not a migration — nothing consumed the old
+  names.
+- **docs(store):** `Store['config']['defaultAccountCurrency']` marked
+  `@deprecated`; `displayCurrency` is the seed going forward and the FE now
+  seeds `Customer.currencyId` from it. RETAINED rather than removed — the
+  platform is forward-only, live rows carry it, and two write paths still accept
+  it. The field does not denominate the Account ledger, which is
+  `displayCurrency`-denominated and backend-enforced. The same tag is added to
+  the `StoreConfigAdminOverrideInput.config` copy. `defaultProductCurrency` is
+  untouched and remains correct.
+
 ## 1.10.138
 
 - **feat(stock):** the audited stock-adjustment contract — `adjustmentReason`,

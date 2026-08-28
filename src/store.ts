@@ -220,6 +220,22 @@ declare global {
       /** Seed catalogId for new Product writes (FE currency-selector default); does not reinterpret existing rows. */
       defaultProductCurrency?: string;
       /**
+       * @deprecated Superseded by `displayCurrency` as the seed. RETAINED, not
+       * removed: the platform is forward-only and live rows carry this field,
+       * so deleting it from the contract would orphan stored data and break the
+       * two write paths that still accept it (`stacks/lambdas/store/_patch.ts:163`
+       * and `stacks/lambdas/platform/_storeConfigPut.ts:136`). Do not add NEW
+       * readers.
+       *
+       * Why it was retired: it was never an independent leaf. It seeded
+       * `Customer.currencyId`, while the balance that customer accrues is
+       * denominated in `displayCurrency` — so any value other than
+       * `displayCurrency` produced customer rows whose stamped currency
+       * disagreed with the denomination their own balance was actually kept in,
+       * with no cross-field guard preventing it. The FE now seeds
+       * `Customer.currencyId` from `displayCurrency` instead, which removes the
+       * disagreement at the source rather than guarding it after the fact.
+       *
        * Seed catalogId offered as the FE currency-selector default when a new
        * customer-facing money row is created. Does not reinterpret existing
        * rows, and — importantly — **does not denominate the Account ledger.**
@@ -882,6 +898,7 @@ declare global {
       changePrice?: boolean;
       displayCurrency?: string;
       defaultProductCurrency?: string;
+      /** @deprecated Same retirement as `Store['config']['defaultAccountCurrency']` — still accepted by `platform/_storeConfigPut.ts`, no new writers. */
       defaultAccountCurrency?: string;
     };
     ecommerce?: Ecommerce;

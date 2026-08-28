@@ -7,6 +7,26 @@ declare global {
 		removePictures?: { url: string }[];
 	};
 
+	/**
+	 * The surfaces a product can be sold on. Deliberately a CAPABILITY list on
+	 * `Product.sellableOn` rather than an enum, so a product can be sellable on
+	 * any subset — `['service','counter']` (a part you fit AND sell over the
+	 * counter) is the normal case in a repair shop, and an enum forbids it.
+	 *
+	 * - `storefront` — the public e-commerce checkout.
+	 * - `counter` — the operator/POS checkout.
+	 * - `service` — parts and labour consumed by a service-order delivery.
+	 * - `marketplace` — external channels (MercadoLibre today), which have never
+	 *   had a server-side sellability predicate at all.
+	 *
+	 * ⚠️ ADDING a member here is fail-closed by construction: a row carrying an
+	 * explicit list does not gain the new channel, and every api call site that
+	 * passes a `SaleChannel` literal must be revisited for the compiler to stay
+	 * green. That is the point — the build breaks at the un-migrated site instead
+	 * of one of them silently defaulting.
+	 */
+	type SaleChannel = 'storefront' | 'counter' | 'service' | 'marketplace';
+
 	interface Product {
 		storeId: string;
 		productId: string;
@@ -14,15 +34,72 @@ declare global {
 		updatedAt: number;
 		disabled: boolean;
 		/**
-		 * Independent of `disabled`. `disabled` means soft-deleted, gone
-		 * everywhere (operator pickers included); this means "real and
-		 * stocked, just not offered on the storefront" — a repair shop's
+		 * Storefront VISIBILITY. Independent of `disabled`: `disabled` means
+		 * soft-deleted, gone everywhere (operator pickers included); this means
+		 * "real and stocked, just not offered on the storefront" — a repair shop's
 		 * spare parts, ingredients, internal-use items. Defaults to visible
-		 * (`undefined`/`false`); operator-side reads (pickers, stock reports,
+		 * (`undefined`/`false`); operator-side READS (pickers, stock reports,
 		 * service parts, search) are UNAFFECTED and keep seeing it regardless
 		 * of this flag.
+		 *
+		 * ⚠️ It is NOT read-only, and that is the half the name hides: the flag
+		 * also REFUSES THE SALE with a 409 `PRODUCT_NOT_AVAILABLE`, through the
+		 * api's shared `findHiddenProductIds` eligibility pass, on three order
+		 * paths — the operator/POS checkout (`stacks/lambdas/orders/_post.ts:900`),
+		 * the storefront checkout (`stacks/web/lambdas/orders/_post.ts:200`) and
+		 * service-order delivery (`stacks/lambdas/services/_deliverOrder.ts:543`).
+		 * A fourth, `stacks/lambdas/orders/_edit.ts`, carries no pass yet and is a
+		 * known gap: it must refuse what an edit ADDS or INCREASES. So a hidden
+		 * product is today unsellable at the counter too, which is rarely what the
+		 * operator meant — that is the whole reason `sellableOn` exists.
+		 *
+		 * `sellableOn` SUPERSEDES this flag for SELLABILITY: read it, not this, to
+		 * answer "may this be sold here". `hiddenFromStorefront` keeps owning
+		 * VISIBILITY — the public catalogue, the direct-link 404 and the shopper
+		 * broadcast suppression — and stays the derivation source for a row that
+		 * carries no explicit `sellableOn`.
 		 */
 		hiddenFromStorefront?: boolean;
+		/**
+		 * Per-channel sellability — the capability list that supersedes
+		 * `hiddenFromStorefront` for "may this be sold here". Says nothing about
+		 * VISIBILITY, which stays that flag's job.
+		 *
+		 * Three cases, all three load-bearing and distinct:
+		 *
+		 * 1. **Absent** ⇒ DERIVED from `hiddenFromStorefront`: `[]` when hidden,
+		 *    every channel otherwise. This is the forward-only rule — every row
+		 *    written before this field existed keeps its exact current behaviour,
+		 *    and nothing is backfilled. The derivation belongs to ONE exported
+		 *    resolver in the api; a call site that reimplements
+		 *    `sellableOn?.includes(…)` inline reopens the divergence this field was
+		 *    shaped to close.
+		 * 2. **`[]`** ⇒ sellable NOWHERE. A legal explicit value, and NOT the same
+		 *    thing as absent: absent means "pre-model row, ask the old flag",
+		 *    `[]` means "the merchant said no everywhere". A reader that collapses
+		 *    the two with `?.length ? … : ALL` makes an explicit refusal sell
+		 *    everywhere.
+		 * 3. A channel **added to the union later** is NOT retroactively granted to
+		 *    a row that already carries an explicit list — absence from the list is
+		 *    "the merchant has not said yes", so a new channel starts closed. This
+		 *    is the property that makes the shape fail closed, and it is why a list
+		 *    beat an enum: an enum re-interprets every stored member each time a
+		 *    channel is added.
+		 *
+		 * The channel is a CALL-SITE constant, never a request parameter — a
+		 * client-supplied channel would be a straight authorization hole, since any
+		 * caller could claim `'counter'`.
+		 *
+		 * Orthogonal to `isService`, which is a stock-and-fiscal property (no stock
+		 * decrement, ARCA `Concepto`, service period). A repair part is an ORDINARY
+		 * product — `isService: false`, real `stock`, real `cost` — holding
+		 * `sellableOn: ['service']`. "Part" is a capability, not a third kind.
+		 *
+		 * ⚠️ Clearing this on the api needs `removeAttributes`, not
+		 * `fields: { sellableOn: undefined }`, which `dynamoUpdate` silently drops.
+		 * Writers should always write the full list.
+		 */
+		sellableOn?: SaleChannel[];
 		/**
 		 * Lowercase '#'-joined index the api maintains on every write.
 		 *
