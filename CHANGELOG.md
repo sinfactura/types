@@ -7,6 +7,41 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.149
+
+- **feat(pricing):** add the optional `PriceSlot['absolute'].baseAmount` — the
+  PRE-OVERLAY base price a derived absolute slot's `amount` came from, so a
+  storefront strike-through has something true to point at. It is a **display
+  anchor, not a price**: the charged per-unit figure stays `amount`, and nothing
+  may quote, total or externalize `baseAmount`.
+- **Why:** the api's storefront read path materializes an author-time `percent`
+  slot into an `absolute` one (the raw markup must never reach a shopper), and
+  the only figure it has to materialize with is the ALREADY-RESOLVED one — promo
+  applied. So `amount` on a derived slot is post-overlay and the base is
+  unrecoverable, while the cart re-prices the same line from the raw product row
+  and reports the true pre-overlay base as its own `basePrice`. Same product one
+  click apart, two different struck-through figures — a display defect, not a
+  pricing one: both surfaces still CHARGE the same amount, because the resolver's
+  lowest-wins `min` is idempotent over an already-applied promo.
+- ⚠️ **Optional, and absence is ambiguous by design** — it also means "this slot
+  predates the field". Forward-only: nothing is backfilled. A consumer that finds
+  it absent must fall back to its pre-field behaviour, or suppress the
+  strike-through, and must never treat `amount` as the base.
+- ⚠️ **It only ever appears on a slot the api DERIVED from a percent slot.** An
+  author-time `absolute` slot is passed through untouched, its `amount` IS the
+  base, and it legitimately carries no `baseAmount`.
+- ⚠️ **The exact-tie case is what proves a missing field rather than a stricter
+  comparison is the fix.** Base 100 / active promo 80 / break 80 at qty: a
+  consumer asking `promoAmount < amount` gets `80 < 80` → false and shows no sale
+  at all, while the cart line resolves against the true base and strikes 100. No
+  comparison against `amount` reconciles those; anchoring on `baseAmount` does.
+- ⚠️ **Published AHEAD of the api, which does not populate it yet.** The api
+  cannot compile a writer against an unreleased contract, so the publish leads;
+  until the api ships the field every slot is legitimately in the "absent =
+  pre-field" case above, which is exactly the fallback consumers must already
+  honour. `baseAmount` is a COMPILE-time contract only — the api's Zod mirrors
+  stay in the api.
+
 ## 1.10.148
 
 - **feat(auth):** publish the customer sign-in-methods contract —
