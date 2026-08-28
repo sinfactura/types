@@ -541,16 +541,27 @@ declare global {
 	 * one refusal a shopper did nothing to cause — but it must branch on the
 	 * `_AT_CHECKOUT` member for that case, not on `COUPON_EXHAUSTED`.
 	 *
-	 * ⚠️ **The api half of the split is NOT implemented yet, so the wire does
-	 * not currently emit `COUPON_EXHAUSTED_AT_CHECKOUT` at all.** The
-	 * checkout-leg redemption path answers plain `COUPON_EXHAUSTED` from both
-	 * of its conditional-check-failed catches. This member's presence in the
-	 * union is therefore the INTENT, not evidence of an emitter — do not read
-	 * it as "the server sends this today", and do not remove it either: it is
-	 * already branched on by shipped `app` and `storefront` code, so the
-	 * incomplete half is the handler's, not the clients'. A consumer that
-	 * exhaustively maps this union (the established pattern in both clients)
-	 * keeps working unchanged the day the emitter lands.
+	 * ⚠️ **The checkout leg's split is by WHOSE allowance ran out, not by which
+	 * conditional write noticed — and only ONE of its two count legs answers
+	 * `_AT_CHECKOUT`.** The redemption path takes two conditional increments and
+	 * each raises a different code:
+	 *
+	 *  - the GLOBAL `maxRedemptions` increment answers
+	 *    `COUPON_EXHAUSTED_AT_CHECKOUT`, because losing that race means ANOTHER
+	 *    shopper took the last redemption while this one was confirming.
+	 *  - the PER-CUSTOMER `maxPerCustomer` increment answers plain
+	 *    `COUPON_EXHAUSTED`, because the only thing that can race a per-customer
+	 *    cap is the SAME shopper submitting twice. "You already used this coupon"
+	 *    is both true and actionable there; telling them somebody else took it
+	 *    would be false.
+	 *
+	 * So `_AT_CHECKOUT` keeps its promise — it is emitted only where the shopper
+	 * genuinely did nothing to cause the refusal. Do not "finish" the split by
+	 * mapping the per-customer leg to it as well.
+	 *
+	 * ⚠️ `COUPON_BUDGET_EXHAUSTED` has no `_AT_CHECKOUT` twin and does not need
+	 * one: a money ceiling is a merchant-set amount, so a shopper who loses that
+	 * race gets the same permanent answer either way.
 	 */
 	type CouponRefusal =
 		| 'COUPON_NOT_FOUND'
