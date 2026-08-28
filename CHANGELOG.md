@@ -7,6 +7,65 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.148
+
+- **feat(auth):** publish the customer sign-in-methods contract —
+  `CustomerSignInProvider`, `CustomerSignInMethodStatus`,
+  `CustomerSignInMethod`, `CustomerSignInMethodsResponse`,
+  `CustomerLinkSignInMethodResult`, `CustomerUnlinkSignInMethodResult`,
+  `SignInMethodErrorCode`, plus the stored `Customer.signInMethods`. It closes
+  a real gap rather than describing one: a social sign-in is resolved by
+  **verified email alone** today and the Firebase UID is read and discarded, so
+  anyone holding a verified Google identity for a customer's address signs in as
+  that customer, linked or not — and Firebase's client-side `providerData`,
+  which is all a consumer can see, describes browser-local state that governs
+  nothing.
+- ⚠️ **Published AHEAD of the api, which has no such modes yet.** The `/auth`
+  router registers no provider read, link or unlink, and nothing anywhere writes
+  provider state — the publish has to lead, because the api cannot compile a
+  handler against an unreleased contract. Same precedent as
+  `CustomerLoginAttempt.provider` in 1.10.147. Consumers must not call these
+  paths until the api ships them.
+- ⚠️ **`status: 'refused'` is why unlink works at all, and it is the subtlest
+  part of the design.** Enforcement cannot switch on at deploy time: every
+  existing customer has no stored methods and, forward-only, never will — so
+  "refuse a provider that is not linked" would lock out the entire installed
+  base on the first request after the deploy. Hence trust-on-first-use (no
+  stored methods → resolve by email as today and record the provider as a side
+  effect; stored methods present → the provider must be among them and the UID
+  must match). An unlink therefore has to record a REFUSAL rather than delete
+  the entry: a deletion returns the row to "nothing stored for that provider",
+  the next sign-in re-adopts it under trust-on-first-use, and **the unlink
+  silently undoes itself** with a 200 and no error anywhere.
+- ⚠️ **The gate closes per CUSTOMER, not per deploy.** Until a given customer's
+  first social sign-in after this ships, their account's resolution is
+  unchanged. A consumer must not present "connected accounts" as a security
+  boundary already in force for everyone.
+- ⚠️ **`methods` exposes LINKED entries only**, so absence on the wire is
+  ambiguous — it covers both never-linked and refused, and only the server
+  distinguishes them. Refused entries are stored state, not something to render.
+- **`hasPassword` is DERIVED, never stored** — "does a usable password
+  credential exist", computed from a hash that is stripped from every response
+  and can never be inspected client-side. `false` is a real and common state (a
+  customer who registered via Google has no password; the operator create path
+  makes one optional). It is also why the last-credential guardrail can only
+  live here: Firebase never sees the password leg, so no client-side "is this my
+  last way in" check can be correct.
+- ⚠️ **The provider union is closed at three while the Firebase project is not.**
+  Enabling Apple or an OIDC connection is a console click; widening this union
+  is a release. Consumers must tolerate an unrecognised provider string.
+- ⚠️ **Short names, not Firebase provider ids** — `'google'`, not
+  `'google.com'`, which is what a browser's `providerData[].providerId` carries.
+  A comparison across the two is always false and throws nothing.
+- **`Customer.signInMethods` is the STORAGE shape and carries refused entries.**
+  The api's CUSTOMER-row sanitizer drops only `login` and `search`, and the auth
+  legs return a whole row — so the first writer of this attribute must add it to
+  that sanitizer, or every refusal and Firebase UID rides out on the
+  login/social/refresh responses.
+- **`CustomerLoginAttempt.provider` now names the shared
+  `CustomerSignInProvider`** instead of repeating its three members inline. Same
+  members, same spellings, identical resolved type — no consumer change.
+
 ## 1.10.147
 
 - **feat(auth):** publish the customer login-history row — `LoginOutcome`,

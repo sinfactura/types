@@ -439,8 +439,12 @@ declare global {
 		 * `'email' | 'google' | 'facebook'`, so the analytics value cannot be
 		 * assigned to this field unchanged — map the password-via-Firebase case
 		 * across explicitly rather than reusing the variable.
+		 *
+		 * Typed as the shared `CustomerSignInProvider`, which is the same three
+		 * members with the same spellings — the union was given a name when the
+		 * connected-accounts contract shipped. The resolved type is unchanged.
 		 */
-		provider?: 'google' | 'facebook' | 'password';
+		provider?: CustomerSignInProvider;
 	}
 
 	/**
@@ -476,6 +480,239 @@ declare global {
 		 */
 		truncated: boolean;
 	}
+
+	// Customer sign-in methods (`/auth` — connected accounts, link, unlink)
+
+	/**
+	 * Which credential a customer signs in with.
+	 *
+	 * ⚠️ THE UNION IS CLOSED AT THREE; FIREBASE'S PROJECT CONFIGURATION IS NOT.
+	 * Which providers are enabled lives in the shared Firebase console, not in
+	 * any repo, so enabling a fourth (Apple, an OIDC connection) makes a sign-in
+	 * reachable that this type cannot name — and it takes a console click, while
+	 * widening this union takes a release. The two are not gated on each other.
+	 * A consumer must therefore tolerate an unrecognised provider string rather
+	 * than treating a `switch` over these three as exhaustive at runtime.
+	 *
+	 * ⚠️ SHORT NAMES, not Firebase provider ids. Firebase spells the same two
+	 * `'google.com'` and `'facebook.com'` — that is what a browser's
+	 * `providerData[].providerId` carries, and what the storefront's own
+	 * `getLinkedProviders()` returns today. A comparison between a value of this
+	 * type and one of those is ALWAYS false and throws nothing; map across
+	 * explicitly at the boundary.
+	 *
+	 * ⚠️ And it is `'password'`, NOT `'email'`. The already-published
+	 * `CustomerLoggedInEvent.method` models the same three cases as
+	 * `'email' | 'google' | 'facebook'`, so neither value is assignable to the
+	 * other's slot. Both spellings ship; this is documented rather than
+	 * reconciled, because `method` is an established analytics contract.
+	 */
+	type CustomerSignInProvider = 'google' | 'facebook' | 'password';
+
+	/**
+	 * Whether a stored sign-in method may be used, or has been explicitly turned
+	 * off by the customer.
+	 *
+	 * ⚠️ `'refused'` IS WHAT MAKES UNLINK WORK, and it is the subtlest part of
+	 * this whole design — the single most likely thing for an implementer or a
+	 * reviewer to get wrong.
+	 *
+	 * Enforcement cannot simply switch on at deploy time. Every customer that
+	 * exists today has NO stored methods and, because writes here are
+	 * forward-only, never will until they sign in again. So a naive "refuse a
+	 * provider that is not linked" would lock out the entire installed base on
+	 * the first request after the deploy. The transition is therefore
+	 * TRUST-ON-FIRST-USE:
+	 *
+	 * - No stored methods → resolve by verified email exactly as today, and
+	 *   RECORD the provider and its Firebase UID as a side effect. Behaviour is
+	 *   unchanged; the row heals itself on first use.
+	 * - Stored methods present → the provider must be among them AND the UID must
+	 *   match. This is the enforcement, and it only ever applies to rows that
+	 *   have already healed.
+	 *
+	 * That is exactly why an unlink must RECORD A REFUSAL rather than deleting
+	 * the entry. If unlink merely removed it, the row would be back to "no
+	 * stored methods for that provider" and the next sign-in would re-add it
+	 * under trust-on-first-use — THE UNLINK WOULD SILENTLY UNDO ITSELF, with a
+	 * 200 on the unlink and no error anywhere to say so. A refused entry is a
+	 * tombstone, and it has to outlive the thing it replaced.
+	 */
+	type CustomerSignInMethodStatus = 'linked' | 'refused';
+
+	/**
+	 * One sign-in method recorded against a customer.
+	 *
+	 * ⚠️ THE GATE CLOSES PER CUSTOMER, NOT PER DEPLOY. Until a given customer's
+	 * first social sign-in after this ships, their account still resolves by
+	 * verified email alone — unchanged from today, where anyone holding a
+	 * verified Google identity for a customer's email address signs in as that
+	 * customer whether or not anything was ever linked. A consumer must NOT
+	 * present a "connected accounts" screen as a security boundary that is
+	 * already in force for everyone; for an account with no stored methods it
+	 * describes what WILL be enforced, not what is.
+	 *
+	 * ⚠️ A `refused` entry is stored state, never rendered — see
+	 * `CustomerSignInMethodsResponse.data.methods`, which carries the LINKED
+	 * entries only.
+	 */
+	interface CustomerSignInMethod {
+		provider: CustomerSignInProvider;
+		/**
+		 * `'linked'` = usable. `'refused'` = explicitly unlinked and must not be
+		 * re-adopted by trust-on-first-use. Read `CustomerSignInMethodStatus` for
+		 * why deleting instead of refusing silently reverses an unlink.
+		 */
+		status: CustomerSignInMethodStatus;
+		/**
+		 * The Firebase UID this provider was seen under, captured from a verified
+		 * ID token at link (or trust-on-first-use) time, and compared on every
+		 * later sign-in with that provider.
+		 *
+		 * ABSENT FOR `'password'`, which never touches Firebase at all — email and
+		 * password sign-in is api-side. Absence is therefore not "not captured
+		 * yet"; for the password method there is no such identifier to capture.
+		 *
+		 * ⚠️ It is an identifier, not a credential — but it is also the only value
+		 * in this shape that is worth withholding. The api's `response()` strips
+		 * credential keys inside `data` and does NOT recurse into nested arrays, so
+		 * nothing credential-bearing (`hash`, `salt`) may ever be added to a
+		 * `CustomerSignInMethod`: it would travel verbatim.
+		 */
+		firebaseUid?: string;
+		/**
+		 * ms-epoch. Absent on an entry created by trust-on-first-use before the
+		 * field was written, and on a `refused` entry that was never explicitly
+		 * linked.
+		 *
+		 * ⚠️ MILLISECONDS, like `CustomerLoginAttempt.createdAt` on the same
+		 * `/auth` path — and UNLIKE `CustomerSession`'s `issuedAt`/`expiresAt`/
+		 * `revokedAt`, which are Unix SECONDS. One storefront security screen
+		 * renders all three lists, so no single date formatter covers them.
+		 */
+		linkedAt?: number;
+		/**
+		 * ms-epoch of the explicit unlink. Set when — and only when — `status`
+		 * becomes `'refused'`; a method that was never unlinked does not carry it.
+		 */
+		refusedAt?: number;
+		/**
+		 * ms-epoch of the most recent sign-in through this provider.
+		 *
+		 * ⚠️ Not a login-history substitute and not a completeness claim: it is
+		 * only ever as old as the first sign-in AFTER this shipped, so a provider
+		 * used for years reads as recently-first-seen. Absent means "not seen
+		 * since this began recording", never "never used".
+		 */
+		lastUsedAt?: number;
+	}
+
+	/**
+	 * The 200 body of the read that answers "how can this account be signed into".
+	 *
+	 * ⚠️ `methods` CARRIES THE LINKED ENTRIES ONLY. Refused entries are stored —
+	 * they have to be, or an unlink undoes itself — and are deliberately not
+	 * exposed. So ABSENCE IS AMBIGUOUS ON THE WIRE and only the server can
+	 * resolve it: a provider missing from this list is either never-linked or
+	 * explicitly-refused. Do not render "never connected" off absence, and do not
+	 * infer that a link attempt will succeed from it.
+	 *
+	 * ⚠️ Note the nesting: `methods` sits under `data`, not at the root beside
+	 * it, unlike `CustomerSessionsResponse.data` / `CustomerLoginHistoryResponse.data`
+	 * which put their array directly at `data`. `hasPassword` is part of the
+	 * answer rather than a flag about it, and keeping both under `data` is also
+	 * what keeps the api's central credential strip (which acts on `data` and one
+	 * level into its values) covering this payload.
+	 */
+	interface CustomerSignInMethodsResponse {
+		data: {
+			/** LINKED entries only. A refused provider is invisible here. */
+			methods: CustomerSignInMethod[];
+			/**
+			 * DERIVED, never stored: "does a usable password credential exist for
+			 * this account". The api computes it from the customer's stored hash,
+			 * which is stripped from every response and can never be inspected
+			 * client-side — which is precisely why this boolean has to exist.
+			 *
+			 * ⚠️ `false` IS A REAL AND COMMON STATE, not an error: a customer who
+			 * registered through Google has no password, and the operator create path
+			 * makes a password optional, so imported customers have none either.
+			 *
+			 * It is also the reason the last-credential guardrail is necessary at
+			 * all. Firebase cannot see this — password sign-in never touches it — so
+			 * no client-side "is this my last way in" check can be correct. Only the
+			 * api sees both halves.
+			 */
+			hasPassword: boolean;
+		};
+	}
+
+	/**
+	 * The 200 body payload of an explicit link.
+	 *
+	 * `linked` is always the literal `true`: a refusal answers 4xx with an
+	 * `error` from `SignInMethodErrorCode` instead, so this field never reports a
+	 * failure and must not be branched on as though it could. Check the status.
+	 */
+	interface CustomerLinkSignInMethodResult {
+		linked: true;
+		provider: CustomerSignInProvider;
+	}
+
+	/**
+	 * The 200 body payload of an explicit unlink.
+	 *
+	 * `unlinked` is always the literal `true` — same contract as
+	 * `CustomerLinkSignInMethodResult.linked`; read the outcome from the status.
+	 *
+	 * ⚠️ A 200 here means the provider was marked REFUSED, not erased. The entry
+	 * survives as a tombstone so that trust-on-first-use cannot re-adopt it, and
+	 * it stops appearing in `CustomerSignInMethodsResponse` — which is why a
+	 * re-read after an unlink shows the same thing a never-linked provider shows.
+	 */
+	interface CustomerUnlinkSignInMethodResult {
+		unlinked: true;
+		provider: CustomerSignInProvider;
+	}
+
+	/**
+	 * `body.error` codes the sign-in-method paths can refuse with.
+	 *
+	 * ⚠️ NO HTTP STATUS IS STATED FOR ANY OF THESE, deliberately — unlike
+	 * `DomainErrorCode`, whose codes were each verified against a return site in
+	 * a shipped handler. These modes do not exist in the api yet; this cohort is
+	 * published AHEAD of it, because the api cannot compile a handler against a
+	 * contract that has not been released. Match on `body.error`, never on a
+	 * status you assumed here.
+	 *
+	 * - `SIGN_IN_METHOD_LAST_CREDENTIAL` (unlink) — the guardrail. Removing this
+	 *   provider would leave the account with no way in at all: no other linked
+	 *   provider and no password. This is the refusal the whole feature is built
+	 *   around, and it is correct ONLY because the api sees both the social
+	 *   providers and the password credential. Offer "set a password first", not
+	 *   a retry.
+	 * - `SIGN_IN_METHOD_NOT_LINKED` (unlink) — nothing to unlink. ⚠️ Reachable
+	 *   for a provider the customer signs in with RIGHT NOW: until their first
+	 *   social sign-in after this shipped, the account has no stored methods at
+	 *   all, and a working Google sign-in is still not a linked one.
+	 * - `SIGN_IN_METHOD_ALREADY_LINKED` (link) — this provider is already
+	 *   recorded against the account. Idempotent from the customer's point of
+	 *   view; render the connected state rather than an error.
+	 * - `SIGN_IN_PROVIDER_REFUSED` (social sign-in) — the provider is stored with
+	 *   `status: 'refused'`, so the unlink is doing its job. NOT a credential
+	 *   failure and not a retryable one: the token was perfectly valid. Route to
+	 *   "sign in another way", or to re-linking.
+	 * - `SIGN_IN_UID_MISMATCH` (social sign-in) — the provider is linked, but to
+	 *   a DIFFERENT Firebase UID than the one this verified token carries. This
+	 *   is the check that closes the original gap, where a matching email address
+	 *   was enough. Treat it as a security event, not as a bad password.
+	 */
+	type SignInMethodErrorCode =
+		| 'SIGN_IN_METHOD_LAST_CREDENTIAL'
+		| 'SIGN_IN_METHOD_NOT_LINKED'
+		| 'SIGN_IN_METHOD_ALREADY_LINKED'
+		| 'SIGN_IN_PROVIDER_REFUSED'
+		| 'SIGN_IN_UID_MISMATCH';
 }
 
 export {}; // NOSONAR

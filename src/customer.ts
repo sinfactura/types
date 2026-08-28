@@ -114,6 +114,31 @@ declare global {
      * still include it; never consume it.
      */
     search?: string;
+    /**
+     * Stored sign-in identity for this account: which providers may be used,
+     * the Firebase UID each was seen under, and when.
+     *
+     * ⚠️ STORAGE SHAPE, NOT THE READ CONTRACT. This array holds `'refused'`
+     * entries as well as `'linked'` ones — it has to, or an unlink undoes
+     * itself on the next sign-in (see `CustomerSignInMethodStatus`). The
+     * customer-facing read answers with `CustomerSignInMethodsResponse`, whose
+     * `methods` is filtered to the LINKED entries. Never hand this attribute to
+     * a client verbatim.
+     *
+     * ⚠️ That is an obligation on the api, not a property it already has. The
+     * central CUSTOMER-row sanitizer drops only the brute-force `login` counter
+     * and the write-side `search` index, and the auth response legs return a
+     * whole customer row — so the first writer of this attribute must also add
+     * it to that sanitizer, or every refused entry and every Firebase UID rides
+     * out on the login/social/refresh responses, which is precisely the state
+     * the read endpoint exists to withhold.
+     *
+     * ⚠️ ABSENT ON EVERY CUSTOMER THAT EXISTS TODAY, and forward-only writes
+     * mean it stays absent until that customer's next social sign-in heals the
+     * row. Absence means "not recorded yet", never "no providers" — reading it
+     * as an empty provider list is what would lock out the installed base.
+     */
+    signInMethods?: CustomerSignInMethod[];
     updatedAt?: number;
     /**
      * catalogId — FK to PlatformCurrency.
