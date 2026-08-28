@@ -7,6 +7,30 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.134
+
+- **fix(platform):** retype `StoreOverridesEnvelope.resolved` from
+  `ResolvedEntitlements` to the new `StoreEntitlementsBundle`. The api returns
+  `getStoreEntitlements()` verbatim from
+  `GET /platform/stores/{storeId}/overrides`, and that is a bundle carrying
+  `planTier`/`status` alongside the feature map — so a consumer reading
+  `resolved` as a flat record of feature keys was reading a level that was never
+  on the wire, and had to bridge around it locally.
+- **feat(subscription):** add `ResolvedEntitlementEntry`, the element the
+  resolver actually emits. It is NOT `Entitlement`: `enabled` is optional and
+  never null (absent on numeric/metered features rather than nulled), `source`
+  is required, and `source` cannot be `'trial'`. `GET /subscription` normalizes
+  absences to null on its way into `SubscriptionEntitlementEntry`; the platform
+  overrides route does not normalize at all. Both spellings are correct for
+  their own endpoint — unifying them re-breaks one of the two.
+- **feat(subscription):** add `StoreEntitlementsBundle`. Its `entitlements` map
+  is `Partial` over `FeatureKey` on purpose: a key is present only once the
+  tenant's tier owns a PLAN row for it, so a newly published feature key is
+  absent for every tenant until its backfill runs, and every api-side reader
+  already guards the lookup.
+- `Entitlement`, `FeatureMatrix` and `ResolvedEntitlements` are unchanged —
+  they remain correct for the plan matrix and for consumers already on them.
+
 ## 1.10.133
 
 - **fix(platform):** correct `TenantUserSessionSummary.issuedAt`/`expiresAt` to

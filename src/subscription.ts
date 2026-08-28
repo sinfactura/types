@@ -120,6 +120,54 @@ declare global {
 	/** Resolved entitlements for a specific tenant (matrix + overrides applied). */
 	type ResolvedEntitlements = Record<FeatureKey, Entitlement>;
 
+	/**
+	 * One entitlement exactly as the api's resolver emits it, with no wire
+	 * normalization applied.
+	 *
+	 * ⚠️ Do NOT unify this with `Entitlement`. The two describe the same concept
+	 * at two different points on the wire, and collapsing them re-breaks whichever
+	 * consumer sits on the other side. `GET /subscription` pushes the resolver's
+	 * output through `?? null` on its way into `SubscriptionEntitlementEntry`, so
+	 * an absence surfaces there as an explicit null;
+	 * `GET /platform/stores/{storeId}/overrides` returns the resolver's bundle
+	 * verbatim, so an absence surfaces here as a missing key. A consumer holding
+	 * the nullable spelling waits for a null that never arrives and walks straight
+	 * into the `undefined` that does.
+	 *
+	 * A boolean feature carries no `limit` and a numeric/metered one carries no
+	 * `enabled` — the plan editor rejects the opposite pairing outright. The lone
+	 * exception is a deleted tenant, whose deny-everything bundle stamps every key
+	 * as boolean/false/0 no matter what type that key really has.
+	 *
+	 * `source` is never absent here (the resolver stamps it on both its branches)
+	 * and never `'trial'`: a trial is a subscription status, not an origin an
+	 * entitlement can be resolved from, and nothing in the resolver emits it.
+	 */
+	interface ResolvedEntitlementEntry {
+		type: EntitlementType;
+		enabled?: boolean;
+		limit?: number;
+		source: 'plan' | 'override';
+	}
+
+	/**
+	 * What a tenant actually gets once plan defaults and overrides are merged —
+	 * the resolver's entire return value, not just its feature map. The tier and
+	 * status travel with it because a resolved entitlement cannot be explained to
+	 * an operator without them.
+	 *
+	 * ⚠️ `entitlements` is PARTIAL over `FeatureKey`, and the gaps are routine
+	 * rather than theoretical: a key appears only once the tenant's tier owns a
+	 * PLAN row for it, so a feature published ahead of its plan-row backfill is
+	 * missing for every tenant alive. Indexing through without a guard is a
+	 * runtime TypeError on precisely the tenants a new feature has not reached.
+	 */
+	interface StoreEntitlementsBundle {
+		planTier: PlanTier;
+		status: SubscriptionStatus;
+		entitlements: Partial<Record<FeatureKey, ResolvedEntitlementEntry>>;
+	}
+
 	// Plan catalog
 
 	/**

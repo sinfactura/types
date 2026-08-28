@@ -255,10 +255,22 @@ export interface OverrideWriteInput {
 	expiresAtSeconds?: number;
 }
 
-/** GET response: the raw override rows plus the resolved effective bundle. */
+/**
+ * GET response: the raw override rows plus the resolved effective bundle.
+ *
+ * ⚠️ `resolved` is the whole bundle, not a bare feature map — the per-feature
+ * entries sit one level down, under `entitlements`. Through 1.10.133 this was
+ * typed as `ResolvedEntitlements`, so a consumer that indexed `resolved` by
+ * feature key was reading a level the api has never sent.
+ *
+ * The two halves are deliberately both here and neither derives the other: a
+ * key can be enabled in `resolved` with no row in `overrides`, which is the
+ * plan default showing through, and an operator UI that cannot tell those apart
+ * will offer to "remove" an override that does not exist.
+ */
 export interface StoreOverridesEnvelope {
 	overrides: StoreEntitlementOverride[];
-	resolved: ResolvedEntitlements;
+	resolved: StoreEntitlementsBundle;
 }
 
 
