@@ -232,9 +232,12 @@ declare global {
        * denominated in `displayCurrency` — so any value other than
        * `displayCurrency` produced customer rows whose stamped currency
        * disagreed with the denomination their own balance was actually kept in,
-       * with no cross-field guard preventing it. The FE now seeds
-       * `Customer.currencyId` from `displayCurrency` instead, which removes the
-       * disagreement at the source rather than guarding it after the fact.
+       * with no cross-field guard preventing it. The agreed replacement is for
+       * the FE to seed `Customer.currencyId` from `displayCurrency`, which
+       * removes the disagreement at the source rather than guarding it after
+       * the fact. ⚠️ That is the DECISION, not shipped behaviour — the FE half
+       * is not written yet, so until it lands a new customer still gets seeded
+       * from whatever this field holds.
        *
        * Seed catalogId offered as the FE currency-selector default when a new
        * customer-facing money row is created. Does not reinterpret existing
