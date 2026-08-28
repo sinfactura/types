@@ -7,6 +7,68 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.146
+
+- **feat(auth):** publish the customer session/device shapes the storefront's
+  security screen consumes — `CustomerSession`, `CustomerSessionsResponse`,
+  `RevokeSessionResult`, `RevokeOthersResult`. These endpoints
+  (`GET /auth?mode=sessions`, `POST /auth {mode:'revoke-session'|'revoke-others'}`)
+  are already live in production; the wire is published exactly as it ships and
+  nothing was normalised.
+- **The three signals a consumer cannot guess are in the docblocks**, because
+  each has a failure mode where the UI confidently lies to a customer checking
+  whether they were breached. `complete: false` means the session list is a
+  PREFIX, so a stolen session can simply be missing from a list rendered as
+  whole. The **409** `session_lookup_incomplete` is returned INSTEAD OF a 404
+  precisely because a miss on a capped list is not proof of absence — read as
+  "already gone", it tells someone their stolen device was killed while its
+  token is still live. The **502** `revoke_incomplete` is the same trap on the
+  bulk sweep: deliberately not a 200, and its `revokedCount` is a PARTIAL count
+  over tokens that are still usable.
+- **The `complete`/`truncated` polarity inversion is encoded, not fixed.**
+  `?mode=sessions` answers `complete` (TRUE = whole list); the sibling
+  `?mode=login-history` on the same path answers `truncated` (TRUE = short
+  list). Both are shipped and consumed, and a screen rendering both lists must
+  not share one boolean — copying one branch onto the other inverts the warning
+  and hides the case it exists for.
+- **Unit mismatch documented on both sides:** `CustomerSession.issuedAt`,
+  `expiresAt` and `revokedAt` are Unix **SECONDS**, while the login-history
+  row's `createdAt` is **milliseconds**. One storefront screen renders both.
+- ⚠️ **`userAgent` and `ip` are OPTIONAL**, contrary to how the consuming repo
+  described them. The writer omits each attribute entirely when it had no value
+  at login, so a real row can carry neither; they are not empty strings.
+- **feat(store):** publish the `/store/domains` contract — `DomainStatus`,
+  `DomainRecord`, `DomainRegisterResult`/`DomainRegisterResponse`,
+  `DomainVerifyFailureReason`/`DomainVerifyResult`/`DomainVerifyResponse`,
+  `DomainRevokeResult`/`DomainRevokeResponse`, and `DomainErrorCode`.
+- ⚠️ **One deliberate wire change, and it is the spec the api now implements:
+  all three POST modes answer ENVELOPED under `data`.** `register` already did;
+  `verify` and `revoke` were flat. Aligning `verify` alone would have left a
+  consumer branching `register|verify` vs `revoke` instead of `register` vs
+  `verify|revoke` — the same number of branches, moved. The route has been live
+  on prod for four months with no consumer (the app's domain manager has not
+  shipped), so this is the last moment the change is free. **Only the body
+  moved; every status code is unchanged** — the 403 `NOT_OWNER` and 409
+  `NOT_PENDING` legs of `verify` keep their codes with the payload nested one
+  level deeper.
+- **`verified: false` on a 200 is CORRECT and says so in the docblock.** A TXT
+  record that has not propagated is the expected answer during setup, not a
+  failure; the reflex to treat a falsy result as an error and offer a retry is
+  wrong advice when the operator simply has to wait for DNS. And not every
+  `verified: false` is a 200 — `NOT_OWNER` rides 403, `NOT_PENDING` rides 409,
+  both still carrying the payload, so a consumer parsing the body only on 2xx
+  drops the two cases with a real explanation.
+- **Traps documented on the domain row:** `createdAt`/`verifiedAt`/`revokedAt`
+  are Unix **milliseconds** while `ttl` is Unix **seconds** (a DynamoDB TTL) —
+  mixed units in one row; `ttl` is removed on verify, so its absence is not "no
+  deadline"; `verificationToken` is a live credential that the list endpoint
+  returns; `txtRecord.name` already carries the `_sinfactura-verify.` label, so
+  a DNS form that appends the zone lands the record at a doubled name that can
+  never verify; REVOKED rows still consume a domain slot, so
+  `DOMAIN_LIMIT_REACHED` cannot be cleared by revoking; and `NOT_OWNER` travels
+  in two different slots on this one path — `body.error` on revoke, a
+  `DomainVerifyFailureReason` inside the payload on verify.
+
 ## 1.10.140
 
 - **fix(return):** `ReturnCreditNoteErrorCode` gains `CBTE_ASOC_NOT_CREDITABLE`

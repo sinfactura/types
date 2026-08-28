@@ -946,6 +946,208 @@ declare global {
     ecommerce?: Ecommerce;
     reason: string;
   }
+
+  // Tenant custom domains (`/store/domains`)
+
+  /**
+   * Lifecycle of a tenant custom-domain claim.
+   *
+   * `REVOKED` is terminal but reclaimable BY THE SAME STORE only: re-registering
+   * a REVOKED host the caller already owns succeeds, while a PENDING or
+   * VERIFIED row owned by anyone else refuses the write. Revoked rows are kept
+   * for audit and squatter-protection and still consume one of the store's
+   * domain slots — see `DomainErrorCode`.
+   */
+  type DomainStatus = "PENDING" | "VERIFIED" | "REVOKED";
+
+  /**
+   * One row of `GET /store/domains`, which answers `{ data: DomainRecord[] }`.
+   *
+   * ⚠️ MIXED TIME UNITS inside one row, and this is the shipped shape.
+   * `createdAt`, `verifiedAt` and `revokedAt` are **Unix MILLISECONDS**; `ttl`
+   * is **Unix SECONDS**, because it is a DynamoDB TTL attribute and DynamoDB
+   * defines that field in seconds. Feed the first three to a `Date` directly
+   * and multiply `ttl` by 1000 — never the same treatment for both.
+   *
+   * `ttl` exists only while the claim is PENDING (an unverified claim expires
+   * after seven days) and is REMOVED when the host verifies, so a VERIFIED row
+   * has no `ttl` and does not expire. Its absence is therefore not "no
+   * deadline" in general — read it together with `status`.
+   *
+   * ⚠️ `verificationToken` is the live secret that proves ownership of the
+   * host, and this listing returns it. It is the same value the DNS TXT record
+   * must contain, so anyone who can read the row can complete a pending
+   * verification for that host. Treat it as a credential: never log it, never
+   * put it in a URL, and do not render it outside the domain-setup screen.
+   *
+   * `host` is the NORMALIZED hostname the server stored — lowercased,
+   * punycode-encoded, with any scheme stripped — not the string that was
+   * submitted. Match on it rather than on user input.
+   */
+  interface DomainRecord {
+    host: string;
+    storeId: string;
+    status: DomainStatus;
+    verificationToken: string;
+    /** Unix MILLISECONDS. */
+    createdAt: number;
+    /** Unix MILLISECONDS. Present once the host has verified. */
+    verifiedAt?: number;
+    /** Unix MILLISECONDS. Present once the claim has been revoked. */
+    revokedAt?: number;
+    /** Unix SECONDS — a DynamoDB TTL. PENDING rows only; removed on verify. */
+    ttl?: number;
+  }
+
+  /**
+   * `POST /store/domains { mode: 'register' }` — the payload, carried ENVELOPED
+   * under `data` (see `DomainRegisterResponse`).
+   *
+   * `token` and `txtRecord.value` are the SAME string — the row's
+   * `verificationToken`. Both are present because the operator copies
+   * `txtRecord` verbatim into DNS, while `token` is what the published record
+   * must end up containing when it is read back.
+   *
+   * ⚠️ `txtRecord.name` ALREADY carries the `_sinfactura-verify.` label and the
+   * host. Most DNS providers append the zone to whatever name you type, so
+   * pasting this value into such a form lands the record at
+   * `_sinfactura-verify.<host>.<host>`, which can never verify and produces no
+   * error explaining why. Present the name as-is and say it is fully qualified.
+   */
+  interface DomainRegisterResult {
+    host: string;
+    /** Identical to `txtRecord.value` and to the row's `verificationToken`. */
+    token: string;
+    txtRecord: {
+      /** Fully qualified: `_sinfactura-verify.<host>`. Do not re-prefix. */
+      name: string;
+      /** The TXT value — identical to `token`. */
+      value: string;
+    };
+  }
+
+  /** Envelope of `POST /store/domains { mode: 'register' }`. */
+  interface DomainRegisterResponse {
+    data: DomainRegisterResult;
+  }
+
+  /**
+   * Why a verification attempt did not succeed.
+   *
+   * - `TXT_NOT_FOUND` — no TXT record resolved at `_sinfactura-verify.<host>`.
+   *   The ordinary, expected answer while DNS is still propagating.
+   * - `NO_PENDING_REGISTRATION` — a TXT record exists but no DOMAIN row does;
+   *   `register` was never called, or the pending row expired.
+   * - `NOT_OWNER` — the row exists and belongs to another store.
+   * - `TOKEN_MISMATCH` — a TXT record resolved but none of its values equal the
+   *   row's `verificationToken`. Usually a stale record from an earlier claim.
+   * - `NOT_PENDING` — the row was no longer PENDING when the write landed
+   *   (already verified, revoked, or a concurrent verify won the race).
+   */
+  type DomainVerifyFailureReason =
+    | "TXT_NOT_FOUND"
+    | "NO_PENDING_REGISTRATION"
+    | "NOT_OWNER"
+    | "TOKEN_MISMATCH"
+    | "NOT_PENDING";
+
+  /**
+   * `POST /store/domains { mode: 'verify' }` — the payload, carried ENVELOPED
+   * under `data` (see `DomainVerifyResponse`).
+   *
+   * ⚠️ **`verified: false` on a 200 is CORRECT, not a failure.** A TXT record
+   * that has not propagated yet is the expected answer during setup — DNS
+   * commonly takes minutes to hours. The obvious consumer reflex, treating a
+   * falsy result as an error and offering "something went wrong, try again",
+   * is wrong advice: nothing is broken and the operator simply has to wait.
+   * Show the pending state and the record they still need to publish.
+   *
+   * ⚠️ Not every `verified: false` is a 200, so do not gate on the status code
+   * alone either. `TXT_NOT_FOUND`, `NO_PENDING_REGISTRATION` and
+   * `TOKEN_MISMATCH` ride **200**; `NOT_OWNER` rides **403** and `NOT_PENDING`
+   * rides **409**, both still carrying this payload. Parse the body on those
+   * two statuses as well, or the two cases with a real explanation are the ones
+   * that render as a generic error.
+   *
+   * `host` is present only on the success branch.
+   */
+  type DomainVerifyResult =
+    | { verified: true; host: string }
+    | { verified: false; reason: DomainVerifyFailureReason };
+
+  /**
+   * Envelope of `POST /store/domains { mode: 'verify' }`.
+   *
+   * All three modes on this path — `register`, `verify`, `revoke` — answer
+   * enveloped under `data`. One shape for the whole route, so a consumer
+   * unwraps once instead of branching on the mode.
+   *
+   * ⚠️ Only the BODY moved under `data`. Every status code is unchanged: the
+   * 403 `NOT_OWNER` and 409 `NOT_PENDING` legs still carry a
+   * `DomainVerifyResult`, now nested one level deeper.
+   */
+  interface DomainVerifyResponse {
+    data: DomainVerifyResult;
+  }
+
+  /**
+   * `POST /store/domains { mode: 'revoke' }` — the payload, carried ENVELOPED
+   * under `data` (see `DomainRevokeResponse`), like `register` and `verify`.
+   *
+   * Revoking is the remedy when a host was claimed in error, so it is
+   * deliberately NOT gated by the unclaimable-host guard that `register` and
+   * `verify` apply — a row that should never have existed can always be undone.
+   *
+   * ⚠️ Revoking does not free a domain slot. The row survives as `REVOKED` for
+   * audit and squatter-protection and still counts against the per-store cap,
+   * so `DOMAIN_LIMIT_REACHED` cannot be cleared by revoking.
+   */
+  interface DomainRevokeResult {
+    /**
+     * Always `true` on a 200 — a refusal answers 4xx with `error` instead, so
+     * this field never reports a failure and must not be branched on as though
+     * it could. Check the status.
+     */
+    revoked: true;
+    host: string;
+  }
+
+  /** Envelope of `POST /store/domains { mode: 'revoke' }`. */
+  interface DomainRevokeResponse {
+    data: DomainRevokeResult;
+  }
+
+  /**
+   * `body.error` codes a `POST /store/domains` refusal can carry, each verified
+   * against a return site in the handler.
+   *
+   * - `DOMAIN_LIMIT_REACHED` (**429**, `register`) — the store already holds its
+   *   maximum number of DOMAIN rows. ⚠️ REVOKED rows still occupy a slot, so a
+   *   store can hit this with no live domain at all, and revoking more does not
+   *   free capacity. Carries a numeric `limit` alongside `error` and — alone
+   *   among these codes — NO `message`, so a UI rendering `body.message`
+   *   verbatim shows an empty error here.
+   * - `DOMAIN_OWNED_BY_OTHER_STORE` (**409**, `register`) — a PENDING or
+   *   VERIFIED row for this host belongs to a different store.
+   * - `DOMAIN_NOT_CLAIMABLE` (**409**, `register` AND `verify`) — the host is
+   *   not any single store's: a storefront apex serving many tenants, or a
+   *   platform origin already on the static CORS allowlist. Permanent for that
+   *   host; retrying can never succeed, so offer a different host rather than a
+   *   retry.
+   * - `NOT_OWNER` (**403**, `revoke`) — the row exists but belongs to another
+   *   store.
+   *
+   * ⚠️ `NOT_OWNER` travels in TWO different slots on this one path. Here it is
+   * `body.error` on a revoke. On `verify` the same string is a
+   * `DomainVerifyFailureReason` inside the verify payload, with no `error` key
+   * present at all. A consumer switching on `body.error` alone silently misses
+   * the verify case and falls through to a generic message.
+   */
+  type DomainErrorCode =
+    | "DOMAIN_LIMIT_REACHED"
+    | "DOMAIN_OWNED_BY_OTHER_STORE"
+    | "DOMAIN_NOT_CLAIMABLE"
+    | "NOT_OWNER";
 }
 
 export {}; // NOSONAR

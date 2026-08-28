@@ -221,6 +221,131 @@ declare global {
 		refreshToken?: string;
 	}
 
+
+	/**
+	 * One row of `GET /auth?mode=sessions` — a storefront customer's own
+	 * device/session list, projected from that customer's refresh-token
+	 * partition. The token digest is never projected and can never appear here.
+	 *
+	 * ⚠️ `issuedAt`, `expiresAt` and `revokedAt` are **Unix SECONDS**, not
+	 * milliseconds — they are written as `Math.floor(Date.now() / 1000)`. The
+	 * sibling `GET /auth?mode=login-history` row on the SAME `/auth` path
+	 * carries `createdAt` in **milliseconds**, and a customer security screen
+	 * typically renders both lists side by side. Passing these three straight to
+	 * a `Date` constructor dates every session to January 1970; multiply by
+	 * 1000 here, and do NOT multiply the login-history value.
+	 *
+	 * `userAgent` and `ip` are OPTIONAL, not empty strings: the writer omits
+	 * each attribute entirely when it had no value at login time, so a real row
+	 * can carry neither. Render a placeholder rather than assuming a string.
+	 */
+	interface CustomerSession {
+		/**
+		 * Rotation family. Every refresh rotation descending from one login
+		 * shares it, so two rows with the same `family` are one device over time.
+		 */
+		family: string;
+		/** This token's unique id — the handle `revoke-session` takes. */
+		jti: string;
+		/** Unix SECONDS. */
+		issuedAt: number;
+		/** Unix SECONDS. */
+		expiresAt: number;
+		/** Absent when the login recorded no user agent. */
+		userAgent?: string;
+		/** Absent when the login recorded no client IP. */
+		ip?: string;
+		/**
+		 * Unix SECONDS. Present only on an already-revoked row, which the default
+		 * listing excludes — so it appears only under `?includeRevoked=true`.
+		 */
+		revokedAt?: number;
+		/** True for the one session making this request. */
+		current: boolean;
+	}
+
+	/**
+	 * `GET /auth?mode=sessions[&includeRevoked=true]` — the 200 body.
+	 *
+	 * ⚠️ `complete: false` means the list is a PREFIX of the customer's
+	 * sessions, not all of them. The read is paged over a single partition and
+	 * stops on a read budget; `includeRevoked=true` spans every row ever
+	 * rotated (hundreds for a long-lived session), so it truncates far sooner
+	 * than the live-only default.
+	 *
+	 * Rendering a `complete: false` list as though it were the whole truth is
+	 * the exact failure this flag exists to prevent: a customer checking
+	 * whether they have been breached is shown a list a stolen session is
+	 * simply missing from, and concludes they are safe. Say the list is partial,
+	 * and keep "log out everywhere else" reachable — that sweep does not depend
+	 * on the listing being complete.
+	 *
+	 * ⚠️ POLARITY, and it is the inverse of its neighbour. This flag is TRUE
+	 * when the list is WHOLE. The sibling `GET /auth?mode=login-history` on the
+	 * same `/auth` path answers with `truncated`, which is TRUE when ITS list is
+	 * SHORT. Both are deployed and consumed in production, so the asymmetry is
+	 * documented here rather than normalised. A screen showing both lists must
+	 * not share one boolean between them: copying the `truncated` branch onto
+	 * `complete` inverts the warning and hides precisely the case it was
+	 * written for.
+	 */
+	interface CustomerSessionsResponse {
+		data: CustomerSession[];
+		/**
+		 * TRUE = the whole list. FALSE = a prefix, sessions are missing.
+		 * Inverse polarity to login-history's `truncated`.
+		 */
+		complete: boolean;
+	}
+
+	/**
+	 * `POST /auth { mode: 'revoke-session', jti }` — the 200 body, discriminated
+	 * on `message`. `revoked` echoes the `jti` that was ended.
+	 *
+	 * `logged_out_self` means the caller revoked the session it is currently
+	 * using: the response also clears the refresh cookie, so the client is now
+	 * signed out and must route to login instead of re-rendering the device
+	 * list. `session_revoked` means some OTHER device was ended and this
+	 * session continues.
+	 *
+	 * ⚠️ A miss does NOT always answer 404. When the session lookup was capped
+	 * — the same shortfall `CustomerSessionsResponse.complete: false` reports —
+	 * and the target `jti` was not among the rows read, the endpoint answers
+	 * **409** with `error: 'session_lookup_incomplete'` INSTEAD of a 404, on
+	 * purpose: a miss on a capped list is not proof of absence.
+	 *
+	 * Treating that 409 as "already gone" is the dangerous handling. It tells
+	 * someone their stolen device was killed while its token is still live. The
+	 * 409 means "ask again" — retry, or fall back to `revoke-others`, which
+	 * needs no lookup. Only a genuine 404 `session_unknown` means the session
+	 * does not exist.
+	 */
+	type RevokeSessionResult =
+		| { message: 'session_revoked'; revoked: string }
+		| { message: 'logged_out_self'; revoked: string };
+
+	/**
+	 * `POST /auth { mode: 'revoke-others' }` — the 200 body. Every session in
+	 * the caller's partition except the one making the request is dead.
+	 *
+	 * `complete` is the literal `true` and carries no information on its own,
+	 * because an INCOMPLETE sweep is deliberately NOT a 200: it answers **502**
+	 * with `error: 'revoke_incomplete'` and a `revokedCount` that is a PARTIAL
+	 * count. Some refresh tokens survived that sweep and are STILL USABLE.
+	 *
+	 * So read the outcome from the STATUS, never from the count. On 200 the
+	 * sweep finished; on 502 the customer is not logged out everywhere else,
+	 * however large `revokedCount` looks. Rendering "you have been signed out
+	 * of N devices" off the 502's count tells a customer their stolen session
+	 * is gone when it is not — surface a retry instead.
+	 */
+	interface RevokeOthersResult {
+		message: 'others_revoked';
+		/** Sessions dead as a result of this sweep. Excludes the current one. */
+		revokedCount: number;
+		/** Always `true` on a 200 — an incomplete sweep answers 502 instead. */
+		complete: true;
+	}
 }
 
 export {}; // NOSONAR
