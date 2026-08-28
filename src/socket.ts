@@ -178,6 +178,12 @@ export const SOCKET_ACTIONS = [
 	'drain_progress',
 	'integration_event_appended',
 	'userActivityRecorded',
+	// One ingested MercadoLibre billing period landed (or was re-pulled and
+	// changed). Emitted by the daily settlement poller, so it arrives on a
+	// cadence of about one per store per day — not a live movement stream.
+	// ⚠️ A frame for a period whose `periodStatus` is `'OPEN'` carries numbers
+	// ML will still restate; a consumer must not render one as final.
+	'mercadolibre_settlement_period',
 ] as const;
 
 /** Union of every server→client data-frame action. */
