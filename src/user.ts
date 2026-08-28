@@ -150,8 +150,33 @@ declare global {
     displayName: string;
   }
 
+  /**
+   * A stored `User` plus the refresh token, where one is delivered in the body
+   * at all.
+   *
+   * ⚠️ This is the STORED shape, and the auth responses built from it are
+   * SANITIZED — several inherited fields never reach the wire: the
+   * brute-force `login` counters, the legacy singular `role` write-alias, and
+   * the write-side `search` index are all dropped, and `totp` arrives reduced
+   * to `{ enabled, enrolledAt, recoveryCodesRemaining }` with its KMS
+   * ciphertext handles and replay counters stripped inside the Lambda. So an
+   * inherited field being declared here is not evidence it arrives; check it
+   * survives the sanitize before consuming it off a login body.
+   */
   interface AuthUser extends User {
-    refreshToken: string;
+    /**
+     * ⚠️ Delivered in the body ONLY under the body refresh transport — the
+     * native-mobile opt-in. The DEFAULT is cookie transport, where the token
+     * ships in an HttpOnly `Set-Cookie` and this key is absent from the body
+     * entirely.
+     *
+     * The tell for having trusted it as guaranteed: it reads `undefined` on an
+     * ordinary browser login and NOTHING breaks, because the cookie the client
+     * cannot see is doing the work. A client that persists this value and
+     * refreshes from it therefore looks correct wherever body transport is on,
+     * and silently never refreshes in the browser — i.e. everywhere real.
+     */
+    refreshToken?: string;
   }
 }
 

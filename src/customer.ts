@@ -137,9 +137,23 @@ declare global {
     };
   }
 
+  /**
+   * A stored `Customer` plus the session tokens. Same caveat as `AuthUser`:
+   * the storefront login body is SANITIZED, so the brute-force `login`
+   * counters and the write-side `search` index are dropped before it leaves
+   * the Lambda and `salt` is stripped centrally — an inherited field declared
+   * here is not by itself evidence that it arrives.
+   */
   interface AuthCustomer extends Customer {
     accessToken: string;
-    refreshToken: string;
+    /**
+     * ⚠️ Transport-conditional, exactly as `AuthUser.refreshToken`: present
+     * in the body only under the body refresh transport, and absent under the
+     * default cookie transport, which is what every browser session uses. It
+     * reads `undefined` there with nothing thrown, because the HttpOnly cookie
+     * carries the session instead.
+     */
+    refreshToken?: string;
   }
 }
 

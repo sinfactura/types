@@ -7,6 +7,51 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.136
+
+- **fix(auth):** reshape `VerifyInviteResponse` to what `verify-invite` has
+  always sent. **BREAKING for anyone currently compiling against it.** It
+  declared a boolean `valid` discriminator, an `email` and an `invitedByName`;
+  the endpoint sends a four-value `status` discriminator, an `inviterName`, and
+  no `email` at any time. Code typed against the old names compiled clean and
+  read `undefined` at runtime, so the compile error this now raises IS the
+  defect surfacing — failing at build is strictly better than the silent
+  `undefined` it replaces. Now a union of `VerifyInvitePendingResponse` and
+  `VerifyInviteClosedResponse` over the new `VerifyInviteStatus`.
+- Only the `pending` branch carries tenant detail; `accepted`/`revoked`/
+  `invalid` are bare. That is the security property the old docblock claimed
+  and is now stated on the type itself, because the reason those variants look
+  sparse is not obvious and a later "why is this so thin?" tidy-up would
+  reintroduce the disclosure.
+- **removed:** `InviteInvalidReason` and `VerifyInviteInvalidResponse`. Nothing
+  in the api emits either, and nothing in any consumer reads them. The reason
+  set could not be honest anyway: `verify-invite` deliberately collapses an
+  expired invite into `invalid`, so the `expired` member described an answer the
+  wire cannot produce, and keeping it invited a consumer to branch on it.
+- **fix(auth,user,customer):** `AuthUser.refreshToken` and
+  `AuthCustomer.refreshToken` are now OPTIONAL. They were required, but the
+  token is delivered in the body only under the body refresh transport (the
+  native-mobile opt-in); the DEFAULT cookie transport ships it in an HttpOnly
+  `Set-Cookie` and omits it from the body entirely. The tell that it was being
+  trusted: it reads `undefined` on an ordinary browser login and nothing breaks,
+  because the cookie is carrying the session — so a client that persists it and
+  refreshes from it works wherever body transport is on and silently never
+  refreshes where users actually are.
+- Both interfaces also gained a note that they are the STORED shapes and that
+  the auth responses built from them are sanitized — `login` counters, the
+  legacy `role` alias and `search` are dropped, and `totp` is reduced to
+  `{ enabled, enrolledAt, recoveryCodesRemaining }`. Annotation only; no field
+  was added, removed or repurposed, since both types have live consumers.
+- **fix(auth):** `AcceptInviteResponse` gains `fullName`, `email`, `roles` and
+  an optional `refreshToken`. Additive — it under-reported, so no consumer
+  breaks. `roles` is a bare STRING despite the plural name, matching how every
+  create path in the api stores `User.roles`; a consumer reaching for `.map`
+  throws. `refreshToken` carries the same transport rule as `AuthUser`'s.
+- **docs(auth):** correct the invite route spellings. `verify-invite` is a
+  **GET** taking its token in the QUERY STRING (the docblock said
+  `POST ?mode=verifyInvite`), and the accept mode is `accept-invite`, not
+  `acceptInvite`.
+
 ## 1.10.135
 
 - **feat(platform):** add `TenantBillingRollupRow` and `TenantBillingHistoryError`,

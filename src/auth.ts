@@ -74,34 +74,72 @@ declare global {
 		submittedAt: number;
 	}
 
-	/** `POST /auth?mode=verifyInvite` request body — the token from the invite email. */
+	/** `GET /auth?mode=verify-invite` — the token rides the QUERY STRING, not a request body. */
 	interface VerifyInviteInput {
 		token: string;
 	}
 
 	/**
-	 * Why an invite token will not accept. Deliberately COARSE: `invalid`
-	 * covers "no such token" and "signature mismatch" alike, so a caller
-	 * cannot probe which store an unknown token belongs to.
+	 * How far an invite token got, and the discriminator on every
+	 * `verify-invite` body.
+	 *
+	 * `invalid` is deliberately COARSE: an unknown token, a malformed one and a
+	 * real-but-EXPIRED one all answer `invalid`, resolved through the single
+	 * lookup `verify-invite` and `accept-invite` share so the cases cannot be
+	 * separated by timing either. ⚠️ There is no `expired` member, and adding
+	 * one would undo that — it confirms to whoever holds a leaked token that the
+	 * token was once real, and names the moment it stopped being so.
 	 */
-	type InviteInvalidReason = 'invalid' | 'expired' | 'revoked' | 'accepted';
+	type VerifyInviteStatus = 'pending' | 'accepted' | 'revoked' | 'invalid';
 
-	/** Unauthenticated pre-check — returns only what the accept form needs to render. */
-	interface VerifyInviteResponse {
-		valid: true;
-		email: string;
-		role: string;
+	/**
+	 * The one branch that discloses tenant detail, and only because the caller
+	 * is holding a live, unexpired token issued for that tenant.
+	 *
+	 * ⚠️ No `email`, and do not add one: the invitee already knows the address
+	 * — the invite reached them at it — so echoing it buys the legitimate caller
+	 * nothing and turns a leaked token into a way to learn WHO was invited.
+	 *
+	 * Both name fields are `''` rather than absent when the underlying row
+	 * carries no value, so a renderer never has to tell the two apart.
+	 */
+	interface VerifyInvitePendingResponse {
+		status: 'pending';
 		storeName: string;
-		invitedByName: string;
+		/** Display name of the team member who issued the invite. */
+		inviterName: string;
+		role: string;
+		/** Unix ms, and always still in the future here — an elapsed invite answers `invalid`. */
 		expiresAt: number;
-		message?: string;
 	}
 
-	/** ⚠️ Carries NO tenant detail — an invalid token must not disclose which store it named. */
-	interface VerifyInviteInvalidResponse {
-		valid: false;
-		reason: InviteInvalidReason;
+	/**
+	 * ⚠️ Bare BY DESIGN — the sparseness IS the security property, not an
+	 * oversight to tidy up. A token that will not accept must not disclose which
+	 * store it named; adding `storeName` "so the error screen reads better" is
+	 * precisely the disclosure this shape exists to prevent.
+	 *
+	 * ⚠️ `invalid` rides a **404** carrying `error: 'INVITATION_NOT_FOUND'`,
+	 * while `accepted` and `revoked` ride 200. A client that parses the body
+	 * only on a 2xx therefore handles three of the four statuses and silently
+	 * never sees the most common one.
+	 */
+	interface VerifyInviteClosedResponse {
+		status: 'accepted' | 'revoked' | 'invalid';
 	}
+
+	/**
+	 * Unauthenticated pre-check — only what the accept form needs to render,
+	 * discriminated on `status`.
+	 *
+	 * ⚠️ Reshaped in 1.10.136. Through 1.10.135 this declared a boolean
+	 * `valid` discriminator alongside an `email` and an `invitedByName`, none of
+	 * which this endpoint has ever sent — the inviter key is `inviterName`, and
+	 * there is no `email`. Code written against those names read `undefined` at
+	 * runtime while compiling clean, so the compile error this reshape produces
+	 * is the defect surfacing, not a new one.
+	 */
+	type VerifyInviteResponse = VerifyInvitePendingResponse | VerifyInviteClosedResponse;
 
 	/** `POST /auth?mode=acceptInvite` request body. */
 	interface AcceptInviteInput {
@@ -112,10 +150,10 @@ declare global {
 	}
 
 	/**
-	 * `INVITE_INVALID` collapses the four `InviteInvalidReason` cases on the
+	 * `INVITE_INVALID` collapses every non-accepting `VerifyInviteStatus` on the
 	 * accept path on purpose — by then the client has already seen the precise
-	 * reason from `verifyInvite`, and a second, more specific answer here would
-	 * turn accept into the probe `verifyInvite` was shaped to avoid.
+	 * status from `verify-invite`, and a second, more specific answer here would
+	 * turn accept into the probe `verify-invite` was shaped to avoid.
 	 */
 	type AcceptInviteErrorCode =
 		| 'INVITE_INVALID'
@@ -123,11 +161,28 @@ declare global {
 		| 'SEAT_LIMIT_REACHED'
 		| 'WEAK_PASSWORD';
 
-	/** Success shape — acceptance logs the new user straight in. */
+	/**
+	 * Success shape — acceptance logs the new user straight in, so this is a
+	 * full session payload rather than an acknowledgement.
+	 */
 	interface AcceptInviteResponse {
 		userId: string;
 		storeId: string;
+		fullName: string;
+		/**
+		 * Read off the INVITATION row, never off the request — an invitee cannot
+		 * redirect an invite to an address it was not issued to.
+		 */
+		email: string;
+		/**
+		 * Plural name, single value: a bare role STRING, matching `User.roles` as
+		 * every create path in the api stores it. Never an array on this route, so
+		 * a consumer that reaches for `.map` throws.
+		 */
+		roles: string;
 		accessToken: string;
+		/** Transport-conditional exactly as `AuthUser.refreshToken` — absent on the default cookie path. */
+		refreshToken?: string;
 	}
 
 }
