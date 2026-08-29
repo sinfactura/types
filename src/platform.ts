@@ -21,6 +21,17 @@ export interface PlatformConfigEntry {
 	// cannot be saved. Render a bounded input and pre-empt the rejection.
 	min?: number;
 	max?: number;
+	// Inclusive length ceiling for a `valueType: 'string'` key. Absent on
+	// unbounded/boolean/number keys. Part of the same WRITE contract as
+	// `min`/`max` above and refused the same way — `POST /platform/globals`
+	// answers 400 on an over-length value, so a client that ignores it lets an
+	// operator submit a value that cannot be saved.
+	//
+	// It is not a typo guard: a string global can be rendered where a real size
+	// budget applies. `currentAppVersion` rides an HTTP response header on every
+	// request, so an unbounded value breaks a surface with no idea where the
+	// value came from.
+	maxLength?: number;
 	updatedBy?: string;
 	updatedAt?: number;
 	// The value this key held immediately before its last write — an undo
