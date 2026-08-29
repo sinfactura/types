@@ -37,6 +37,7 @@ export * from "./product.js";
 export * from "./report.js";
 export * from "./return.js";
 export * from "./roles.js";
+export * from "./sentry.js";
 export * from "./serviceOrder.js";
 export * from "./serviceTemplate.js";
 export * from "./socket.js";
