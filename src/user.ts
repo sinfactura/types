@@ -18,6 +18,16 @@ declare global {
      * field — but legacy rows created through that alias may still carry a
      * stray persisted `role` attribute until the api-side cleanup lands.
      * Always read `roles`; never the alias.
+     *
+     * ⚠️ A space- or comma-DELIMITED list, not a single role — a claim can
+     * legitimately carry more than one token (`'USER PRINTER'` is real: a
+     * Cloud Print agent whose backing user also operates the till). Every
+     * token must be a member of the published `USER_ROLES` tuple; split and
+     * compare EXACT tokens, never `String#includes`, which is a substring
+     * test that would let a future `MANAGER_READONLY` satisfy a `MANAGER`
+     * gate. It stays typed `string` rather than ```${UserRole}``` because
+     * the delimited form has no expressible template type and legacy rows
+     * predate the allow-list.
      */
     roles: string;
     photoURL: string;
