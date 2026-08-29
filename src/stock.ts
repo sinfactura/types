@@ -198,6 +198,24 @@ declare global {
      * row without it cannot participate in the sum at all.
      */
     quantity: number;
+    /**
+     * The `YYYYMMDD` day this outflow happened, mirroring
+     * `StockIncomeWrite.dated`. It exists so the SALES half of a product's
+     * movement history can be range-queried by date at all — the income half
+     * always could, and the asymmetry meant a date-bounded movement report was
+     * structurally impossible on one leg of `Σ INCOME − Σ SALE`.
+     *
+     * ⚠️ OPTIONAL, permanently. Every `SALE#` row written before this field
+     * existed has no `dated`, this platform never backfills, and those rows stay
+     * readable: the existing reader derives a day from the sort key's
+     * `${productId}-${createdAt}` shape. Absence is a legal, permanent state of
+     * the data — never a migration gap, and never a reason to make it required.
+     *
+     * ⚠️ It is the day of the MOVEMENT, not the day the row was written. On a
+     * back-dated adjustment the two differ, and the movement's own day is the
+     * one a stock report is asking about.
+     */
+    dated?: number;
     customerId?: string;
     fullName?: string;
     ivaType?: number;
