@@ -435,14 +435,22 @@ declare global {
 		 * Google" to a customer who knows they only ever use a password.
 		 *
 		 * ⚠️ Spelled `'password'` here, NOT `'email'`. The already-published
-		 * `CustomerLoggedInEvent.method` union models the same three cases as
-		 * `'email' | 'google' | 'facebook'`, so the analytics value cannot be
-		 * assigned to this field unchanged — map the password-via-Firebase case
-		 * across explicitly rather than reusing the variable.
+		 * `CustomerLoggedInEvent.method` union models the same cases as
+		 * `'email' | 'google' | 'facebook' | 'apple'`, so the analytics value
+		 * cannot be assigned to this field unchanged — map the
+		 * password-via-Firebase case across explicitly rather than reusing the
+		 * variable. Every OTHER member shares its spelling across the two
+		 * unions; `'password'`/`'email'` is the only pair that differs.
 		 *
-		 * Typed as the shared `CustomerSignInProvider`, which is the same three
-		 * members with the same spellings — the union was given a name when the
-		 * connected-accounts contract shipped. The resolved type is unchanged.
+		 * Typed as the shared `CustomerSignInProvider`. ⚠️ That union is NOT
+		 * closed for good — it gained `'apple'` when Apple went live on the
+		 * Firebase project, and it will gain a member again for any further
+		 * provider enabled there. Do not enumerate its members into an
+		 * exhaustive `switch` or a `Record<>` in a consumer: a widening is a
+		 * patch release here and a compile break there. Render an unrecognised
+		 * provider as itself rather than as blank or "Unknown" — this field is
+		 * read on the screen that answers "was this me?", where a blank is
+		 * worse than an unfamiliar word.
 		 */
 		provider?: CustomerSignInProvider;
 	}
