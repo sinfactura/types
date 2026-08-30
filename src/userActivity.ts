@@ -734,7 +734,20 @@ declare global {
 
 	interface TwoFactorChallengeShownEvent extends UserActivityEventBase {
 		event: 'Two-Factor Challenge Shown';
-		method: 'password' | 'social';
+		/**
+		 * The PRIMARY login the step-up interrupted, never the second factor
+		 * itself — that is `TwoFactorCodeValidationFailedEvent.method`.
+		 *
+		 * ⚠️ `'magic-link'` is a PASSWORDLESS primary login and must never be
+		 * folded into `'password'`, for the same reason `UserLoggedInEvent`
+		 * states it: a magic-link challenge recorded as a password challenge
+		 * puts a false method in the audit trail. It is a member here because
+		 * `_magicLinkVerify` runs the same `enforceTotpStepUp` helper password
+		 * and social login run, so the interstitial is reached from a third
+		 * entry point; before it existed the emit was suppressed on that path
+		 * rather than falsified, which under-reported challenge counts.
+		 */
+		method: 'password' | 'social' | 'magic-link';
 		provider?: string;
 	}
 
