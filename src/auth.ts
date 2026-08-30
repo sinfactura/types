@@ -486,28 +486,33 @@ declare global {
 	/**
 	 * Which credential a customer signs in with.
 	 *
-	 * ⚠️ THE UNION IS CLOSED AT THREE; FIREBASE'S PROJECT CONFIGURATION IS NOT.
+	 * ⚠️ THE UNION IS CLOSED; FIREBASE'S PROJECT CONFIGURATION IS NOT.
 	 * Which providers are enabled lives in the shared Firebase console, not in
-	 * any repo, so enabling a fourth (Apple, an OIDC connection) makes a sign-in
+	 * any repo, so enabling a fifth (an OIDC connection, say) makes a sign-in
 	 * reachable that this type cannot name — and it takes a console click, while
 	 * widening this union takes a release. The two are not gated on each other.
 	 * A consumer must therefore tolerate an unrecognised provider string rather
-	 * than treating a `switch` over these three as exhaustive at runtime.
+	 * than treating a `switch` over these members as exhaustive at runtime.
+	 * Apple is the case that already proved it: the provider went live on the
+	 * Firebase project while this union still named three members, so
+	 * `'apple.com'` sign-ins arrived unrecognised — un-gated and mislabelled —
+	 * without anything failing loudly.
 	 *
-	 * ⚠️ SHORT NAMES, not Firebase provider ids. Firebase spells the same two
-	 * `'google.com'` and `'facebook.com'` — that is what a browser's
-	 * `providerData[].providerId` carries, and what the storefront's own
-	 * `getLinkedProviders()` returns today. A comparison between a value of this
-	 * type and one of those is ALWAYS false and throws nothing; map across
+	 * ⚠️ SHORT NAMES, not Firebase provider ids. Firebase spells the social
+	 * three `'google.com'`, `'facebook.com'` and `'apple.com'` — that is what a
+	 * browser's `providerData[].providerId` carries, and what the storefront's
+	 * own `getLinkedProviders()` returns today. A comparison between a value of
+	 * this type and one of those is ALWAYS false and throws nothing; map across
 	 * explicitly at the boundary.
 	 *
 	 * ⚠️ And it is `'password'`, NOT `'email'`. The already-published
-	 * `CustomerLoggedInEvent.method` models the same three cases as
-	 * `'email' | 'google' | 'facebook'`, so neither value is assignable to the
-	 * other's slot. Both spellings ship; this is documented rather than
-	 * reconciled, because `method` is an established analytics contract.
+	 * `CustomerLoggedInEvent.method` models the same cases as
+	 * `'email' | 'google' | 'facebook' | 'apple'`, so neither value is
+	 * assignable to the other's slot. Both spellings ship; this is documented
+	 * rather than reconciled, because `method` is an established analytics
+	 * contract.
 	 */
-	type CustomerSignInProvider = 'google' | 'facebook' | 'password';
+	type CustomerSignInProvider = 'google' | 'facebook' | 'apple' | 'password';
 
 	/**
 	 * Whether a stored sign-in method may be used, or has been explicitly turned

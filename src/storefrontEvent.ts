@@ -119,12 +119,27 @@ declare global {
 
 	interface CustomerLoggedInEvent extends StorefrontEventBase {
 		event: 'Customer Logged In';
-		method: 'email' | 'google' | 'facebook';
+		/**
+		 * ⚠️ `'email'` here is what `CustomerSignInProvider` spells
+		 * `'password'`; the other members share their spelling. Neither value is
+		 * assignable to the other's slot — map across explicitly.
+		 */
+		method: 'email' | 'google' | 'facebook' | 'apple';
 	}
 
 	interface CustomerSignedUpEvent extends StorefrontEventBase {
 		event: 'Customer Signed Up';
-		method: 'email' | 'google' | 'facebook';
+		/**
+		 * Same union as the sign-in twin, and deliberately so: one shared
+		 * validator covers both events server-side, so they cannot diverge
+		 * without splitting it.
+		 *
+		 * ⚠️ Only `'email'` is emitted today — registration is api-side and has
+		 * no social leg. The social members are reachable shape, not observed
+		 * data; do not read a member's presence here as evidence that path
+		 * exists.
+		 */
+		method: 'email' | 'google' | 'facebook' | 'apple';
 	}
 
 	interface CustomerLoggedOutEvent extends StorefrontEventBase {
