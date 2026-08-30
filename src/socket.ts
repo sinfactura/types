@@ -350,15 +350,21 @@ export interface SocketAgentCommandResultMessage {
 /**
  * The client-driven actions the WSS `$default` route accepts.
  *
- * `register_printers` and `export_local_rules` are live (their handlers and
- * `$default` union entries are deployed). `agent_command_result` is declared
- * here — the full vocabulary — but deliberately excluded from
- * `LIVE_CLIENT_SOCKET_ACTIONS` below: no handler exists yet, so the api
- * answers it with `400 Invalid message`. Do NOT "fix the inconsistency" by
- * adding it there — that would tell a consumer the frame is accepted when it
- * is rejected. (1.10.5 fixed the inverse bug: a live action missing from
- * this array, which let exhaustive switches keyed off `ClientSocketAction`
- * silently exclude it.)
+ * The authority for what the backend really accepts is the Zod discriminated
+ * union behind the api's `$default` route — that union IS the runtime gate.
+ * This array mirrors it; an action the union does not carry is answered
+ * `400 Invalid message`.
+ *
+ * ⚠️ **A client cannot observe that rejection.** The `$default` route is
+ * registered with a bare Lambda integration and no route response, so API
+ * Gateway never returns the handler's reply to the sender. A frame sent to a
+ * backend that has not deployed its handler is therefore indistinguishable
+ * from success — the socket simply stays open. That is precisely why these
+ * arrays have to be truthful: they are the only signal a client author gets,
+ * and a wrong one cannot be caught at runtime by either end.
+ *
+ * (1.10.5 fixed the inverse bug: a live action missing from this array, which
+ * let exhaustive switches keyed off `ClientSocketAction` silently exclude it.)
  */
 export const CLIENT_SOCKET_ACTIONS = [
 	'auth',
@@ -374,9 +380,16 @@ export const CLIENT_SOCKET_ACTIONS = [
 export type ClientSocketAction = (typeof CLIENT_SOCKET_ACTIONS)[number];
 
 /**
- * Client→server actions the backend accepts **today** — a strict subset of
+ * Client→server actions the backend accepts **today** — a subset of
  * `CLIENT_SOCKET_ACTIONS`. Anything declared but absent here is published ahead
  * of its handler and will be rejected `400 Invalid message` on the wire.
+ *
+ * Currently **identical** to `CLIENT_SOCKET_ACTIONS`: every declared action now
+ * has a deployed handler, `agent_command_result` included. Do not read the
+ * equality as redundancy — the two exports mean different things, and keeping
+ * this one lets a future publish-ahead-of-handler be expressed without a
+ * breaking rename. Before adding an action here, confirm its entry exists in
+ * the api's `$default` union; that union, not this array, is what runs.
  */
 export const LIVE_CLIENT_SOCKET_ACTIONS = [
 	'auth',
@@ -385,6 +398,7 @@ export const LIVE_CLIENT_SOCKET_ACTIONS = [
 	'ack',
 	'register_printers',
 	'export_local_rules',
+	'agent_command_result',
 ] as const;
 
 /** Authenticate the connection. Must be the first frame; see `AuthAckFrame`. */

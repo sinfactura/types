@@ -7,6 +7,23 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.163
+
+- **fix(socket):** add `agent_command_result` to `LIVE_CLIENT_SOCKET_ACTIONS`.
+  The backend deployed its handler, so the array — and the comment above it —
+  had been asserting the opposite of reality: that the frame is answered
+  `400 Invalid message`. The old comment went further and instructed
+  maintainers *not* to add it, so the drift was self-perpetuating.
+- Supersedes the ⚠️ note in **1.10.8** below, which recorded the frame as
+  declared-but-not-live. That was true when written and is no longer.
+- `LIVE_CLIENT_SOCKET_ACTIONS` is now identical to `CLIENT_SOCKET_ACTIONS`. The
+  export is kept deliberately: the two mean different things, and a future
+  publish-ahead-of-handler should not require a breaking rename.
+- Comment now names the api's `$default` Zod union as the runtime authority and
+  records why these arrays must be truthful — the route has no route response,
+  so a rejected frame is **indistinguishable from success** to the sender and
+  no client can detect a wrong entry at runtime.
+
 ## 1.10.151
 
 - **feat(platform):** add `TenantRollupRowError`, `TenantHealthRollupRow` and
