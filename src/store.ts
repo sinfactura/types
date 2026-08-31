@@ -235,9 +235,21 @@ declare global {
        * with no cross-field guard preventing it. The agreed replacement is for
        * the FE to seed `Customer.currencyId` from `displayCurrency`, which
        * removes the disagreement at the source rather than guarding it after
-       * the fact. ⚠️ That is the DECISION, not shipped behaviour — the FE half
-       * is not written yet, so until it lands a new customer still gets seeded
-       * from whatever this field holds.
+       * the fact. ✅ **That replacement HAS SHIPPED** — `app@main` seeds
+       * `Customer.currencyId` from `store.config.displayCurrency` at every
+       * customer-create site (`QuickAddCustomer.tsx:60,135`,
+       * `addCustomerFormDefaults.ts:80,96`), so a NEW customer can no longer
+       * be stamped with a currency their balance is not kept in, whatever
+       * this retired field still holds.
+       *
+       * ⚠️ Two things did NOT follow from that, and they are the live
+       * questions. Rows stamped BEFORE it shipped are untouched — this repo
+       * is forward-only, so nothing backfills them. And a `currencyId` that
+       * resolves to no entry in `store.currencies` is not merely a label
+       * problem: storefront checkout looks the id up and falls through to a
+       * conversion rate of `1`, which prices a foreign-currency customer at
+       * parity and compares the DNI/CUIT threshold against an unconverted
+       * total.
        *
        * Seed catalogId offered as the FE currency-selector default when a new
        * customer-facing money row is created. Does not reinterpret existing
