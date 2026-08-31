@@ -214,6 +214,36 @@ declare global {
 		consent_changes?: CustomerConsentChange[];
 	}
 
+	/**
+	 * The server released a customer's stored record to a caller.
+	 *
+	 * ⚠️ This records a SERVER RELEASE, not a user navigation, and the two are
+	 * not the same audit fact. The app emits its own `Customer Detail Viewed`
+	 * when someone opens a detail screen; this fires whenever the route hands
+	 * the row over, so it stays true when the caller is a script with a valid
+	 * token and there is no view at all. Treating either as a substitute for
+	 * the other leaves exactly the accesses an audit exists to catch —
+	 * automated ones — unrecorded.
+	 *
+	 * ⚠️ It deliberately carries the id SERVED and never what was ASKED. The
+	 * route accepts `?email=` and `?search=`, so echoing the query would write
+	 * customer email addresses and operator search terms into the audit trail,
+	 * trading an attribution gap for a PII leak. `customer_id` answers "whose
+	 * record left the building", which is the question this event exists for.
+	 */
+	interface CustomerRecordServedEvent extends UserActivityEventBase {
+		event: 'Customer Record Served';
+		customer_id: string;
+		/**
+		 * Which shape was released. Once the commercial fields are role-gated
+		 * the same route serves two different records, and a row that cannot
+		 * say which one it served is only half an audit entry — `display`
+		 * (identity and contact) is an ordinary lookup, while `full`
+		 * (including the commercial figures) is the access worth reviewing.
+		 */
+		field_set: 'full' | 'display';
+	}
+
 	interface CashDrawerOpenedEvent extends UserActivityEventBase {
 		event: 'Cash Drawer Opened';
 		cash_id: string;
@@ -1009,6 +1039,7 @@ declare global {
 		| ProductPriceChangedEvent
 		| CustomerCreatedEvent
 		| CustomerEditedEvent
+		| CustomerRecordServedEvent
 		| CashDrawerOpenedEvent
 		| CashDrawerClosedEvent
 		| TenantImpersonatedEvent
