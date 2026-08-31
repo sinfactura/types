@@ -235,6 +235,24 @@ declare global {
 			docNumber?: string; // CUIT (11-digit + checksum) / DNI (7-8 digit)
 		};
 		cost: number;
+		/**
+		 * What the customer was **CHARGED** — net of `discount` and of any coupon
+		 * cut recorded in `coupons`. Not a gross line-sum.
+		 *
+		 * ⚠️ **Do not re-apply `discount` to this value.** It is already spent
+		 * here, so a consumer that subtracts it again double-cuts the order. Both
+		 * are `number`, so nothing typechecks the mistake, and the wrong figure is
+		 * plausible rather than absurd — which is why it survives review.
+		 *
+		 * The denomination is CHARGED rather than GROSS because a gross contract
+		 * is not reconstructible downstream: the sales report projects only
+		 * `total`, `deliveredDate`, `cost` and `disabled` — no discount, no items —
+		 * so under GROSS it could not compute what was actually taken. Every
+		 * create-leg writer stamps it net, and it is server-owned
+		 * (`SERVER_OWNED_ORDER_FIELDS`), so a client-supplied value is stripped
+		 * rather than honoured; that is what makes the writer set closed rather
+		 * than a sample.
+		 */
 		total: number;
 		/**
 		 * Order-level discount as a PERCENTAGE (0–100), applied per line over the
@@ -297,7 +315,21 @@ declare global {
 		 * A RETURN may report that a redemption was taken against this order. It
 		 * must NOT release one — releasing is the failure mode that vendors with
 		 * an explicit session-lock primitive exist to manage, and there is no such
-		 * primitive here.
+		 * primitive here. The same holds for the operator's **reversible** disable:
+		 * it is a toggle, so releasing on it would hand the redemption back every
+		 * time an operator flipped the row.
+		 *
+		 * ⚠️ **The one-way customer cancel is the documented exception, and it
+		 * DOES release.** That path is terminal — nothing re-enables the order —
+		 * so the objection above does not apply to it, and withholding the release
+		 * there strands a redemption the customer never consumed. Read this field
+		 * as "a redemption was taken", never as "a redemption is still held".
+		 *
+		 * The asymmetry is deliberate and is decided by REVERSIBILITY, not by who
+		 * cancelled: any future terminal path releases, any future toggle does
+		 * not. Because a release is not idempotent, the releasing path carries its
+		 * own stamp — the `COUPON_USE#` row does not record an `orderId`, so
+		 * nothing else can tell a second release from a first.
 		 */
 		coupons?: OrderCoupon[];
 		orderPrinted?: boolean;

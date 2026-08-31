@@ -22,9 +22,68 @@ export const WEBHOOK_EVENT_TYPES = [
 	'print.agent.disconnected',
 	'print.printer.online',
 	'print.printer.offline',
+	'print.job.settled',
 ] as const;
 
 export type WebhookEventType = (typeof WEBHOOK_EVENT_TYPES)[number];
+
+/** Terminal outcomes for a print job. Closed union — a job printed, or it failed. */
+export const PRINT_JOB_SETTLED_OUTCOMES = ['printed', 'failed'] as const;
+
+export type PrintJobSettledOutcome = (typeof PRINT_JOB_SETTLED_OUTCOMES)[number];
+
+/**
+ * Payload for `print.job.settled` — emitted exactly ONCE per job that emitted
+ * `print.queued`, regardless of `useCase` and regardless of whether a
+ * `printedAt` projection was written.
+ *
+ * ⚠️ **NOT the same thing as `PrintJobSummaryOutcome`**
+ * (`applied | stale | uncorrelated | failed | skipped`), which is internal
+ * bookkeeping about whether the SUMMARY ROW upsert succeeded. A job can print
+ * successfully while its summary upsert is `stale` — that value is documented
+ * as the guard WORKING, not as a failure. Never derive one from the other:
+ * conflating them makes a correctly-handled race look like a print failure to
+ * an integrator.
+ *
+ * ⚠️ **"Exactly once" is a property of the EMIT SITE, not of this shape.** A job
+ * that fails and is later acked printed must not emit twice, and nothing here
+ * enforces that.
+ *
+ * ⚠️ **A job that is queued and never acked emits nothing**, by construction:
+ * nothing times a job out today, so it emits `print.queued` and then stays
+ * silent. "Every queued job eventually settles" therefore holds only for acked
+ * jobs. Closing that gap needs a reaper that does not exist.
+ */
+export interface PrintJobSettledPayload {
+	jobId: string;
+	outcome: PrintJobSettledOutcome;
+	/** Server-stamped ms epoch. Present on both outcomes.
+	 *  ⚠️ A subscriber that falls back to RECEIPT time gets this wrong under SQS
+	 *  retry, and retry is live (5 attempts with visibility backoff). */
+	settledAt: number;
+	/** Absent when the job carried no resolvable use case — a legitimately
+	 *  id-less job has none, so this must stay optional or the api would have to
+	 *  invent one. */
+	useCase?: PrintUseCase;
+	agentId?: string;
+	orderId?: string;
+	invoiceId?: string;
+	/**
+	 * SCREAMING_SNAKE machine code. `outcome: 'failed'` only.
+	 *
+	 * ⚠️ Named `errorCode`/`errorMessage` rather than reusing `error`, and that is
+	 * deliberate. The house rule elsewhere makes `error` the machine-readable slot
+	 * a client switches on — but the EXISTING `print.failed` payload already ships
+	 * `error` as bounded PROSE with `errorCode` as the code, i.e. the inverted
+	 * spelling is what is on the wire today. Reusing `error` here under the
+	 * opposite meaning would be worse than not reusing it, so neither name is
+	 * contested and no reader has to know which convention a given print event
+	 * follows.
+	 */
+	errorCode?: string;
+	/** Bounded human prose. `outcome: 'failed'` only. Never switch on this. */
+	errorMessage?: string;
+}
 
 /** A `WEBHOOK#${storeId}` subscription row as STORED. */
 export interface Webhook {
