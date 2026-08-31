@@ -1172,3 +1172,51 @@ export type UserActivityEntityType =
 	| 'printer'
 	| 'printer_agent'
 	| 'attendance_shift';
+
+/**
+ * One tenant's last-activity roll-up — the newest activity timestamp across
+ * every user in that tenant.
+ *
+ * ⚠️ **`lastActivityAt` is `number | null`, never optional and never `0`.**
+ * Absence and zero must stay distinguishable: the operator grid renders an
+ * em-dash for a tenant that has never been active, and a `0` epoch renders as
+ * 1970. `null` is the only value that means "no activity recorded" — the same
+ * hazard the courtesy-gift cutoff already carries. A tenant with no `ACTIVITY#`
+ * rows is `null`; it is never omitted from the response and never `0`.
+ *
+ * ⚠️ This shape is **derivation-agnostic on purpose.** It says what reaches the
+ * wire and nothing about where the value comes from — a mode on a consolidated
+ * read, a projection, or a maintained per-tenant marker all satisfy it
+ * identically. That is deliberate: the storage decision belongs to the activity
+ * consolidation, and publishing the wire shape must not foreclose it.
+ *
+ * ⚠️ It is deliberately NOT a field on `TenantHealthEnvelope` — see the refusal
+ * on that interface, which stands unchanged. That envelope is built by a Lambda
+ * that cannot read the operational table, and this roll-up is served by the
+ * user-activity function, which already owns it. Merging the two shapes would
+ * re-create exactly the IAM widening the refusal exists to prevent.
+ */
+export interface TenantLastActivity {
+	storeId: string;
+	/** Epoch ms of the tenant's newest activity, or `null` if it has none. */
+	lastActivityAt: number | null;
+}
+
+/**
+ * `GET /platform/user-activity?mode=lastActivity` — cross-tenant, supervisorToken.
+ *
+ * ⚠️ **Per-row absence is a ROW-level concern.** A tenant with no activity is a
+ * row carrying `lastActivityAt: null`, never a tenant missing from `data` and
+ * never a page-level flag. A consumer must be able to tell "this tenant has no
+ * activity" from "this page did not reach that tenant", and only a row can say
+ * the former.
+ *
+ * `truncated` therefore means what it means everywhere else in this API — the
+ * READ stopped short — and says nothing about any individual tenant's value.
+ */
+export interface TenantLastActivityResponse {
+	message: string;
+	data: TenantLastActivity[];
+	truncated?: boolean;
+	LastEvaluatedKey?: string;
+}
