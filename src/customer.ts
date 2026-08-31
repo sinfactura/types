@@ -65,6 +65,45 @@ declare global {
     emailVerified?: boolean;
     /** ms-epoch of the OTP verification. Absent whenever `emailVerified` is not `true`. */
     emailVerifiedAt?: number;
+    /**
+     * The Apple **Hide My Email** relay address this customer signs in with, if
+     * they have linked one — `<opaque>@privaterelay.appleid.com`.
+     *
+     * Apple replaces the `email` claim with a per-app relay, delivered with
+     * `email_verified: true`. The relay is STABLE per app, so it never converges
+     * on the real address: an identity lookup by `email` alone misses forever,
+     * and the customer cannot reach an account they already own.
+     *
+     * This field is the resolution alias. It is written at explicit LINK time —
+     * never silently on first sign-in — and read as a fallback when the primary
+     * email lookup misses.
+     *
+     * ⚠️ **APPLE-SPECIFIC BY NAME, ON PURPOSE.** A provider-neutral
+     * "alternate address" would describe the same bytes and lose the constraint:
+     * the branch that consumes this MUST be gated on the Apple provider, so that
+     * a non-Apple token presenting a `privaterelay.appleid.com` address cannot
+     * reach it by spoofing the address alone. Naming it for the provider puts
+     * that boundary in the type rather than leaving it to a handler check
+     * somebody later "simplifies". Widening this to other providers is a new
+     * field and a new security argument, not a rename.
+     *
+     * ⚠️ **OPTIONAL, and it must stay optional.** This repo is forward-only and
+     * never backfills: every customer row written before this shipped has no
+     * such attribute, and a required field would misdescribe the entire
+     * installed base.
+     *
+     * ⚠️ **Apple can REVOKE a relay.** A stale value is therefore expected, not
+     * exceptional. A consumer that cannot resolve it must degrade to the same
+     * refusal an absent value produces — never to resolving a different
+     * customer. Absence and staleness are the same answer here: "not resolvable
+     * by this address".
+     *
+     * ⚠️ Not a second contact address. It is a login identity and nothing
+     * addresses mail to it; `email` remains the address the customer is written
+     * to. Reading this as a mailto target would send to a relay Apple may have
+     * already revoked.
+     */
+    appleRelayEmail?: string;
     favorites?: Partial<Product>[];
     fullName: string;
     /** Storage-only credential hash — stripped from every response by the api's central sanitizer; never present on reads. */
