@@ -138,8 +138,6 @@ declare global {
   interface StoreGlobals {
     /** ARCA/AFIP "Consumidor Final" DNI threshold, in pesos. */
     minWithDni?: number;
-    /** Cmd-K usage telemetry collection. */
-    commandPaletteTelemetry?: boolean;
     /**
      * The app build the platform currently considers deployed (e.g.
      * `"2026.08.29-1"`). Empty means the staleness advisory is off.
