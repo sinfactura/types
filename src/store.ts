@@ -140,6 +140,20 @@ declare global {
     minWithDni?: number;
     /** Cmd-K usage telemetry collection. */
     commandPaletteTelemetry?: boolean;
+    /**
+     * The app build the platform currently considers deployed (e.g.
+     * `"2026.08.29-1"`). Empty means the staleness advisory is off.
+     *
+     * Advisory only, never enforcement: when set, a request whose
+     * `X-Client-Version` differs receives an `X-Current-App-Version` response
+     * header and the app decides what to do with it. No request is ever refused
+     * for being stale.
+     *
+     * App-only by registration (`forwardToTenants: 'app'`), so it is absent from
+     * the storefront's unauthenticated response — publishing it there would tell
+     * an anonymous caller which app build the platform is on.
+     */
+    currentAppVersion?: string;
   }
 
   interface Store {
