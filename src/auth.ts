@@ -688,44 +688,84 @@ declare global {
 		provider: CustomerSignInProvider;
 	}
 
-	/**
-	 * `body.error` codes the sign-in-method paths can refuse with.
-	 *
-	 * ⚠️ NO HTTP STATUS IS STATED FOR ANY OF THESE, deliberately — unlike
-	 * `DomainErrorCode`, whose codes were each verified against a return site in
-	 * a shipped handler. These modes do not exist in the api yet; this cohort is
-	 * published AHEAD of it, because the api cannot compile a handler against a
-	 * contract that has not been released. Match on `body.error`, never on a
-	 * status you assumed here.
-	 *
-	 * - `SIGN_IN_METHOD_LAST_CREDENTIAL` (unlink) — the guardrail. Removing this
-	 *   provider would leave the account with no way in at all: no other linked
-	 *   provider and no password. This is the refusal the whole feature is built
-	 *   around, and it is correct ONLY because the api sees both the social
-	 *   providers and the password credential. Offer "set a password first", not
-	 *   a retry.
-	 * - `SIGN_IN_METHOD_NOT_LINKED` (unlink) — nothing to unlink. ⚠️ Reachable
-	 *   for a provider the customer signs in with RIGHT NOW: until their first
-	 *   social sign-in after this shipped, the account has no stored methods at
-	 *   all, and a working Google sign-in is still not a linked one.
-	 * - `SIGN_IN_METHOD_ALREADY_LINKED` (link) — this provider is already
-	 *   recorded against the account. Idempotent from the customer's point of
-	 *   view; render the connected state rather than an error.
-	 * - `SIGN_IN_PROVIDER_REFUSED` (social sign-in) — the provider is stored with
-	 *   `status: 'refused'`, so the unlink is doing its job. NOT a credential
-	 *   failure and not a retryable one: the token was perfectly valid. Route to
-	 *   "sign in another way", or to re-linking.
-	 * - `SIGN_IN_UID_MISMATCH` (social sign-in) — the provider is linked, but to
-	 *   a DIFFERENT Firebase UID than the one this verified token carries. This
-	 *   is the check that closes the original gap, where a matching email address
-	 *   was enough. Treat it as a security event, not as a bad password.
-	 */
-	type SignInMethodErrorCode =
-		| 'SIGN_IN_METHOD_LAST_CREDENTIAL'
-		| 'SIGN_IN_METHOD_NOT_LINKED'
-		| 'SIGN_IN_METHOD_ALREADY_LINKED'
-		| 'SIGN_IN_PROVIDER_REFUSED'
-		| 'SIGN_IN_UID_MISMATCH';
 }
+
+/**
+ * `body.error` codes the sign-in-method paths can refuse with.
+ *
+ * A CONST TUPLE, not a bare union, because the consumer's job is an exhaustive
+ * `Record<SignInMethodErrorCode, string>` of user-facing copy — and a bare union
+ * cannot key one the compiler re-checks when a member is added. Module-scope
+ * rather than ambient, so importing the VALUES is the only way to read them; a
+ * surviving global would let a consumer keep matching strings and never notice
+ * the tuple grew.
+ *
+ * ⚠️ NO HTTP STATUS IS STATED FOR ANY OF THESE, deliberately. Match on
+ * `body.error`, never on a status you assumed here. The status is chosen at each
+ * handler's return site, and two members share a status while meaning opposite
+ * things.
+ *
+ * ⚠️ The previous docblock claimed "these modes do not exist in the api yet;
+ * this cohort is published AHEAD of it". That stopped being true without anyone
+ * editing it: five of the members below have been ON THE WIRE and unpublished,
+ * `SIGN_IN_METHODS_CONFLICT` since the sign-in-methods race fix shipped. A
+ * contract that lags its own emitter is the failure this tuple closes.
+ *
+ * - `SIGN_IN_METHOD_LAST_CREDENTIAL` (unlink) — the guardrail. Removing this
+ *   provider would leave the account with no way in at all: no other linked
+ *   provider and no password. Correct ONLY because the api sees both the social
+ *   providers and the password credential. Offer "set a password first", not a
+ *   retry.
+ * - `SIGN_IN_METHOD_NOT_LINKED` (unlink) — nothing to unlink. ⚠️ Reachable for a
+ *   provider the customer signs in with RIGHT NOW: a working Google sign-in is
+ *   still not a linked one.
+ * - `SIGN_IN_METHOD_ALREADY_LINKED` (link) — already recorded against the
+ *   account. Idempotent from the customer's point of view; render the connected
+ *   state rather than an error.
+ * - `SIGN_IN_PROVIDER_REFUSED` (social sign-in) — stored with `status: 'refused'`,
+ *   so the unlink is doing its job. NOT a credential failure and not retryable:
+ *   the token was perfectly valid. Route to "sign in another way", or re-linking.
+ * - `SIGN_IN_UID_MISMATCH` (social sign-in) — linked, but to a DIFFERENT Firebase
+ *   UID than this verified token carries. Closes the gap where a matching email
+ *   address was enough. A security event, not a bad password.
+ * - `SIGN_IN_IDENTITY_MISMATCH` (link) — the minted token's identity is not the
+ *   account being linked to. ⚠️ Distinguishable here and deliberately NOT on the
+ *   unauthenticated sign-in path: the linking caller is cookie-authenticated and
+ *   already holds both operands, so naming the mismatch discloses nothing it did
+ *   not supply. Naming it on sign-in would enumerate the customer table.
+ * - `SIGN_IN_IDENTITY_UNVERIFIED` (link) — the provider asserts an identity it
+ *   has not itself verified.
+ * - `INVALID_ID_TOKEN` — the token failed verification outright: malformed,
+ *   expired, or signed by the wrong issuer. Retryable by re-authenticating.
+ * - `SIGN_IN_PROVIDER_UNSUPPORTED` — the provider is not one this store accepts.
+ *   A configuration answer, not a credential one.
+ * - `SIGN_IN_METHODS_CONFLICT` — a concurrent writer won the row. The retry
+ *   budget is already spent by the time this reaches the wire, so it is
+ *   terminal for this request: surface "please retry", never auto-retry again.
+ *   ⚠️ It collapses TWO distinct DynamoDB failures — a transaction cancellation
+ *   from the shared write helper and a bare conditional-check failure from the
+ *   social path. That split never reaches the wire, and must not: a caller
+ *   cannot act on which transport lost the race.
+ * - `SIGN_IN_RELAY_IDENTITY_UNRESOLVED` — a private-relay identity could not be
+ *   resolved to a known account. Distinguishable so the client can steer the
+ *   customer to link rather than showing a generic failure; the relay address
+ *   itself is deliberately not carried, since it is re-derivable from the token
+ *   on the next sign-in.
+ */
+export const SIGN_IN_METHOD_ERROR_CODES = [
+	'SIGN_IN_METHOD_LAST_CREDENTIAL',
+	'SIGN_IN_METHOD_NOT_LINKED',
+	'SIGN_IN_METHOD_ALREADY_LINKED',
+	'SIGN_IN_PROVIDER_REFUSED',
+	'SIGN_IN_UID_MISMATCH',
+	'SIGN_IN_IDENTITY_MISMATCH',
+	'SIGN_IN_IDENTITY_UNVERIFIED',
+	'INVALID_ID_TOKEN',
+	'SIGN_IN_PROVIDER_UNSUPPORTED',
+	'SIGN_IN_METHODS_CONFLICT',
+	'SIGN_IN_RELAY_IDENTITY_UNRESOLVED',
+] as const;
+
+export type SignInMethodErrorCode = (typeof SIGN_IN_METHOD_ERROR_CODES)[number];
 
 export {}; // NOSONAR
