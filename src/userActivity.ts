@@ -82,12 +82,6 @@ declare global {
 		trigger: 'enrollment' | 'regenerate';
 	}
 
-	interface StorePaletteChangedEvent extends UserActivityEventBase {
-		event: 'Store Palette Changed';
-		before: Record<string, unknown>;
-		after: Record<string, unknown>;
-	}
-
 	interface StoreSettingsUpdatedEvent extends UserActivityEventBase {
 		event: 'Store Settings Updated';
 		section: string;
@@ -1028,7 +1022,6 @@ declare global {
 		| TwoFactorDisabledEvent
 		| TwoFactorResetEvent
 		| TwoFactorRecoveryCodesGeneratedEvent
-		| StorePaletteChangedEvent
 		| StoreSettingsUpdatedEvent
 		| PlanChangedEvent
 		| InvoiceCreatedEvent
