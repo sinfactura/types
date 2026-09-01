@@ -802,3 +802,118 @@ export interface CmdkTenantStatsResponse {
 	data: CmdkTenantStatsData;
 	truncated: boolean;
 }
+
+// ── GET /platform/metrics ────────────────────────────────────────────────
+//
+// The operator dashboard's snapshot. Published rather than mirrored
+// consumer-side: the MRR block below encodes revenue-recognition POLICY, and
+// a number whose definition lives only in the emitting handler is one no
+// consumer can reconcile against Stripe.
+
+/** Rolling window a windowed metric was computed over. */
+export type MetricsWindow = '24h' | '7d';
+
+export interface PlatformTenantMetrics {
+	total: number;
+	demo: number;
+	byPlan: Record<PlanTier, number>;
+	byStatus: Record<SubscriptionStatus, number>;
+	byBillingCycle: Record<BillingCycle, number>;
+}
+
+/**
+ * Normalised monthly recurring revenue.
+ *
+ * `countedStatuses` and `annualDivisor` travel ON THE WIRE rather than living
+ * only in the emitter, so a consumer can state what the figure means without
+ * re-deriving it. Both are policy, not arithmetic.
+ */
+export interface PlatformMrrMetrics {
+	/**
+	 * ISO code the total is denominated in, DERIVED from the plan catalog
+	 * rather than fixed — `'USD'` is a live migration target.
+	 *
+	 * `null` does NOT by itself mean the total is zero. Two distinct cases,
+	 * told apart by `excluded.mixedPlanCurrencies`:
+	 *
+	 *   - `> 0` — priced plans DISAGREE (a half-finished migration). Nothing
+	 *     was summed and `totalCents` is 0. Adding USD to ARS produces a
+	 *     number that is not money in any currency, so the disagreement is
+	 *     reported rather than averaged away.
+	 *   - `0` — the priced plans agree, they just carry no `currency` (it is
+	 *     nullable at creation). `totalCents` is a real total that cannot be
+	 *     labelled.
+	 */
+	currency: 'ARS' | 'USD' | null;
+	/** Normalised MRR in the currency's minor unit (centavos for ARS, cents for USD). */
+	totalCents: number;
+	/**
+	 * The statuses `countedSubscriptions` was drawn from.
+	 *
+	 * `past_due` is INCLUDED — a paying subscription in dunning, not a lost
+	 * one. `trialing`, `readonly` and `canceled` are excluded, the last even
+	 * where `currentPeriodEnd` is still in the future: that knowingly
+	 * understates the current month, and can only ever err downward, which is
+	 * the safer direction for a number an operator acts on.
+	 */
+	countedStatuses: SubscriptionStatus[];
+	/** `priceAnnualCents / annualDivisor` is one annual subscription's monthly contribution. */
+	annualDivisor: number;
+	/** Subscriptions in a counted status. The denominator for `excluded`. */
+	countedSubscriptions: number;
+	/**
+	 * Counted subscriptions that contributed NOTHING, by reason. Mutually
+	 * exclusive, so `countedSubscriptions - (sum of these)` is the number that
+	 * actually contributed. Present so a zero is never silent: a wrong MRR and
+	 * a correct one look identical without them.
+	 */
+	excluded: {
+		/**
+		 * The plan carries no price for this subscription's cycle. Expected to
+		 * cover every free-tier row — `basico` has no price and no currency by
+		 * design — so this is only a misconfiguration signal above that count.
+		 */
+		noPlanPrice: number;
+		/** The row carries no `billingCycle`, so neither price applies to it. */
+		noBillingCycle: number;
+		/** Priced plans disagreed on currency, so nothing could be summed. */
+		mixedPlanCurrencies: number;
+	};
+}
+
+export interface PlatformInvoicingMetrics {
+	window: MetricsWindow;
+	issuedCount: number;
+	issuedTotal: { currency: string; value: number };
+	monthToDateCount: number;
+}
+
+export interface PlatformErrorMetrics {
+	window: MetricsWindow;
+	total: number;
+	byOrigin: { app: number; web: number };
+	activeAlerts: number | null;
+}
+
+export interface PlatformSessionMetrics {
+	active: number;
+}
+
+/**
+ * `GET /platform/metrics` payload.
+ *
+ * Every block is independently nullable: one failing pass must never cost the
+ * caller the rest of the snapshot.
+ */
+export interface PlatformMetricsSnapshot {
+	tenants: PlatformTenantMetrics | null;
+	/**
+	 * `null` when the tenant pass failed, or when the plan catalog could not
+	 * be read — the counts stay useful without it.
+	 */
+	mrr: PlatformMrrMetrics | null;
+	invoicing: PlatformInvoicingMetrics | null;
+	errors: PlatformErrorMetrics | null;
+	sessions: PlatformSessionMetrics | null;
+	generatedAt: number;
+}
