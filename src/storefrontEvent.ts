@@ -9,7 +9,7 @@
 // for event names; snake_case for properties so the GA4 / Segment
 // vocabulary on the wire maps without translation.
 //
-// 16 variants — the 4 storefront-only events (`Page Viewed`,
+// 21 variants — the 4 storefront-only events (`Page Viewed`,
 // `Favorite Toggled`, `Whatsapp Clicked`, `Error Captured`) currently
 // emitted by storefront are NOT in this taxonomy yet; they ride the
 // legacy `Log` path and are tracked for a follow-up types release.
@@ -167,6 +167,68 @@ declare global {
 		customer_found: boolean;
 	}
 
+	// The five events below are BE-emitted from authenticated Web API routes
+	// via `recordStorefrontEvent`, not from the FE's `track()` path. Every one
+	// of them redeclares `customer_id` as required (override of the optional
+	// base field): the route behind each demands a customerToken, so a row
+	// without a customer is a contract violation, not a sparse record.
+	//
+	// Their property sets are deliberately narrow — identifiers and counts
+	// only, never field VALUES and never free text. This stream is retained
+	// for analytics and read back by the operator activity feed, so anything
+	// customer-authored in it would be PII under Ley 25.326.
+
+	// Customer opened/acknowledged a single notification.
+	interface NotificationMarkedReadEvent extends StorefrontEventBase {
+		event: 'Notification Marked Read';
+		customer_id: string;
+		notification_id: string;
+	}
+
+	// Customer cleared their whole notification tray in one action.
+	interface NotificationsMarkedAllReadEvent extends StorefrontEventBase {
+		event: 'Notifications Marked All Read';
+		customer_id: string;
+		/** How many notifications the bulk action actually flipped to read. */
+		count: number;
+	}
+
+	// Post-order satisfaction survey returned by the customer.
+	interface SurveySubmittedEvent extends StorefrontEventBase {
+		event: 'Survey Submitted';
+		customer_id: string;
+		order_id: string;
+		/**
+		 * 1–4 inclusive. The range is enforced by the api's Zod mirror, not by
+		 * the type — a branded type here would only move the check somewhere it
+		 * cannot run, since this union is compile-time only.
+		 */
+		rating: number;
+		// ⚠️ No `comment` field, deliberately. The survey's free-text comment is
+		// customer-authored PII and must never enter this stream; it stays on
+		// the survey entity itself. Do not add one.
+	}
+
+	// Customer edited their own profile.
+	interface CustomerProfileUpdatedEvent extends StorefrontEventBase {
+		event: 'Customer Profile Updated';
+		customer_id: string;
+		/**
+		 * The NAMES of the fields that changed (e.g. `['phone', 'address']`) —
+		 * never their values. The old and new values are PII; only the shape of
+		 * the edit belongs here.
+		 */
+		fields: string[];
+	}
+
+	// Customer changed their own password from an authenticated session.
+	// Carries nothing but the actor: this is a security-audit marker, and any
+	// further property would either be a secret or a value nobody needs.
+	interface CustomerPasswordChangedEvent extends StorefrontEventBase {
+		event: 'Customer Password Changed';
+		customer_id: string;
+	}
+
 	type StorefrontEvent =
 		| ProductViewedEvent
 		| ProductListViewedEvent
@@ -183,7 +245,12 @@ declare global {
 		| CustomerSignedUpEvent
 		| CustomerLoggedOutEvent
 		| CustomerIdentifiedEvent
-		| CustomerPasswordResetRequestedEvent;
+		| CustomerPasswordResetRequestedEvent
+		| NotificationMarkedReadEvent
+		| NotificationsMarkedAllReadEvent
+		| SurveySubmittedEvent
+		| CustomerProfileUpdatedEvent
+		| CustomerPasswordChangedEvent;
 
 	// Anonymous-to-customer stitch row, written when an anonymous visitor
 	// authenticates. Partition key on `(tenant_store_id, anonymous_id)`;

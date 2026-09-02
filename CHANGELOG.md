@@ -7,6 +7,25 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.179
+
+- **feat(storefront-events):** add `NotificationMarkedReadEvent`,
+  `NotificationsMarkedAllReadEvent`, `SurveySubmittedEvent`,
+  `CustomerProfileUpdatedEvent` and `CustomerPasswordChangedEvent` to
+  `StorefrontEvent` — 16 variants to 21.
+- All five are **BE-emitted** from authenticated Web API routes via the api's
+  `recordStorefrontEvent`, so each redeclares the optional base `customer_id`
+  as **required**, the same override `Customer Identified` makes. The base
+  interface is unchanged.
+- ⚠️ Property sets are deliberately narrow — identifiers and counts only.
+  `Survey Submitted` carries **no `comment`** field and
+  `Customer Profile Updated` carries the changed field **names**, never their
+  values: this stream is retained and read back by the operator activity feed,
+  so customer-authored text in it would be PII under Ley 25.326.
+- `rating` is a plain `number` documented as 1–4. The bound is the api's Zod
+  mirror's to enforce; this union is compile-time only, so a branded type would
+  move the check somewhere it cannot run.
+
 ## 1.10.163
 
 - **fix(socket):** add `agent_command_result` to `LIVE_CLIENT_SOCKET_ACTIONS`.
