@@ -606,19 +606,35 @@ export type CatalogWarningCode =
 	| 'MISSING_FEATURE_ROW';
 
 /**
- * One disagreement between a plan's copy and its entitlements.
+ * One disagreement between a plan's copy and its entitlements, or between the
+ * declared feature catalog and a tier's stored rows.
  *
  * ⚠️ Absence of a warning is NOT a claim that the copy is correct. The matcher
  * pairs a bullet to a feature only on a single unambiguous keyword; a bullet
  * matching two keywords or none is skipped rather than guessed, so it
  * deliberately understates. Reading an empty array as "this tier's copy is
  * verified" inverts that design.
+ *
+ * ⚠️ That understatement had a second, larger hole: every check used to be
+ * COPY-DRIVEN, so a declared feature key that no bullet happened to mention
+ * could be missing its row on every tier and warn nothing. That is not
+ * hypothetical — `storefront` was absent from all four production tiers, had no
+ * marketing bullet, and therefore produced an empty `warnings` array while the
+ * feature was locked for every tenant. `source: 'catalog'` exists so a check can
+ * be driven by the declared key set instead of by what the copy happens to name.
  */
 export interface CatalogWarning {
 	code: CatalogWarningCode;
-	/** Which piece of copy produced it — one of the `bullets`, or the `description`. */
-	source: 'bullets' | 'description';
-	/** The offending bullet, or the description, verbatim. */
+	/**
+	 * What produced it — one of the `bullets`, the `description`, or `'catalog'`
+	 * for a check driven by the declared feature key set rather than by copy.
+	 */
+	source: 'bullets' | 'description' | 'catalog';
+	/**
+	 * The offending bullet, or the description, verbatim. For `source:
+	 * 'catalog'` there is no copy to quote — it carries the tier that was
+	 * examined, which is the equivalent "what was checked" value.
+	 */
 	text: string;
 	/** The entitlement the copy was checked against. */
 	featureKey: FeatureKey;
