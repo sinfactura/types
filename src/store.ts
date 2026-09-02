@@ -621,18 +621,23 @@ declare global {
 
     // PER-STORE CONFIG — admin-controlled from the
     // Integrations hub Configuración tab.
-    /** Per-channel auto-invoice toggle — default OFF; enabling requires
-     * `defaultPosId` (dedicated PdV) + the Facturador-collision check. */
+
+    /* ⚠️ RETIRED, and declared ONLY because the values are still on the row.
+     * ML auto-invoicing was removed: nothing reads these four, `PATCH /store`
+     * no longer accepts them, and `GET /mercadolibre/status` no longer returns
+     * them. They stay here because writes are forward-only and never migrated,
+     * so live rows genuinely carry them and a reader deserves a type for what
+     * it will find. Do NOT wire a new control to any of them — a new
+     * auto-invoicing decision gets new fields, not these. */
+    /** RETIRED. Was the per-channel auto-invoice toggle. */
     autoInvoice?: boolean;
-    /** Auto-emit a Nota de Crédito when a full-sale ML return is finalized —
-     * default OFF; requires `autoInvoice` and rides the same
-     * dedicated-PdV + Facturador-collision guards. */
+    /** RETIRED. Was the auto-Nota-de-Crédito toggle for finalized full-sale ML returns. */
     autoCreditNote?: boolean;
-    defaultPosId?: number; // dedicated AFIP PdV for the ML channel.
-    /** Epoch ms of the operator's attestation that ML's own Facturador is
-     * OFF for this account — required before `autoInvoice` can
-     * be enabled (no public ML API exposes Facturador state). Audit trail;
-     * absent = never attested. */
+    /** RETIRED. Was a dedicated AFIP PdV for the ML channel; ML invoices now
+     * emit against the store's ordinary `afip.pointOfSale`. */
+    defaultPosId?: number;
+    /** RETIRED. Was the epoch-ms audit trail of the operator's attestation that
+     * ML's own Facturador was OFF, gating `autoInvoice`. */
     facturadorAttestedAt?: number;
     // Outbound stock-sync knobs, applied in order: buffer → limit → pause
     // (industry-convergent; persisted via diff-PATCH).
@@ -687,20 +692,16 @@ declare global {
 
   /**
    * Full write shape for the `mercadolibre` key of `PATCH /store`'s body.
-   * `defaultPosId` accepts `null` to clear it — same WRITE-ONLY null-means-remove
-   * convention as `syncPolicy`'s knobs. `autoInvoice` is a plain boolean, never
-   * nullable. Prefer this over `Partial<Mercadolibre>` for PATCH bodies — the
-   * read-side interface can't express write-time null-clear semantics.
+   * Prefer this over `Partial<Mercadolibre>` for PATCH bodies — the read-side
+   * interface can't express write-time null-clear semantics.
+   *
+   * ⚠️ `syncPolicy` is the ONLY knob left on this leaf. The auto-invoicing
+   * knobs — `autoInvoice`, `autoCreditNote`, `defaultPosId` and the write-only
+   * `facturadorAttested` flag — are retired, and the endpoint's schema no
+   * longer accepts them: a body carrying one is silently stripped, not
+   * honoured. Declaring them here advertised a write that does not happen.
    */
   interface MercadolibrePatchInput {
-    autoInvoice?: boolean;
-    /** Auto-emit a Nota de Crédito on a finalized full-sale ML return; BE-enforced: requires `autoInvoice` true (400 otherwise). */
-    autoCreditNote?: boolean;
-    defaultPosId?: number | null;
-    /** WRITE-ONLY attestation flag: `true` = operator confirms ML's own
-     * Facturador is OFF. BE stamps `facturadorAttestedAt`; the boolean itself
-     * is never persisted. Required when `autoInvoice` flips to `true` (else 422). */
-    facturadorAttested?: boolean;
     syncPolicy?: MercadolibreSyncPolicyInput;
   }
 
@@ -857,8 +858,8 @@ declare global {
    * Write shape for the `afip` key of `PATCH /store`'s body. The wire accepts an
    * explicit `null` for these clearable keys — `null` deletes the key, omitting it
    * keeps the current value — but the read-side `Afip` interface can't express that
-   * WRITE-ONLY null-clear semantic. Same convention as `MercadolibrePatchInput`'s
-   * `defaultPosId`/`syncPolicy` null-knobs above.
+   * WRITE-ONLY null-clear semantic. Same convention as
+   * `MercadolibreSyncPolicyInput`'s null-knobs above.
    */
   interface AfipPatchInput {
     facturaMLegend?: 'retencion' | 'cbu_informada' | null;

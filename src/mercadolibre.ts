@@ -69,13 +69,17 @@ declare global {
     nickname?: string;
     connectedAt?: number;
     expiresAt?: number;
-    autoInvoice?: boolean;
-    autoCreditNote?: boolean; // Read side of the auto-NC toggle.
-    defaultPosId?: number;
-    /** When the operator attested ML's own Facturador is OFF
-     * (epoch ms); absent = never attested. FE gates the autoInvoice toggle
-     * on this. */
-    facturadorAttestedAt?: number;
+    /* ML auto-invoicing is RETIRED, and with it the four fields this DTO used
+     * to carry: `autoInvoice`, `autoCreditNote`, `defaultPosId` and
+     * `facturadorAttestedAt`. The endpoint stopped populating them; leaving
+     * them declared kept a published instruction to gate a control that no
+     * longer exists, which is worse than an absent field. ML invoices now emit
+     * against the store's ordinary `afip.pointOfSale`, and a factura reaches
+     * an ML order through `POST /invoices` like any other sale.
+     *
+     * Legacy VALUES may still sit on the Store row — forward-only, never
+     * migrated — but nothing reads or writes them. See `Mercadolibre` in
+     * `store.ts`, where they stay declared for exactly that reason. */
     syncPolicy?: Mercadolibre["syncPolicy"];
   }
 
