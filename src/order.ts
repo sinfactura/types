@@ -117,6 +117,32 @@ declare global {
 		 * existed — this platform is forward-only and nothing backfills.
 		 */
 		stockAppliedAt?: number;
+		/**
+		 * When this order's inventory application was REVERSED — the `Product.stock`
+		 * credit back, the `totalSales` credit back, and the `skip` stamp on the
+		 * `SALE#` rows the apply wrote.
+		 *
+		 * ⚠️ **A WRITE-ONCE LATCH, and the mirror of `stockAppliedAt`.** A channel
+		 * that learns an order it already applied was cancelled reverses it exactly
+		 * once: the reversing transaction stamps this under
+		 * `attribute_exists(stockAppliedAt) AND attribute_not_exists(stockReversedAt)`,
+		 * so a replayed cancellation loses the condition and the whole transaction —
+		 * the stock credit included — is rejected as a unit. Both halves of that
+		 * condition matter: without the first, a cancellation arriving for an order
+		 * whose stock was never applied would CREATE inventory from nothing.
+		 *
+		 * ⚠️ Reversal does not DELETE the `SALE#` rows. They are stamped `skip`, the
+		 * field the stock ledger and the reconciliation report already exclude on, so
+		 * the movement stops counting while the audit trail survives. A reader that
+		 * sums `SALE#` without honouring `skip` will over-report.
+		 *
+		 * ⚠️ Written ONLY by a channel that needs the latch — today the MercadoLibre
+		 * `orders_v2` ingest. Absent means "not reversed", never "not reversible".
+		 *
+		 * ⚠️ Optional and permanently so, like every other field added after rows
+		 * existed — this platform is forward-only and nothing backfills.
+		 */
+		stockReversedAt?: number;
 		comments?: string;
 		currency: string; // catalogId — FK to PlatformCurrency
 		// Self-describing currency stamp (ADR-0013): FX rate and the Unix ms at which it was effective.
