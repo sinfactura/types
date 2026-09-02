@@ -275,9 +275,25 @@ export type LogDeleteData = LogDeleteOneData | LogDeleteAllData;
  * only opens the log folder on the agent's own machine (not remotely
  * meaningful — shipping logs back would be a different capability), and
  * **`test_print`** isn't agent-local at all (the backend already dispatches
- * a real job to an explicit printer).
+ * a real job to an explicit printer). ⚠️ `view-logs` IS a member of the
+ * agent's own `DiagnosticActionId` union — its absence here is a deliberate
+ * narrowing, not drift, so do not "fix" it by copying that union wholesale.
+ *
+ * `disable-printing` / `enable-printing` are the remote kill switch. They are
+ * **remote-only**: the agent's panel wires buttons from `[data-diagnostic-action]`
+ * elements and skips an id with no element, so these two reach the agent
+ * through `agent_command` and nowhere else. Both are payload-free — the
+ * command id IS the instruction, and adding a payload later would be a wire
+ * change, not a detail.
  */
-export const AGENT_COMMANDS = ['redetect-printers', 'reconnect-socket', 'flush-acks', 'clear-queue'] as const;
+export const AGENT_COMMANDS = [
+	'redetect-printers',
+	'reconnect-socket',
+	'flush-acks',
+	'clear-queue',
+	'disable-printing',
+	'enable-printing',
+] as const;
 
 /** Union of every remote-triggerable diagnostic command. */
 export type AgentCommand = (typeof AGENT_COMMANDS)[number];
@@ -293,8 +309,21 @@ export const isAgentCommand = (value: unknown): value is AgentCommand =>
  * in the DOM layer (unreachable from a remote trigger), so the "are you
  * sure?" is the caller's job. `clear-queue` deletes queued work that then
  * never prints — the operator who loses it isn't the one who pressed the button.
+ * `disable-printing` stops a site printing until someone re-enables it, which
+ * is the same shape of loss.
+ *
+ * ⚠️ **`enable-printing` is deliberately NOT here, and must never be added.**
+ * It is the un-kill. Gating it behind a confirmation inverts the safety
+ * property: the moment it is most needed is an incident, when an operator is
+ * trying to restore service, and a "are you sure?" on RESTORING printing
+ * protects nothing while delaying the fix. Confirmation belongs on the action
+ * that loses work, never on the one that recovers from it.
+ *
+ * Both flags were read from the agent's own `diagnostic-actions.ts` rather
+ * than from the issue that requested them — `clear-queue` true,
+ * `disable-printing` true, `enable-printing` false.
  */
-export const DESTRUCTIVE_AGENT_COMMANDS: readonly AgentCommand[] = ['clear-queue'];
+export const DESTRUCTIVE_AGENT_COMMANDS: readonly AgentCommand[] = ['clear-queue', 'disable-printing'];
 
 /**
  * `data` payload of the BE → agent `agent_command` frame — nested, like every
