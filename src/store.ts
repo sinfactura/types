@@ -1039,6 +1039,57 @@ declare global {
   type DomainStatus = "PENDING" | "VERIFIED" | "REVOKED";
 
   /**
+   * Where EMPRESA custom-domain provisioning stands for a VERIFIED host. The
+   * ownership flow (register → DNS-TXT verify) is unchanged and precedes this;
+   * provisioning is what the platform does with a host once it is proven.
+   *
+   * - `pending_dns` — the association exists; waiting on the tenant to add the
+   *   CNAME records the hosting provider asked for.
+   * - `in_progress` — DNS looks right; the certificate is being issued and the
+   *   domain deployed.
+   * - `active` — the provider reports the domain live.
+   * - `failed` — the provider reported a failure, or no progress for 48 h.
+   * - `unconfigured` — this stage has no hosting-app id configured, so
+   *   provisioning cannot start here. A deployment fact, not a tenant fault.
+   */
+  type DomainProvisioningState = "pending_dns" | "in_progress" | "active" | "failed" | "unconfigured";
+
+  /** One sub-domain of a provisioned host, mirroring the hosting provider's own per-prefix record. */
+  interface DomainSubDomainRecord {
+    /** `''` for the apex, `'www'` etc. */
+    prefix: string;
+    /**
+     * The provider's CNAME instruction for this prefix, e.g. `"<name> CNAME <value>"`.
+     * Present once the provider has computed it — show it verbatim, never re-derive it.
+     */
+    dnsRecord?: string;
+    verified: boolean;
+  }
+
+  /**
+   * Provisioning sub-state carried on the SAME `DomainRecord` row — a domain is
+   * one entity, not two. Absent until provisioning has been attempted for the
+   * host, which is every row written before this shipped.
+   *
+   * Timestamps are **Unix MILLISECONDS**, the same unit as `createdAt` /
+   * `verifiedAt` on the enclosing row.
+   */
+  interface DomainProvisioning {
+    state: DomainProvisioningState;
+    /** The provider's certificate-validation CNAME instruction — shown to the tenant once, verbatim. */
+    certificateVerificationDnsRecord?: string;
+    subDomains?: DomainSubDomainRecord[];
+    /** Unix MILLISECONDS — last time the poller checked the provider. Operator diagnostic, not tenant-facing. */
+    lastCheckedAt?: number;
+    /** Unix MILLISECONDS. */
+    startedAt?: number;
+    /** Unix MILLISECONDS. Present once `state` reaches `active`. */
+    activatedAt?: number;
+    /** The provider's last reported failure reason. Diagnostic only — never a stable code to branch on. */
+    error?: string;
+  }
+
+  /**
    * One row of `GET /store/domains`, which answers `{ data: DomainRecord[] }`.
    *
    * ⚠️ MIXED TIME UNITS inside one row, and this is the shipped shape.
@@ -1075,6 +1126,8 @@ declare global {
     revokedAt?: number;
     /** Unix SECONDS — a DynamoDB TTL. PENDING rows only; removed on verify. */
     ttl?: number;
+    /** Present only once EMPRESA provisioning has been attempted for this VERIFIED host. */
+    provisioning?: DomainProvisioning;
   }
 
   /**

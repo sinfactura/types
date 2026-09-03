@@ -184,10 +184,35 @@ export const SOCKET_ACTIONS = [
 	// ⚠️ A frame for a period whose `periodStatus` is `'OPEN'` carries numbers
 	// ML will still restate; a consumer must not render one as final.
 	'mercadolibre_settlement_period',
+	// BE → all store users when an EMPRESA custom domain's provisioning state
+	// moves (`CustomDomainSocketPayload`). Status only: the row's
+	// `verificationToken` is an ownership credential and is never re-sent here.
+	'customDomain',
 ] as const;
 
 /** Union of every server→client data-frame action. */
 export type SocketAction = (typeof SOCKET_ACTIONS)[number];
+
+/**
+ * Payload of the `'customDomain'` frame — a projection of `DomainRecord`, not
+ * the row. Deliberately OMITTED versus the row: `verificationToken` (an
+ * ownership credential, returned once at register time and never re-sent),
+ * any hosting-provider app id (internal), and `lastCheckedAt` / `startedAt`
+ * (operator-only diagnostics).
+ */
+export interface CustomDomainSocketPayload {
+	storeId: string;
+	/** The NORMALIZED host, as stored on the row. */
+	host: string;
+	provisioning: {
+		state: DomainProvisioningState;
+		certificateVerificationDnsRecord?: string;
+		subDomains?: DomainSubDomainRecord[];
+		/** Unix MILLISECONDS. Present once `state` reaches `active`. */
+		activatedAt?: number;
+		error?: string;
+	};
+}
 
 /** Runtime guard — narrows an untrusted string to a known action. */
 export const isSocketAction = (value: unknown): value is SocketAction =>
