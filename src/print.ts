@@ -53,6 +53,20 @@ declare global {
     rotate?: 0 | 90 | 180 | 270;
   }
 
+  /**
+   * Who caused a print-job transition. `fullName` is denormalized at write
+   * time, matching `OrderAuditActor` — a timeline has to stay readable after
+   * the user is renamed or removed, and re-resolving it per row on read would
+   * be a lookup per timeline entry.
+   *
+   * ⚠️ Storing it is not licence to log it: `fullname` is a `SENSITIVE_KEYS`
+   * entry, so it is scrubbed out of every log, Sentry event and `ERROR` row.
+   */
+  interface PrintJobActor {
+    userId: string;
+    fullName: string;
+  }
+
   interface PrintJobTransition {
     jobId: string;
     state: PrintJobState;
@@ -60,6 +74,12 @@ declare global {
     source: 'be' | 'agent';
     detail?: string;
     errorCode?: string;
+    /**
+     * Absent on an agent-driven transition, which no person initiates, and on
+     * every row written before actor identity shipped. Absence means "not
+     * attributed", never "the system" — render a fallback rather than a name.
+     */
+    actor?: PrintJobActor;
   }
 
   /**

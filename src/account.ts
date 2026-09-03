@@ -74,6 +74,24 @@ declare global {
      * `currencyValue` alone until an Account writer exists.
      */
     currencyValueAt?: number;
+    /**
+     * How the money arrived, for a POS-originated movement — the SAME fixed
+     * vocabulary as {@link OrderTender.source}, deliberately coarser than
+     * `method` so a reader can branch without knowing the tenant's method
+     * table.
+     *
+     * Absent on a manual account entry, which is every row written to date.
+     * Absence is what keeps the free-text `subject` fallback correct for
+     * those rows; it does NOT mean cash.
+     */
+    source?: 'cash' | 'card' | 'qr' | 'transfer' | 'account' | 'other';
+    /**
+     * FK to a `Store.paymentMethods` entry's `id`, resolved at write time and
+     * frozen here — same semantics as {@link OrderTender.method}. The tenant
+     * may rename, reorder or remove that method afterwards; the row keeps the
+     * id it was written under, so do not read it as a live pointer.
+     */
+    method?: number;
     balance?: number;
     // Optional: only some writers stamp `userId` (the payment-link credit and
     // return credit do; the manual POST /account row and order-delivery debit
