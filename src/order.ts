@@ -694,10 +694,78 @@ declare global {
 			 */
 			unlinkedLines?: number;
 		};
-		// fiscal_documents upload outcome: 'pending' while in flight, 'uploaded'
-		// on success, 'failed' on error. Absent = no invoice issued yet.
-		fiscalDocumentStatus?: 'uploaded' | 'failed' | 'pending';
+		/**
+		 * `fiscal_documents` upload outcome. Absent = no invoice issued yet.
+		 *
+		 * - `pending` — claimed, in flight.
+		 * - `uploaded` — ML holds our document. The one TERMINAL-SUCCESS value, and
+		 *   the only one the re-upload route and the claim guard refuse.
+		 * - `failed` — the last attempt failed AND the automatic drain still owns
+		 *   it. Transient by construction: an operator has nothing to do here.
+		 * - `needs-attention` — the drain is done and the document is still not
+		 *   uploaded. Either the failure was never retryable, or every retry was
+		 *   spent. This is the ONLY value that asks a human to act.
+		 *
+		 * ⚠️ `failed` narrowed when `needs-attention` was added. It used to be
+		 * stamped BEFORE retryability was considered, so it covered both meanings
+		 * and an order that hit one 503 sat "failed" for hours while the sweeper
+		 * healed it. A reader that treats `failed` as actionable is now reading the
+		 * pre-narrowing contract.
+		 *
+		 * ⚠️ Not an exhaustiveness-checked union anywhere — no consumer switches on
+		 * it, so adding a member fails no build. Readers comparing against a single
+		 * literal keep compiling and silently mis-classify the new value.
+		 */
+		fiscalDocumentStatus?: 'uploaded' | 'failed' | 'pending' | 'needs-attention';
+		/**
+		 * The raw failure reason for the CURRENT `failed`/`needs-attention` state —
+		 * the same string the retry row and the ERROR row carry, e.g. `network`,
+		 * `pdf-too-large`, `http-error:409`.
+		 *
+		 * Diagnostic, not a control value: the `http-error:` arm is open-ended, so
+		 * branch on {@link fiscalDocumentFailureKind} and render this. Cleared on
+		 * `uploaded` and on a fresh `pending` claim — a reason outliving the attempt
+		 * it describes is worse than none.
+		 */
+		fiscalDocumentReason?: string;
+		/**
+		 * The CLASSIFIED failure, for a reader that has to decide what to show and
+		 * whether its retry button can honestly succeed.
+		 *
+		 * Exists because the raw reason cannot answer that: `http-error:409` is the
+		 * Facturador collision — ML already holds a document, ours is not it, and
+		 * the buyer is not missing anything — while `http-error:400` is a rejection
+		 * only a change on our side can fix. Both flatten to "an HTTP error".
+		 */
+		fiscalDocumentFailureKind?: MlFiscalDocumentFailureKind;
 	}
+
+	/**
+	 * Why a `fiscal_documents` upload is not going to succeed on its own.
+	 *
+	 * Closed deliberately, and coarser than the raw reason set: it names what the
+	 * READER must do differently, not what the transport did. Add a member only
+	 * when a consumer would genuinely act differently on it.
+	 *
+	 * - `facturador-collision` — ML answered 409, or said a document is already
+	 *   attached. A rival invoicer (ML's own Facturador) got there first. The
+	 *   buyer HAS a fiscal document; it is not ours. Retrying cannot win.
+	 * - `document-rejected` — ML refused our document on its merits (a 4xx that is
+	 *   not a collision, an oversized PDF). Fix the document, then re-upload.
+	 * - `connection` — the store's ML connection cannot authorize the call
+	 *   (`no-token`). Reconnecting is the remedy, and it is not order-specific.
+	 * - `ml-unavailable` — transport or ML-side fault survived every retry
+	 *   (`network`, `rate-limited`, 5xx). Nothing is wrong with the document; a
+	 *   manual re-upload later is the honest suggestion.
+	 * - `internal` — we threw before ML ever answered. Ours to fix, and the one
+	 *   value that should never appear in a healthy fleet.
+	 */
+	type MlFiscalDocumentFailureKind =
+		| 'facturador-collision'
+		| 'document-rejected'
+		| 'connection'
+		| 'ml-unavailable'
+		| 'internal';
 
 	// Line-level ML identity + stock provenance, persisted for the
 	// multi-warehouse foundation + Full no-decrement rule.
