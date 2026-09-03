@@ -7,6 +7,42 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.183
+
+- **feat(pos):** additive point-of-sale contract fields. Everything below is a
+  NEW OPTIONAL member — nothing became required, nothing was removed or renamed.
+- **`order.ts`** — new `OrderTender` interface plus `Order.tenders?`, an
+  append-only ledger of the payment legs rung at the counter. A leg carries
+  `tenderId`, `method` (an `id` from `Store.paymentMethods`, resolved at write
+  time and frozen), `amount`/`currency`/`currencyValue?`, a fixed `source`
+  (`cash` | `card` | `qr` | `transfer` | `account` | `other`), `reference?`,
+  `change?` (cash legs only), `recordedAt` and `recordedBy?`.
+- **`order.ts`** — `Order.amountPaid?` and `Order.balanceDue?`, both in the
+  ORDER's currency. ⚠️ STORED, not derived: legs carry their own currency
+  stamp, so a reader that re-sums `tenders` disagrees with the till on any
+  mixed-currency settlement. Plus `Order.terminalId?` and `Order.shiftId?` —
+  a web order carries neither.
+- **`customer.ts`** — `Customer.creditLimit?`, a ceiling on the account
+  `balance` in the store's display currency. ⚠️ Absent means NO ceiling, not a
+  zero one.
+- **`print.ts`** — operator-declared raw-rendering hints on `PrintPrinter`:
+  `columns?`, `imageMode?` (`raster` | `column`), `qrMode?` (`native` |
+  `raster`), `drawerKick?`. ⚠️ All four are added to the `PrintPrinterReport`
+  `Omit` list alongside `rawFormats`, so `PrintPrinterReport` is structurally
+  UNCHANGED — an agent's `register_printers` upsert physically cannot overwrite
+  an operator's declaration.
+- **`store.ts`** — `Store.jurisdiction?` (`province`, `iibbRate?`,
+  `iibbRegime?`), feeding the provincial IIBB legend on consumidor-final
+  comprobantes. `province` reuses the published `ArgentineProvince` union
+  rather than a bare `string`, so `store.ts` now carries a type-only import of
+  `./provinces.js`; validate wire input with `z.enum(ARGENTINE_PROVINCES)` to
+  get a typed value without a cast. Independent of postal `address.province`,
+  and adjacent to — not synced with — `Afip.iibbJurisdictions`.
+- **`cash.ts`** — `CashEventType` gains `'change'` (cash handed back while
+  settling a sale), so a sale and its change are two rows. ⚠️ The one member
+  addition here: a consumer with an exhaustive `switch` over `CashEventType`
+  must add a `'change'` arm.
+
 ## 1.10.182
 
 - **feat(print):** publish `LABEL_TEMPLATE_IDS` (a `readonly` 5-tuple) and the

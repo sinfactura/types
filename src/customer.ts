@@ -29,6 +29,15 @@ declare global {
     balance?: number;
     city: string;
     createdAt: number;
+    /**
+     * Ceiling on this customer's account `balance`, in the store's display
+     * currency (`Store.config.displayCurrency`).
+     *
+     * ⚠️ ABSENT MEANS NO CEILING — an unlimited account, not a zero one. A
+     * reader must not coerce absence to `0`, which would refuse credit to every
+     * customer that has never had a limit set.
+     */
+    creditLimit?: number;
     cuit: string;
     /**
      * FK into `Store.deliveryMethods`. OPTIONAL, because `POST /customers` has

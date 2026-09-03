@@ -26,6 +26,49 @@ declare global {
 		redeemedAt: number;
 	}
 
+	/**
+	 * One payment leg recorded at the counter.
+	 *
+	 * The ledger is APPEND-ONLY: legs are added in the order they were taken and
+	 * are never edited or removed in place, so two readers of the same row always
+	 * replay the same sequence.
+	 */
+	interface OrderTender {
+		/** Stable per-order leg id — survives reorder and keys the FE list. */
+		tenderId: string;
+		/**
+		 * FK to a `Store.paymentMethods` entry's `id`, resolved at write time and
+		 * frozen here. The tenant may rename, reorder or remove that method
+		 * afterwards; the leg keeps the id it was rung under, so do not read it as
+		 * a live pointer.
+		 */
+		method: number;
+		/** The money this leg took, in `currency`. */
+		amount: number;
+		/** catalogId — FK to PlatformCurrency. Self-describing per leg (ADR-0013). */
+		currency: string;
+		/** FX rate for `currency`, stamped when the leg is not in the order's currency. */
+		currencyValue?: number;
+		/**
+		 * How the money arrived — a FIXED vocabulary, deliberately coarser than
+		 * `method`. `method` is the tenant's own configurable method table; this is
+		 * what a reader can branch on without knowing that table.
+		 */
+		source: 'cash' | 'card' | 'qr' | 'transfer' | 'account' | 'other';
+		/** Operator- or provider-supplied trace (authorization code, ticket id, …). */
+		reference?: string;
+		/**
+		 * Cash handed back to the customer on this leg, in `currency`. Set on a
+		 * `source: 'cash'` leg ONLY — elsewhere absence means "does not apply", not
+		 * zero.
+		 */
+		change?: number;
+		/** ms epoch the leg was rung. */
+		recordedAt: number;
+		/** userId of the operator who rang it. */
+		recordedBy?: string;
+	}
+
 	interface Order {
 		storeId: string;
 		orderId: string;
@@ -149,6 +192,30 @@ declare global {
 		currencyValue?: number;
 		currencyValueAt?: number;
 		paymentMethod: number;
+		/**
+		 * Payment legs rung at the counter, oldest first. APPEND-ONLY — see
+		 * {@link OrderTender}. Absent on an order that was never settled at a till.
+		 */
+		tenders?: OrderTender[];
+		/**
+		 * Money received against this order, in the ORDER's `currency`.
+		 *
+		 * ⚠️ STORED at write time, NOT derived on read. A reader must use this
+		 * field and must NOT recompute it by summing `tenders`: each leg carries
+		 * its own `currency` / `currencyValue`, so a naive sum is already wrong for
+		 * a mixed-currency settlement, and a reader that recomputes will disagree
+		 * with the till over the same row.
+		 */
+		amountPaid?: number;
+		/**
+		 * What is still owed on this order, in the ORDER's `currency`. Same rule as
+		 * `amountPaid` — stored, never recomputed by a reader from the leg ledger.
+		 */
+		balanceDue?: number;
+		/** Which till rang the sale. A web order carries neither this nor `shiftId`. */
+		terminalId?: string;
+		/** The `CashShift.shiftId` this sale belongs to. A web order carries neither this nor `terminalId`. */
+		shiftId?: string;
 		/**
 		 * Expected payment due date, Unix ms. Nothing computes it from payment
 		 * terms — it is operator-declared.

@@ -1,3 +1,5 @@
+import type { ArgentineProvince } from './provinces.js';
+
 declare global {
   /**
    * One tenant-authored Cmd-K palette entry (`store.palette.custom[]`).
@@ -177,6 +179,37 @@ declare global {
       postalCode: string;
       city: string;
       province: string;
+    };
+    /**
+     * The provincial tax jurisdiction feeding the IIBB legend on
+     * consumidor-final comprobantes. Absent means the operator has declared
+     * none, and there is nothing to render.
+     *
+     * ⚠️ Independent of `address.province`, which is POSTAL. A store can bill
+     * into a jurisdiction it is not sited in, so neither field defaults from
+     * the other and a writer must not copy one into the other.
+     *
+     * ⚠️ Adjacent to `Afip.iibbJurisdictions` (`IibbJurisdictionConfig[]`),
+     * which models per-jurisdiction ISIB transparency registrations in a
+     * different vocabulary (`jurisdiction: 'caba' | 'entre-rios' | 'mendoza'`,
+     * `regime: 'local' | 'cm'`). Nothing keeps the two in sync — a consumer
+     * must know which one it reads rather than assume they agree.
+     */
+    jurisdiction?: {
+      /**
+       * The province whose IIBB regime applies. Typed against the published
+       * `ARGENTINE_PROVINCES` vocabulary rather than a bare `string` so a
+       * misspelling fails at compile time instead of on a printed comprobante;
+       * validate an incoming wire value with `z.enum(ARGENTINE_PROVINCES)` to
+       * land a correctly typed value with no cast. ⚠️ That vocabulary carries
+       * an `''` member as its unset sentinel — an empty string is not a
+       * declared jurisdiction.
+       */
+      province: ArgentineProvince;
+      /** The store's own IIBB percentage in that province, e.g. `3.5`. */
+      iibbRate?: number;
+      /** Which IIBB regime the store is registered under in that province. */
+      iibbRegime?: 'local' | 'convenio-multilateral' | 'simplificado';
     };
     /**
      * Optional: removable via `StoreUpdateInput.removeFields` (DynamoDB REMOVE),

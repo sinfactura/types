@@ -43,7 +43,24 @@ declare global {
   // Cash-drawer shift management.
   type CashShiftStatus = 'OPEN' | 'CLOSED' | 'RECONCILED' | 'REJECTED';
 
-  type CashEventType = 'apertura' | 'cash-in' | 'cash-out' | 'sale' | 'refund' | 'tip' | 'cierre' | 'reconcile';
+  /**
+   * Kinds of drawer movement.
+   *
+   * `'change'` is cash handed back to the customer while settling a sale. It is
+   * its own row rather than a netting against the `'sale'` row, so the drawer
+   * replays gross in and gross out. ⚠️ It is NOT `'refund'`, which reverses a
+   * completed sale.
+   */
+  type CashEventType =
+    | 'apertura'
+    | 'cash-in'
+    | 'cash-out'
+    | 'sale'
+    | 'change'
+    | 'refund'
+    | 'tip'
+    | 'cierre'
+    | 'reconcile';
 
   /**
    * A cashier's drawer shift — one per cashier per day. PK `STORE#{storeId}`,

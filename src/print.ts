@@ -236,6 +236,33 @@ declare global {
      * shaped to avoid, with a worse outcome than an un-paused printer.
      */
     rawFormats?: PrintRawFormat[];
+    /**
+     * Printable characters per line for raw receipt jobs — commonly 32, 42 or
+     * 48, depending on paper width and font.
+     *
+     * OPERATOR-DECLARED and BE-owned, exactly like `rawFormats` and `active`:
+     * never agent-reported, and structurally excluded from `PrintPrinterReport`
+     * so a `register_printers` upsert cannot reset it on every agent restart.
+     * Absent means the operator has not declared one — a renderer falls back to
+     * its own default rather than guessing from the driver string.
+     */
+    columns?: number;
+    /**
+     * Which image command this device renders correctly. Operator-declared and
+     * BE-owned — same ownership rule as `columns`.
+     */
+    imageMode?: 'raster' | 'column';
+    /**
+     * Which QR command this device renders correctly: `native` = the device's
+     * own QR command set, `raster` = send it as an image. Operator-declared and
+     * BE-owned — same ownership rule as `columns`.
+     */
+    qrMode?: 'native' | 'raster';
+    /**
+     * Append a cash-drawer pulse to receipt jobs. Operator-declared and BE-owned
+     * — same ownership rule as `columns`.
+     */
+    drawerKick?: boolean;
     /** ms epoch of the last `register_printers` report that included this printer. */
     reportedAt: number;
     /**
@@ -256,8 +283,26 @@ declare global {
    * would drift, and a `register_printers` upsert that overwrote the row
    * wholesale would silently reset the operator's per-printer pause toggle on
    * every agent restart.
+   *
+   * ⚠️ The exclusion list is OWNERSHIP, not tidiness: every operator-declared
+   * field belongs in it. `rawFormats` and the four raw-rendering hints
+   * (`columns`, `imageMode`, `qrMode`, `drawerKick`) are declarations the agent
+   * cannot make honestly — it can read a driver string but not the paper width,
+   * and a generic or shared queue defeats that heuristic anyway. Any further
+   * operator-declared field added to `PrintPrinter` must be added here too.
    */
-  type PrintPrinterReport = Omit<PrintPrinter, 'agentId' | 'active' | 'reportedAt' | 'online' | 'rawFormats'>;
+  type PrintPrinterReport = Omit<
+    PrintPrinter,
+    | 'agentId'
+    | 'active'
+    | 'reportedAt'
+    | 'online'
+    | 'rawFormats'
+    | 'columns'
+    | 'imageMode'
+    | 'qrMode'
+    | 'drawerKick'
+  >;
 
   /**
    * Payload of the agent → BE `register_printers` WSS frame. ⚠️ That frame is
