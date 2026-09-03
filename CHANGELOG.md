@@ -7,6 +7,24 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.182
+
+- **feat(print):** publish `LABEL_TEMPLATE_IDS` (a `readonly` 5-tuple) and the
+  derived `LabelTemplateId` from `print.ts` — `producto`, `precio`, `estante`,
+  `envio`, `inventario`.
+- ⚠️ **Module-scoped, NOT `declare global`** — the rest of `print.ts` is ambient,
+  but this vocabulary is needed as a *value* (the api validates an incoming
+  `template` against it and keys per-template `^PW`/`^LL` dimensions off it), and
+  a `declare global` block emits no JS. Consumers must `import` it; they do not
+  get it ambiently the way they get `PrintUseCase` / `PrintRawFormat`. Same
+  reasoning, and same shape, as `SOCKET_ACTIONS` / `SocketAction` in `socket.ts`.
+- The tuple is the single source of the union — deriving the type with
+  `(typeof …)[number]` is what stops the list and the union drifting apart.
+- Graduated from the app's local `LabelTemplateId` in
+  `src/domain/labelTemplates.ts`, which is unchanged and still authoritative for
+  the *rendering* fields (mm footprints, font sizes). Only the id vocabulary is
+  shared; the app adopts the import on its own schedule.
+
 ## 1.10.179
 
 - **feat(storefront-events):** add `NotificationMarkedReadEvent`,
