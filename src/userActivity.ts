@@ -89,6 +89,34 @@ declare global {
 		consent_changes: CustomerConsentGrantChange[];
 	}
 
+	/**
+	 * ONE row per staff CSV import round that changed consent on at least one
+	 * customer — the rolled-up form of {@link CustomerConsentImportedEvent}, which
+	 * a max-size import would otherwise emit ~10k times into a handler already
+	 * near its timeout.
+	 *
+	 * The per-row evidence lives on the customer rows themselves: the import
+	 * bakes `marketing.consent.<channel> = { ts, source: 'import' }` into the same
+	 * PutRequest that persists the row, so it cannot diverge from row persistence.
+	 * This event carries the pointer to those rows, not a copy of them: an
+	 * import mints one CONTIGUOUS block of customer ids, so
+	 * `first_customer_id..last_customer_id` bounds a `SK BETWEEN` query on
+	 * `CUSTOMER#{storeId}`, filtered on `marketing.consent.<channel>.source ===
+	 * 'import'`.
+	 *
+	 * `status` is `'partial'` on ANY round failure or unprocessed item across the
+	 * whole import — conservative on purpose, so a partial import is
+	 * distinguishable from a complete one from this row alone.
+	 */
+	interface CustomerConsentImportCompletedEvent extends UserActivityEventBase {
+		event: 'Customer Consent Import Completed';
+		status: 'complete' | 'partial';
+		/** Rows where a channel changed AND the row was confirmed persisted. */
+		rows_touched: number;
+		first_customer_id: string;
+		last_customer_id: string;
+	}
+
 	/** Rows written for a customer's own action. Kept separate from {@link UserActivityEvent}. */
 	type CustomerActivityEvent = CustomerConsentUpdatedEvent;
 
@@ -1139,6 +1167,7 @@ declare global {
 	// the arms before trusting any number stated here.
 	type UserActivityEvent =
 		| CustomerConsentImportedEvent
+		| CustomerConsentImportCompletedEvent
 		// Phase 1
 		| UserLoggedInEvent
 		| UserLoggedOutEvent

@@ -7,6 +7,16 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.202
+
+- **`userActivity.ts`** — `CustomerConsentImportCompletedEvent` (`'Customer Consent
+  Import Completed'`), one rolled-up row per staff CSV import round: `status:
+  'complete' | 'partial'`, `rows_touched`, and the contiguous `first_customer_id..
+  last_customer_id` block as the pointer to the per-row evidence, which the
+  import already bakes into each customer row (`marketing.consent.<channel>`,
+  `source: 'import'`). Replaces ~10k per-row `CustomerConsentImportedEvent`
+  writes at the api call site; that member stays for its existing readers.
+
 ## 1.10.201
 
 - **`socket.ts`** — four operator-only actions: `'campaigns'`, `'templates'`,
