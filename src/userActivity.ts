@@ -596,14 +596,33 @@ declare global {
 		customer_id: string;
 		/** Absent when the override was recorded before the order id existed. */
 		order_id?: string;
-		/** The ceiling that was breached, in the store's display currency. */
-		credit_limit: number;
-		/** `Customer.balance` as the server read it, BEFORE this sale. */
-		balance_before: number;
-		/** The account leg this sale put on the customer's tab. */
+		/**
+		 * The account leg this sale put on the customer's tab, in the store's display
+		 * currency. Required, and knowable without reading the customer at all — it is
+		 * the order's own `source: 'account'` tender leg.
+		 */
 		attempted_amount: number;
+		/**
+		 * ⚠️ The three balance-derived figures below are OPTIONAL, and their absence is
+		 * a real state rather than missing data: they are populated only once
+		 * `Customer.balance` is trustworthy.
+		 *
+		 * Until the `ACCOUNT#` ledger becomes authoritative and the scalar a derived
+		 * cache, `Customer.balance` is mutated in place by eight writers with nothing
+		 * reconciling it. Stamping a number that can be wrong into an APPEND-ONLY audit
+		 * trail is worse than stamping none — a record nobody can trust is still a
+		 * record somebody will later rely on, and unlike a live read it can never be
+		 * corrected by re-reading.
+		 *
+		 * So an event written today carries `attempted_amount` and `reason` and omits
+		 * these; one written afterwards carries all four. A reader must treat absence
+		 * as "not knowable when this was written", never as zero.
+		 */
+		credit_limit?: number;
+		/** `Customer.balance` as the server read it, BEFORE this sale. */
+		balance_before?: number;
 		/** `balance_before + attempted_amount` — what the customer is left owing. */
-		exposure: number;
+		exposure?: number;
 		/** The cashier's justification. Free text, client-supplied, never inferred. */
 		reason: string;
 	}
