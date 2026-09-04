@@ -164,6 +164,17 @@ declare global {
     // is an FCE voucher (201/202/203, 206/207/208, 211/212/213).
     fce?: FceFields;
     /**
+     * Whether the long-term archive write for this invoice succeeded.
+     *
+     * Stamped only once an archive attempt has resolved, so ABSENT means "not
+     * yet attempted or not yet resolved" — never "succeeded". A reader looking
+     * for work must therefore test `attribute_not_exists(archiveState) OR
+     * archiveState = 'failed'`, never `archiveState <> 'ok'`: the inequality
+     * form silently skips every row written before this field existed, which is
+     * every row that exists today.
+     */
+    archiveState?: 'ok' | 'failed';
+    /**
      * The service period actually declared to ARCA, frozen at issue time. Unix ms.
      *
      * These are a STAMPED COPY, not an input: the voucher is built from the
