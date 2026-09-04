@@ -61,6 +61,14 @@ export const SOCKET_ACTIONS = [
 	'cash',
 	'categories',
 	'customers',
+	/**
+	 * A delivery created, or an event appended to its timeline. Operator-only —
+	 * `wsPostStore(..., { audience: 'operator' })`, NEVER
+	 * `'operator-and-customer'`: the payload can carry a GPS fix and proof
+	 * assets, which are PII. A customer tracking view needs its own coarse,
+	 * status-only projection rather than this frame.
+	 */
+	'deliveries',
 	'globals',
 	'invoices',
 	'literals',

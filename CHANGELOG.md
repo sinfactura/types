@@ -7,6 +7,27 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.197
+
+- **`delivery.ts`** (new) — `DeliveryStatus`, `DeliveryEventType`,
+  `DeliveryFailureReason`, `Delivery`, `DeliveryEvent`, `DeliveryProofAsset`,
+  `DeliveryGpsFix` for proof-of-delivery capture.
+- ⚠️ `DeliveryEvent` is **append-only**: a correction is a NEW event, never a
+  rewrite, so a `'delivered'` later contradicted by a `'failed'` leaves both on
+  the record. `Delivery.status` is a **cache** of the newest event and is never
+  authoritative — a reader settling a dispute reads the timeline.
+- ⚠️ `DeliveryGpsFix` and `Delivery.courier.contact` are **PII under Ley
+  25.326** — a coordinate tied to a named customer at a timestamp is personal
+  data about the customer AND the courier. Never logged, never on a
+  customer-facing projection. `DeliveryEventType` is an ALIAS of
+  `DeliveryStatus`, not a second list: two parallel unions would drift, and the
+  first symptom would be a status no event can produce.
+- **`socket.ts`** — `'deliveries'` joins `SOCKET_ACTIONS`, operator-only for the
+  same PII reason; a customer tracking view needs its own coarse projection.
+- **`appointment.ts`** — `Appointment.assignedTo?`, the employee an appointment
+  is assigned to. Backs the list's employee filter and the employee-schedule
+  index, so it is a GSI key attribute: a string or absent, never `''`.
+
 ## 1.10.196
 
 - **`appointment.ts`** (new) — `AppointmentType` (6 members), `AppointmentStatus`,

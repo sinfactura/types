@@ -60,6 +60,16 @@ declare global {
     /** The supplier being met. Set only on `SUPPLIER_MEETING`. */
     supplierId?: string;
     /**
+     * The user this appointment is assigned to — a sales rep for
+     * `SALES_VISIT`, otherwise whoever is expected to handle it. Optional:
+     * `ORDER_PICKUP` and `DELIVERY_WINDOW` may have no single owner.
+     *
+     * Backs the employee filter on the appointment list and the
+     * employee-schedule index, so it is a GSI key attribute — it must be a
+     * string or absent, never an empty string.
+     */
+    assignedTo?: string;
+    /**
      * `YYYYMMDD` in the store's local time. Display convenience — see the
      * authority note on `startTimestamp`.
      */

@@ -21,6 +21,7 @@ export * from "./categories.js";
 export * from "./currency.js";
 export * from "./customer.js";
 export * from "./cycleCount.js";
+export * from "./delivery.js";
 export * from "./demo.js";
 export * from "./impersonation.js";
 export * from "./imports.js";
