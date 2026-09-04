@@ -188,6 +188,14 @@ export const SOCKET_ACTIONS = [
 	// moves (`CustomDomainSocketPayload`). Status only: the row's
 	// `verificationToken` is an ownership credential and is never re-sent here.
 	'customDomain',
+	// BE → all store users on every purchase-order write: create, update, cancel,
+	// and any status change the goods-receipt hook drives. Carries the full
+	// `PurchaseOrder` row, mirroring how `products` carries the product.
+	//
+	// ⚠️ A received purchase order does NOT mean fully received — suppliers
+	// under-ship and operators close short — so a client must read the item
+	// quantities rather than inferring completeness from the status alone.
+	'purchaseOrders',
 ] as const;
 
 /** Union of every server→client data-frame action. */
