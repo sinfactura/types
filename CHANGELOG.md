@@ -7,6 +7,113 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.195
+
+- **`socket.ts`** — `'attendance'` joins `SOCKET_ACTIONS`. Operator-only; `data` is
+  the `AttendanceShift` rollup row. The tuple is `readonly`, so no consumer can add
+  an action locally — it ships from here before any producer can compile against it.
+
+## 1.10.194
+
+- **`userActivity.ts`** — `CreditLimitOverriddenEvent`'s balance-derived figures
+  (`credit_limit`, `balance_before`, `exposure`) become **optional**; only
+  `attempted_amount` stays required, because the order knows its own account leg
+  while the balance does not yet have a trustworthy source. ⚠️ A wrong number in a
+  live decision is corrected by the next read; a wrong number in an append-only
+  audit trail is permanent. Do not "complete" the event with figures to hand.
+
+## 1.10.193
+
+- **`order.ts`** — `Order.creditOverride` plus the `CreditOverride` shape
+  (`reason`, `byUserId`, `byName?`, `at`), and `CreateOrderRequest.creditOverride`
+  narrowed to `{ reason }`: everything else is stamped server-side from the
+  caller's own token. A client-sent `byUserId` would let a cashier attribute an
+  override to someone else.
+- **`userActivity.ts`** — `CreditLimitOverriddenEvent` joins the event union.
+
+## 1.10.192
+
+- **`order.ts`** — `CreateOrderRequest.tenders` narrows from `OrderTender[]` to a
+  new `TenderLegInput` (`method`, `amount`, `source`, `change?`, `reference?`).
+  The inherited shape described the PERSISTED leg where the route validates the
+  RAW one, so a leg built to it compiled, sent invented ids, and was silently
+  accepted — zod strips unknown keys rather than refusing them.
+  ⚠️ **Consumers upgrading past 1.10.191 must stop feeding a request-shaped
+  `tenders` into anything typed `Partial<Order>`.**
+
+## 1.10.191
+
+- **`cash.ts` / `store.ts` / `userActivity.ts` / `user.ts`** — the cash-shift
+  control surface, three lanes' contracts in one bump: `CashShift.forceCloseReason`
+  and `CashDrawerClosedEvent.reason` (no `wasForced` boolean — `closedBy !==
+  openedBy` already identifies one); `Store.config.blindCounting` /
+  `varianceThresholds` / `denominationSets` with `DenominationSet`,
+  `DenominationCount` and `VarianceThresholds`; and the `wallets` permission for
+  cross-employee shift reads.
+
+## 1.10.190
+
+- **`invoice.ts`** — a stamp recording whether an invoice reached the archive.
+  ⚠️ Stamped only once an attempt resolves, so absence means "not yet attempted or
+  not yet resolved", never "succeeded". A reader hunting unarchived rows must test
+  absent-OR-failed; the inequality spelling silently skips every row written before
+  the field existed.
+
+## 1.10.189
+
+- **`socket.ts`** — `'purchaseOrders'` joins `SOCKET_ACTIONS`. ⚠️ A `received`
+  purchase order does not mean fully received: suppliers under-ship and operators
+  close short, so a client inferring completeness from the status alone reports
+  stock that never arrived.
+
+## 1.10.188
+
+- **`inventory.ts`** — the per-location foundation: `Warehouse`, `InventoryLevel`,
+  `StockMovement`, `ReservationItem`, `StockTransfer`, `TransferItem`. Weighted-
+  average cost now has a home (`InventoryLevel.avgCost`) instead of a global scalar
+  on the product; the two notes in 1.10.187 saying it had nowhere to live are
+  corrected in place. Available quantity stays on the row rather than computed on
+  read. **This is the version a consumer of the inventory contracts bumps to.**
+
+## 1.10.187
+
+- **`purchaseOrder.ts` / `lot.ts` / `cycleCount.ts` / `valuation.ts` /
+  `product.ts`** — `PurchaseOrder` + `PurchaseOrderItem` + status union, `Lot`,
+  `CycleCount` + `CycleCountItem`, `ValuationMethod` (`'wac' | 'fifo'`),
+  `ABCClassification` with `Product.abcClass`/`abcClassifiedAt`, and the reorder
+  fields `reorderPoint` / `safetyStock` / `leadTimeDays` / `serviceLevel` /
+  `lotTracking` — beside `minStock`/`limit`, aliasing neither.
+- ⚠️ Deliberately NOT recreated: a stock adjustment stays a property of a ledger
+  row (`adjustmentReason`/`adjustmentNote`), and a supplier return extends the
+  existing return rather than forking a second entity.
+- ⚠️ The direction ships as `ReturnDirection`, never `ReturnType` — this package
+  declares into global scope, so that name would shadow TypeScript's own utility
+  type in every consumer, including code that never touches returns.
+
+## 1.10.186
+
+- **`caea.ts`** — `CaeaReadiness` and `CaeaContingencyUsage`, already returned by
+  the readiness endpoint and already consumed, never published. `CaeaReadiness`
+  keeps its two booleans separate deliberately: a configured punto de venta with
+  no active period reads like a contradiction and is the one state an operator can
+  act on, so collapsing them into one flag would hide it.
+
+## 1.10.185
+
+- **`store.ts`** — provisioning sub-state on `DomainRecord`, carried on the same
+  row rather than a parallel entity, plus the `customDomain` socket frame as a
+  projection of it that never carries the ownership token. Absent on every row
+  written before it shipped.
+
+## 1.10.184
+
+- **`print.ts` / `account.ts`** — `PrintJobActor` + `PrintJobTransition.actor`,
+  with `fullName` denormalized at write time so a timeline survives a rename;
+  absent on agent-driven transitions, so absence must render a fallback rather
+  than "system". `Account.source` / `Account.method` give a POS-originated account
+  movement a typed relationship, replacing a free-text substring match on the
+  write path. Both optional — every row written to date keeps its subject fallback.
+
 ## 1.10.183
 
 - **feat(pos):** additive point-of-sale contract fields. Everything below is a
