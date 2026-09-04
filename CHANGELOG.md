@@ -7,6 +7,26 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.201
+
+- **`socket.ts`** — four operator-only actions: `'campaigns'`, `'templates'`,
+  `'promotions'`, `'segments'`. Without them `dynamoUpdate()` is unusable for
+  these entities (its `action` is typed `SocketAction`), forcing bespoke raw
+  `guardedPut`/`guardedUpdate` paths that stamp `entityType` by hand and
+  broadcast nothing — a no-live-update gap that would have outlived whoever
+  remembered why it was there.
+- Same shape as the `'api'` precedent and the opposite of the RFM one above:
+  a new action string changes no stored row's meaning, because nothing consumes
+  it until a handler emits it. Reserving it costs nothing; the RFM case was
+  refused because a criteria FIELD silently changes how existing segments match.
+- ⚠️ All four are documented **operator-only** (`audience: 'operator'`). None of
+  the four entities carries a `customerId`, so `'operator-and-customer'` would
+  be a no-op query today rather than a leak — the doc says so explicitly because
+  that safety is a property of the current shape, not of the broadcast call, and
+  a later `customerId` field would turn a no-op into a fan-out with nothing to
+  catch it. `'segments'` matters most: `SegmentCriteria` describes how customers
+  are targeted, and a customer socket must never receive it.
+
 ## 1.10.200
 
 - **`marketing.ts`** — `Segment`, `SegmentCriteria`, `SegmentRule`,

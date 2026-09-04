@@ -60,6 +60,17 @@ export const SOCKET_ACTIONS = [
 	'brands',
 	'cash',
 	'categories',
+	/**
+	 * A marketing campaign created, updated, scheduled or cancelled.
+	 * Operator-only — `wsPostStore(..., { audience: 'operator' })`.
+	 *
+	 * `Campaign` carries no `customerId`, so the customer leg of
+	 * `'operator-and-customer'` would be a no-op query rather than a leak —
+	 * but state the audience explicitly anyway: the safety here is a property
+	 * of today's shape, not of the broadcast call, and a later field would
+	 * silently turn a no-op into a fan-out.
+	 */
+	'campaigns',
 	'customers',
 	/**
 	 * A delivery created, or an event appended to its timeline. Operator-only —
@@ -74,10 +85,33 @@ export const SOCKET_ACTIONS = [
 	'literals',
 	'orders',
 	'products',
+	/**
+	 * A promotion created, updated or retired. Operator-only —
+	 * `wsPostStore(..., { audience: 'operator' })`. Carries no discount
+	 * mechanics: `couponCode` links to the `Coupon` that holds them, so a
+	 * customer-visible offer still reaches the storefront through its own
+	 * surface rather than this operator frame.
+	 */
+	'promotions',
+	/**
+	 * A customer segment created, updated or deleted. Operator-only —
+	 * `wsPostStore(..., { audience: 'operator' })`, NEVER
+	 * `'operator-and-customer'`: `SegmentCriteria` describes how customers are
+	 * TARGETED, and broadcasting that to a customer socket would disclose the
+	 * store's targeting rules to the people being targeted.
+	 */
+	'segments',
 	// BE → all store users when a return (devolución) commits. Distinct from
 	// `orders` — carries the committed `Return` row itself (stock/account/credit-note
 	// effects), not just the order's bumped `updatedAt`.
 	'returns',
+	/**
+	 * A message template created, updated or deleted. Operator-only —
+	 * `wsPostStore(..., { audience: 'operator' })`. A template is authoring
+	 * content, never a sent message: nothing here implies a customer received
+	 * anything.
+	 */
+	'templates',
 	// BE → all store users on any service-order mutation. Operator-only by
 	// construction: a `ServiceOrder` carries internal diagnosis notes, per-part
 	// `unitCost`, work logs and technician ids, and `scrubForCustomer` strips
