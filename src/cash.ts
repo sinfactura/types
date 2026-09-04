@@ -82,6 +82,25 @@ declare global {
     closedBy?: string;
     closedByName?: string;
     declaredCount?: number; // cashier's blind cash count at cierre
+    /**
+     * The per-denomination breakdown behind `declaredCount`, when the cashier
+     * declared one rather than a bare total.
+     *
+     * ⚠️ `declaredCount` stays the authoritative scalar and is ALWAYS the number
+     * `variance` is computed from. When this field is present the api DERIVES
+     * `declaredCount` from it and stamps both, so the two can never disagree — a
+     * client that sends both does not get to pick. Deliberately a second field
+     * rather than widening `declaredCount` to `number | DenominationCount`:
+     * `variance` is `declaredCount - expectedBalance`, so a union would break
+     * every existing reader that does arithmetic on it.
+     */
+    declaredDenominations?: DenominationCount;
+    /**
+     * Why a shift was closed by somebody other than its owner. Present only on a
+     * forced close; `closedBy !== openedBy` is what identifies one, so no separate
+     * boolean exists to fall out of sync with it.
+     */
+    forceCloseReason?: string;
     // Computed at close from the event log. NOT exposed in the close response
     // (blind) — revealed only after reconciliation.
     expectedBalance?: number;
@@ -122,6 +141,46 @@ declare global {
     currency: string;
     userId: string; // who recorded the event
     createdAt: number; // ms epoch — also the EVENT# sort component
+  }
+
+  /**
+   * A store's configurable bill/coin denomination catalog, used to validate a
+   * blind-count declaration at close.
+   *
+   * Absent on `Store['config']` means the api's built-in Argentine default
+   * applies — this is forward-only, so no store row carries the field until
+   * somebody sets it, and absence is a real state rather than an empty catalog.
+   */
+  interface DenominationSet {
+    bills: number[];
+    coins: number[];
+  }
+
+  /**
+   * One denomination face value to the quantity counted at a blind close.
+   *
+   * ⚠️ Keys are the denomination's numeric value AS A STRING, because JSON object
+   * keys always are — `{ "10000": 3, "500": 12 }`, never `{ 10000: 3 }`. Every key
+   * must be a member of the store's `DenominationSet`; the api validates that at
+   * close time, the type cannot.
+   */
+  type DenominationCount = Record<string, number>;
+
+  /**
+   * The bands a reconcile's variance falls into, expressed in `currency`'s units.
+   *
+   * `|variance| <= autoApprove` auto-approves; up to and including `requireReview`
+   * needs review; anything beyond escalates. The api validates
+   * `autoApprove <= requireReview` — the type cannot express it.
+   *
+   * Self-describing per ADR-0013, and single-currency by construction to match the
+   * ONE currency a `CashShift` carries. A store running shifts in several
+   * currencies configures its primary one; multi-currency shifts are deferred.
+   */
+  interface VarianceThresholds {
+    currency: string; // catalogId
+    autoApprove: number;
+    requireReview: number;
   }
 }
 

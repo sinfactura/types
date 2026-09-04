@@ -247,6 +247,20 @@ declare global {
       stock: boolean;
       changePrice: boolean;
       /**
+       * Whether a cashier closing a shift is shown the expected balance.
+       *
+       * Absent means TRUE — blind counting is today's behaviour and stays the
+       * default, so an existing store row that predates this field keeps
+       * counting blind rather than silently having the control switched off.
+       * Turning it off is a security-control decision, which is why it sits at
+       * the privileged tier alongside `stock` rather than being a preference.
+       */
+      blindCounting?: boolean;
+      /** Variance bands the reconcile decision reads. Absent means no banding — a variance is recorded, never gated. */
+      varianceThresholds?: VarianceThresholds;
+      /** Bill/coin catalog a blind declaration is validated against. Absent falls back to the api's built-in default. */
+      denominationSets?: DenominationSet;
+      /**
        * Ceiling on concurrent refresh-token sessions per user. When a new login
        * would exceed it the OLDEST family is revoked, so the cap never blocks a
        * login — it evicts.

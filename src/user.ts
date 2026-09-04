@@ -109,6 +109,16 @@ declare global {
     accountant?: boolean;
     payments?: boolean;
     cash?: boolean;
+    /**
+     * May see the per-user wallet/shift surface — another employee's shift list
+     * and any shift that is not the caller's own.
+     *
+     * Role-implied, like `seller`: it is a VISIBILITY key, not an approval key,
+     * so the `adminToken` roles carry it without the flag. Contrast
+     * `discount`/`packOrder`, which grant an extra unbounded action and admit no
+     * admin exception ever. A caller reading their OWN shift needs no check.
+     */
+    wallets?: boolean;
     packOrder?: boolean;
     /**
      * May grant a discount at the till — a per-line `setLineDiscount`, or

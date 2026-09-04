@@ -251,6 +251,8 @@ declare global {
 		final_balance: number;
 		discrepancy: number;
 		currency: string;
+		/** Why the shift was force-closed. Present only when the closer was not the owner. */
+		reason?: string;
 	}
 
 	interface TenantImpersonatedEvent extends UserActivityEventBase {
