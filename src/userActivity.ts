@@ -572,6 +572,42 @@ declare global {
 		after: Record<string, unknown>;
 	}
 
+	/**
+	 * A cashier proceeded with an account (cuenta corriente) sale that breached the
+	 * customer's `creditLimit`.
+	 *
+	 * The limit WARNS rather than blocks, and the recording is the thing traded for
+	 * the block: a hard refusal produces no record at all, and the merchant's
+	 * workaround for one is to edit the limit mid-sale, which makes the limit noise.
+	 * So this event is not an optional audit nicety — it is the half of the feature
+	 * that a block cannot deliver, and an override written without it is a dismissed
+	 * toast.
+	 *
+	 * ⚠️ Only the `reason` travels from the client. `user_id`, `actor_full_name` and
+	 * `ts` on the base carry the who and the when, stamped server-side from the
+	 * token — a client does not get to attribute its own override.
+	 *
+	 * Emitted only when the sale actually proceeded past a breach. A sale inside the
+	 * limit emits nothing, and a caller lacking the `payments` capability cannot
+	 * reach this at all.
+	 */
+	interface CreditLimitOverriddenEvent extends UserActivityEventBase {
+		event: 'Credit Limit Overridden';
+		customer_id: string;
+		/** Absent when the override was recorded before the order id existed. */
+		order_id?: string;
+		/** The ceiling that was breached, in the store's display currency. */
+		credit_limit: number;
+		/** `Customer.balance` as the server read it, BEFORE this sale. */
+		balance_before: number;
+		/** The account leg this sale put on the customer's tab. */
+		attempted_amount: number;
+		/** `balance_before + attempted_amount` — what the customer is left owing. */
+		exposure: number;
+		/** The cashier's justification. Free text, client-supplied, never inferred. */
+		reason: string;
+	}
+
 	interface NotificationReadEvent extends UserActivityEventBase {
 		event: 'Notification Read';
 		notification_id?: string;
@@ -1065,6 +1101,7 @@ declare global {
 		| PaymentLinkedEvent
 		| PaymentUnlinkedEvent
 		| PaymentLinkageUpdatedEvent
+		| CreditLimitOverriddenEvent
 		| NotificationReadEvent
 		| LogDeletedEvent
 		| PlanCreatedEvent

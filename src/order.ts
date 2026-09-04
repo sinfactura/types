@@ -198,6 +198,20 @@ declare global {
 		 */
 		tenders?: OrderTender[];
 		/**
+		 * Present only when this sale breached the customer's `creditLimit` and a
+		 * cashier holding the `payments` capability proceeded anyway.
+		 *
+		 * ⚠️ Its presence is the record that the exception happened — a breached sale
+		 * with no `creditOverride` is a defect, not an ordinary sale. The limit warns
+		 * rather than blocks, and the recording is precisely what a hard block cannot
+		 * produce, so this field carries the whole value of that trade.
+		 *
+		 * Absent on every sale inside the limit, and on every sale by a customer with
+		 * no ceiling set — absence of `Customer.creditLimit` means UNLIMITED, never
+		 * zero.
+		 */
+		creditOverride?: CreditOverride;
+		/**
 		 * Money received against this order, in the ORDER's `currency`.
 		 *
 		 * ⚠️ STORED at write time, NOT derived on read. A reader must use this
@@ -880,6 +894,24 @@ declare global {
 	 * `source` is `OrderTender['source']` rather than a restated union, so the
 	 * vocabulary cannot drift between the input and the row it becomes.
 	 */
+	/**
+	 * The stored record of a credit-limit override — who, why and when.
+	 *
+	 * Only `reason` travels from the client (see {@link CreateOrderRequest.creditOverride});
+	 * `byUserId`, `byName` and `at` are stamped server-side from the token, so a client
+	 * cannot attribute its own override to somebody else.
+	 */
+	interface CreditOverride {
+		/** The cashier's justification. Free text, client-supplied, never inferred. */
+		reason: string;
+		/** Stamped from the caller's token. */
+		byUserId: string;
+		/** Denormalized at write time so the record survives a rename. */
+		byName?: string;
+		/** ms epoch. */
+		at: number;
+	}
+
 	interface TenderLegInput {
 		/** FK to a `Store.paymentMethods` entry's `id`. Validated server-side against the tenant's live method table. */
 		method: number;
@@ -897,7 +929,17 @@ declare global {
 		reference?: string;
 	}
 
-	interface CreateOrderRequest extends Omit<Partial<Order>, 'tenders'> {
+	interface CreateOrderRequest extends Omit<Partial<Order>, 'tenders' | 'creditOverride'> {
+		/**
+		 * Sent ONLY when the cashier proceeded past a credit-limit warning. Carries
+		 * the reason and nothing else — the server stamps `byUserId`/`byName`/`at`
+		 * from the token, which is why this is narrowed rather than inherited from
+		 * {@link Order.creditOverride}.
+		 *
+		 * ⚠️ A client that sends the persisted shape does NOT get to set who
+		 * overrode: the extra keys are stripped, not honoured.
+		 */
+		creditOverride?: { reason: string };
 		/**
 		 * Tender legs to ring against this order, as RAW input — NOT the persisted
 		 * `Order.tenders`, which is why `Partial<Order>` is narrowed with `Omit`
