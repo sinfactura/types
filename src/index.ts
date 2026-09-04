@@ -12,6 +12,7 @@ export * from "./attendance.js";
 export * from "./auth.js";
 export * from "./basket.js";
 export * from "./brands.js";
+export * from "./caea.js";
 export * from "./capacity.js";
 export * from "./cart.js";
 export * from "./cash.js";
