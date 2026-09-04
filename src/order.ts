@@ -865,7 +865,45 @@ declare global {
 	 * write. None of them is ever readable back off a stored `Order` — do not
 	 * reach for `order.cartId` or `order.counterSale` on a row you read.
 	 */
-	interface CreateOrderRequest extends Partial<Order> {
+	/**
+	 * One tender leg as a CLIENT sends it — the RAW input the create route and
+	 * `mode: 'tender'` both validate, deliberately narrower than the persisted
+	 * {@link OrderTender}.
+	 *
+	 * ⚠️ `tenderId`, `currency`, `currencyValue` and `recordedAt`/`recordedBy` are
+	 * absent BY DESIGN: the server mints and stamps every one of them. Sending
+	 * them does not fail — zod object schemas STRIP unknown keys rather than
+	 * refusing them — so a client coding against the persisted shape gets a 200
+	 * with its invented ids silently discarded, which is why this exists as its
+	 * own exported type rather than as a docblock on the persisted one.
+	 *
+	 * `source` is `OrderTender['source']` rather than a restated union, so the
+	 * vocabulary cannot drift between the input and the row it becomes.
+	 */
+	interface TenderLegInput {
+		/** FK to a `Store.paymentMethods` entry's `id`. Validated server-side against the tenant's live method table. */
+		method: number;
+		/** The money this leg takes. Must be positive — a reversal is its own leg, not a negative one. */
+		amount: number;
+		/** How the money arrived. See {@link OrderTender.source}. */
+		source: OrderTender['source'];
+		/**
+		 * Cash handed back to the customer on this leg. Rejected on any leg whose
+		 * `source` is not `'cash'` — this is the one field of the five that errors
+		 * rather than being stripped.
+		 */
+		change?: number;
+		/** Operator- or provider-supplied trace (authorization code, ticket id, a reversed leg's `tenderId`, …). */
+		reference?: string;
+	}
+
+	interface CreateOrderRequest extends Omit<Partial<Order>, 'tenders'> {
+		/**
+		 * Tender legs to ring against this order, as RAW input — NOT the persisted
+		 * `Order.tenders`, which is why `Partial<Order>` is narrowed with `Omit`
+		 * above rather than inherited whole. See {@link TenderLegInput}.
+		 */
+		tenders?: TenderLegInput[];
 		/**
 		 * The cart to build this order from, named explicitly.
 		 *
