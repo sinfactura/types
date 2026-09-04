@@ -95,6 +95,24 @@ declare global {
     recurrenceRule?: string;
     /** The parent row a generated occurrence was expanded from. */
     recurrenceId?: string;
+    /**
+     * On a `RESCHEDULED` row: the appointment that replaced it.
+     * On the replacement: {@link Appointment.rescheduledFrom}.
+     *
+     * ⚠️ NOT `recurrenceId`, which is a different relationship entirely — that
+     * links a generated occurrence to its recurring series. A reschedule chain
+     * is a supersession, not a repetition, and conflating them would make a
+     * moved booking look like a recurring one.
+     *
+     * ⚠️ These two fields are written in the SAME `transactWrite` that creates
+     * the replacement, so neither is a cache of the other and they cannot
+     * drift. A `RESCHEDULED` row without this field is a supersession whose
+     * replacement was never recorded — treat it as a defect, not as an
+     * appointment that was simply cancelled.
+     */
+    rescheduledTo?: string;
+    /** On a replacement row: the `RESCHEDULED` appointment it superseded. */
+    rescheduledFrom?: string;
     cancelledAt?: number;
     cancelledBy?: string;
     checkedInAt?: number;

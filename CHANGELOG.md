@@ -7,6 +7,19 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.199
+
+- **`appointment.ts`** — `Appointment.rescheduledTo?` / `rescheduledFrom?`, the
+  two halves of a supersession link.
+- ⚠️ Closes a gap in 1.10.196: `RESCHEDULED` was documented as a superseded row
+  *"whose replacement is a NEW row … so the original booking's history
+  survives"* — but nothing linked the two, so the chain was unreconstructable
+  and the history did not, in fact, survive.
+- ⚠️ NOT `recurrenceId`, which links a generated occurrence to its recurring
+  series. A reschedule is a supersession, not a repetition. Both fields are
+  written in the SAME `transactWrite` that creates the replacement, so neither
+  is a cache and they cannot drift.
+
 ## 1.10.198
 
 - **`customer.ts`** — `ChannelConsentStamp` and `CustomerMarketing.consent` /
