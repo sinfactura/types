@@ -40,6 +40,71 @@ declare global {
     updatedAt?: number;
   }
 
+  type SegmentOperator = 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'within' | 'olderThan' | 'includes';
+
+  /**
+   * What a segment rule may target. Closed deliberately: an open `string`
+   * would be the same unversioned escape hatch as an untyped criteria object,
+   * just spread across three fields — a typo'd field name would compile, store,
+   * and silently match zero customers forever.
+   *
+   * ⚠️ Limited to what is queryable on `Customer` TODAY. No product or order
+   * predicates ("bought category X"), because no domain logic exists to
+   * evaluate them — a v1 boundary, not an oversight.
+   *
+   * ⚠️ RFM (`recency` / `frequency` / `monetary`) is deliberately ABSENT. It
+   * has no evaluator, and reserving a word costs nothing to defer while
+   * shipping it costs a stored segment whose meaning is undefined until
+   * somebody picks semantics — at which point every stored row silently
+   * changes meaning. Adding a member is a patch bump; un-defining one is not.
+   */
+  type SegmentField =
+    | 'balance'
+    | 'creditLimit'
+    | 'lastBuy'
+    | 'disabled'
+    | 'marketing.adds'
+    | 'marketing.email'
+    | 'marketing.phone'
+    | 'marketing.sms'
+    | 'marketing.whatsapp';
+
+  /**
+   * ⚠️ The type cannot express which operators suit which field — `disabled`
+   * with `gt` compiles. The handler validates the pairing; the type only bounds
+   * the vocabulary.
+   */
+  interface SegmentRule {
+    field: SegmentField;
+    operator: SegmentOperator;
+    value: string | number | boolean;
+  }
+
+  interface SegmentCriteria {
+    matchMode: 'all' | 'any';
+    rules: SegmentRule[];
+  }
+
+  /**
+   * A saved, dynamic customer set a campaign targets.
+   *
+   * ⚠️ **A segment is a TARGETING filter, never a consent decision.** The rule
+   * vocabulary can express `marketing.email eq false`, so a segment CAN name
+   * customers who have refused a channel. The send pipeline must filter on live
+   * consent independently of the segment, and must never treat segment
+   * membership as permission to send. A campaign that mails a segment because
+   * the segment said so is how a refusal becomes a delivered email.
+   */
+  interface Segment {
+    storeId: string;
+    segmentId: string;
+    name: string;
+    criteria: SegmentCriteria;
+    status: 'active' | 'archived';
+    createdAt: number;
+    updatedAt?: number;
+  }
+
   /**
    * A marketing wrapper around a coupon that already exists.
    *

@@ -7,6 +7,24 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.200
+
+- **`marketing.ts`** — `Segment`, `SegmentCriteria`, `SegmentRule`,
+  `SegmentField`, `SegmentOperator`. Field and operator are CLOSED unions; only
+  `value` is open. An open `field: string` would be the same unversioned escape
+  hatch as an untyped criteria object, just spread wider — a typo'd name would
+  compile, store, and match zero customers forever.
+- ⚠️ **RFM (`recency`/`frequency`/`monetary`) is deliberately absent.** It has
+  no evaluator; reserving a word costs nothing to defer, while shipping one
+  costs a stored segment whose meaning is undefined until somebody picks
+  semantics — at which point every stored row silently changes meaning.
+- ⚠️ **A segment is a TARGETING filter, never a consent decision.** The
+  vocabulary can express `marketing.email eq false`, so a segment CAN name
+  customers who refused a channel. The send pipeline must filter on live consent
+  independently and must never read membership as permission to send.
+- ⚠️ Customer-row predicates only — no product or order targeting, because no
+  domain logic exists to evaluate it. A v1 boundary, not an oversight.
+
 ## 1.10.199
 
 - **`appointment.ts`** — `Appointment.rescheduledTo?` / `rescheduledFrom?`, the
