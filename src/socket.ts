@@ -34,6 +34,13 @@
 export const SOCKET_ACTIONS = [
 	// Entity upserts — mostly emitted by `dynamoUpdate`'s auto-broadcast.
 	'account',
+	/**
+	 * The staff clock-in/clock-out roster. Operator-only — broadcast via
+	 * `wsPostStore(..., { audience: 'operator' })`, never to a customer socket.
+	 * `data` is the `AttendanceShift` rollup row, the same shape
+	 * `GET /attendance/roster` returns.
+	 */
+	'attendance',
 	'baskets',
 	// The re-keyed cart. `baskets` stays published and stays emitted for legacy
 	// rows: a NEW name is what makes an un-migrated client IGNORE the frame
