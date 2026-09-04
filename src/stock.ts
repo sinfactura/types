@@ -109,6 +109,48 @@ declare global {
     supplierName?: string;
 
     /**
+     * The purchase order this receipt was booked against, and the INDEX of the
+     * line within that order's `items`.
+     *
+     * The index is what makes short-shipment expressible at all: one order
+     * legitimately carries the same product on several lines at different
+     * prices or delivery dates, so a receipt attributed by `productId` alone
+     * would collapse them and mark the wrong line delivered. This mirrors how a
+     * return addresses an order line.
+     *
+     * These rows are the AUTHORITY for how much of an order has arrived;
+     * `PurchaseOrderItem.receivedQuantity` is a projection of them kept so the
+     * order renders without a ledger walk.
+     *
+     * ⚠️ Both ABSENT is the normal state, not a broken link — a direct receipt
+     * with no paperwork, an opening balance, or any row written before purchase
+     * orders existed. Never treat absence as a migration gap.
+     *
+     * ⚠️ Presence does NOT exclude a row from purchase/supplier COST views the
+     * way `returnId` and `adjustmentReason` do. The opposite: a receipt against
+     * an order is the most ordinary purchase there is.
+     */
+    purchaseOrderId?: string;
+    /** Index into the ordering `PurchaseOrder.items`. Present alongside `purchaseOrderId`. */
+    purchaseOrderItemIndex?: number;
+
+    /**
+     * The batch these units arrived as, on a lot-tracked product.
+     *
+     * The `Lot` row records what ARRIVED and never changes; what REMAINS of a
+     * batch is derived by summing the movement rows carrying its `lotId`, in
+     * both partitions. That is deliberate — a stored remaining counter on the
+     * lot would be a second source of truth beside `Σ INCOME − Σ SALE`, and it
+     * would drift the first time a movement was written without decrementing
+     * it.
+     *
+     * ⚠️ Nothing structurally forces this onto a row for a lot-tracked product,
+     * so an un-stamped receipt adds stock that belongs to no batch and the lots
+     * then sum to LESS than on-hand. The writer owes the stamp.
+     */
+    lotId?: string;
+
+    /**
      * Set when this inflow is a customer RETURN restocking a sellable unit,
      * not a supplier purchase. Rides the `INCOME#` partition deliberately —
      * on-hand is `Σ INCOME − Σ SALE`, so reusing it needs no reader change.
@@ -233,6 +275,62 @@ declare global {
      */
     serviceOrderId?: string;
     price?: number;
+
+    /**
+     * The batch these units left from, on a lot-tracked product. Same field,
+     * same derivation and same forward-only rules as
+     * `StockIncomeWrite.lotId` — what remains of a batch is
+     * `Σ INCOME − Σ SALE` restricted to rows carrying it.
+     *
+     * ⚠️ An un-stamped outflow of a lot-tracked product depletes the PRODUCT
+     * without depleting any BATCH, so the lots then sum to MORE than on-hand.
+     * A lot total above `Product.stock` is that, not data loss — and it is why
+     * a recall computed from lots alone can overstate what is on the shelf.
+     */
+    lotId?: string;
+
+    /**
+     * The per-unit valuation actually CONSUMED by this outflow, under the
+     * method named in `valuationMethod`.
+     *
+     * ⚠️ **Deliberately distinct from `cost`, and the distinction is the entire
+     * point.** `cost` on an outflow is the product's CURRENT cost — the price of
+     * the most recent receipt, which the income path writes straight onto
+     * `Product.cost`. Valuing every outflow at latest-cost is neither weighted
+     * average nor FIFO, which is why the two methods cannot produce different
+     * numbers today. This field is what lets them: a WAC writer stamps the
+     * running average as it stood when the units left, a FIFO writer stamps
+     * what the consumed layers actually cost.
+     *
+     * ⚠️ **A FIFO outflow that straddles several layers is LOSSY here.** One
+     * scalar cannot carry three layer prices, so the stamp is the weighted
+     * figure for this movement and the layer breakdown is not recoverable from
+     * the row — reconstructing it means replaying the ledger. A consumer must
+     * not present this as a layer cost.
+     *
+     * ⚠️ ABSENT means the row was never valued under a method, which is every
+     * row written before this field existed and every row a writer that does no
+     * valuation produces. A reader falls back to `cost`; it must not infer that
+     * the valuation was zero, and it must not infer that a method was applied.
+     *
+     * ⚠️ Extended value is `unitCost * quantity` — the partition supplies the
+     * sign, exactly as it does for the quantity itself. A stored extended total
+     * is deliberately absent: it would be a second figure that can disagree
+     * with its own factors.
+     */
+    unitCost?: number;
+
+    /**
+     * Which costing method produced `unitCost`. Present only alongside it.
+     *
+     * ⚠️ **Stamped on the ROW on purpose — never read the store's current
+     * setting to interpret a historical outflow.** An operator who switches
+     * methods is deciding how the NEXT movement is valued; a report that applies
+     * today's setting to rows valued under the old one silently restates closed
+     * periods, and no one sees the restatement because the rows themselves did
+     * not change.
+     */
+    valuationMethod?: ValuationMethod;
 
     /**
      * Set when this outflow is a manual downward ADJUSTMENT — shrinkage,

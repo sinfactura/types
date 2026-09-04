@@ -27,6 +27,22 @@ declare global {
 	 */
 	type SaleChannel = 'storefront' | 'counter' | 'service' | 'marketplace';
 
+	/**
+	 * Movement-value class in an ABC analysis: `A` is the small share of products
+	 * carrying most of the value that moves, `C` the long tail carrying little.
+	 *
+	 * Three members, and closed. The letters are the vocabulary every operator and
+	 * every inventory text already shares, which is the point — a fourth class
+	 * would have no agreed meaning outside this codebase, and a numeric score
+	 * would move the decision about where to cut the bands from the job that has
+	 * the sales data into whatever consumer reads the number.
+	 *
+	 * ⚠️ The class says nothing about MARGIN or importance — a cheap fast-moving
+	 * consumable outranks an expensive slow one. Do not gate merchandising or
+	 * pricing decisions on it; it is a counting-frequency and attention signal.
+	 */
+	type ABCClassification = 'A' | 'B' | 'C';
+
 	interface Product {
 		storeId: string;
 		productId: string;
@@ -134,6 +150,103 @@ declare global {
 		// down to <= minStock fires a LOW_STOCK notification (unset => no
 		// LOW_STOCK; OUT_OF_STOCK at stock <= 0 fires regardless).
 		minStock?: number;
+		/**
+		 * Reorder point — the on-hand level at which a REPLENISHMENT should be
+		 * raised, in units.
+		 *
+		 * ⚠️ It sits BESIDE `minStock` and does not rename, replace or reinterpret
+		 * it. `minStock` is the edge-triggered alert threshold the backend already
+		 * acts on; this is the planning figure a replenishment suggestion is
+		 * computed from, and the two are normally different numbers because they
+		 * answer different questions ("tell me it got low" vs "buy now or you will
+		 * run out before the goods land"). A consumer that aliases them re-points a
+		 * live notification at a planning number.
+		 *
+		 * ⚠️ NOT related to `limit`, which is a per-sale unit cap — how many of this
+		 * product one customer may buy at once. It is not a stock threshold, has
+		 * never been compared against `stock`, and the similar shape of the two
+		 * numbers is the whole reason to say so here.
+		 *
+		 * ⚠️ Nothing derives this. Absence means no reorder point has been set, which
+		 * is every row today — never zero, and never "reorder immediately".
+		 */
+		reorderPoint?: number;
+		/**
+		 * Buffer units held against demand and lead-time variability — the part of
+		 * `reorderPoint` that is not expected consumption during the lead time.
+		 *
+		 * Stored rather than derived because the operator is allowed to override it:
+		 * a formula cannot know that a supplier is unreliable this quarter, and an
+		 * override that a recomputation silently discards is worse than no field.
+		 */
+		safetyStock?: number;
+		/**
+		 * Days between raising a replenishment and the goods being sellable —
+		 * ORDER to SHELF, not order to dispatch. Receiving, inspection and putaway
+		 * are inside it; a lead time that stops at the supplier's door understates
+		 * the reorder point by exactly the part of the delay the store controls.
+		 *
+		 * Per-product rather than per-supplier because one supplier ships different
+		 * goods at different speeds, and the reorder arithmetic is per-product.
+		 */
+		leadTimeDays?: number;
+		/**
+		 * Target probability of NOT stocking out during a replenishment cycle — the
+		 * service level the safety stock is sized for.
+		 *
+		 * ⚠️ **A FRACTION in `[0, 1]`, never a percentage.** `0.95` is a 95% target;
+		 * `95` is not a legal value. Both encodings look plausible to a reader and
+		 * both are numbers, so nothing catches the confusion — but the safety-stock
+		 * figure it feeds is off by orders of magnitude when it is guessed wrong.
+		 * Validate the range at the wire boundary; the type cannot.
+		 *
+		 * ⚠️ `1` is not attainable and must be refused rather than clamped: perfect
+		 * availability implies unbounded stock, and a silent clamp hides that the
+		 * operator asked for something impossible.
+		 */
+		serviceLevel?: number;
+		/**
+		 * Whether receipts and outflows of this product are attributed to a `Lot`.
+		 *
+		 * ⚠️ Turning it ON is not retroactive. Units already on hand arrived on
+		 * movement rows carrying no `lotId`, this platform never backfills, and
+		 * nothing will invent a batch for them — so immediately after the flag is
+		 * set the lots sum to LESS than `stock`, permanently, by exactly the
+		 * pre-existing quantity. That gap is expected and is not data loss.
+		 *
+		 * ⚠️ It is a DECLARATION, not an enforcement. The flag does not make a
+		 * writer stamp a `lotId`, and an outflow can always be un-attributable in
+		 * practice (mixed shelf stock, an unreadable carton). Any refusal to sell
+		 * un-attributed units is a handler decision, never something a reader may
+		 * assume from this flag.
+		 */
+		lotTracking?: boolean;
+		/**
+		 * Movement-value class assigned by the periodic classification job — the
+		 * few products worth counting often (`A`) against the many worth counting
+		 * rarely (`C`).
+		 *
+		 * ⚠️ JOB-WRITTEN, not operator-authored. An operator edit is overwritten on
+		 * the next run without warning, so a UI must not offer it as a field to
+		 * type into; if a human classification is ever wanted it needs its own
+		 * field, and a pin flag to stop the job.
+		 *
+		 * ⚠️ Absence means UNCLASSIFIED — a product the job has never seen, or a
+		 * store where the job has never run. It is emphatically not `C`. Defaulting
+		 * it to `C` puts every brand-new product into the count-rarely bucket, which
+		 * is where a new fast-moving line least belongs.
+		 */
+		abcClass?: ABCClassification;
+		/**
+		 * Unix ms `abcClass` was last computed.
+		 *
+		 * A class with no timestamp cannot be told apart from a class that was right
+		 * a year ago, and the ranking it encodes is a statement about a trailing
+		 * window of sales — it decays. Read this before acting on `abcClass`;
+		 * absence alongside a present `abcClass` means the stamp predates this
+		 * field, not that the class is fresh.
+		 */
+		abcClassifiedAt?: number;
 		limit?: number;
 		incomes?: {
 			stockId: string;

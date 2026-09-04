@@ -4,6 +4,24 @@ declare global {
 	interface Return {
 		storeId: string;
 		returnId: string;
+		/**
+		 * Which DIRECTION the goods moved.
+		 *
+		 * ⚠️ ABSENT means `'customer'`. Every row ever written is a customer return,
+		 * this platform never backfills, and the field is optional permanently for
+		 * that reason — absence is a legal, final state of the data, not a gap.
+		 *
+		 * ⚠️ **The supplier direction is NOT yet expressible by this interface, and
+		 * publishing the union does not make it so.** `orderId` and `customerId`
+		 * below are REQUIRED and a supplier return has neither; `emitCreditNote`,
+		 * `ncStatus` and `creditNoteId` describe a credit note issued TO a customer,
+		 * which is the wrong document in the other direction (a supplier issues the
+		 * note, the store receives it). Making those optional is a reshape every
+		 * consumer must be recompiled against, so it is a separate decision — not
+		 * something to reach for by writing a placeholder into a required field.
+		 * Until then a `'supplier'` value must not be written.
+		 */
+		direction?: ReturnDirection;
 		orderId: string;
 		customerId: string;
 		invoiceId?: string;
@@ -69,6 +87,32 @@ declare global {
 		createdAt: number;
 		dated: number;
 	}
+
+	/**
+	 * Which way returned goods travelled.
+	 *
+	 * - `customer` — a customer gave goods back to the store. Stock comes IN, and
+	 *   the store may owe a credit note.
+	 * - `supplier` — the store gave goods back to a supplier. Stock goes OUT, and
+	 *   the SUPPLIER owes the note.
+	 *
+	 * The two are not mirror images of one document: they move stock in opposite
+	 * directions, credit opposite parties, and are refused for different reasons.
+	 * The union exists so the direction is a stored, queryable fact rather than
+	 * something inferred from which id happens to be populated — an inference that
+	 * silently breaks the moment a row is written with a missing id for an
+	 * unrelated reason.
+	 *
+	 * ⚠️ **Named `ReturnDirection`, NOT `ReturnType`, and the name is not
+	 * negotiable.** `ReturnType<T>` is TypeScript's own utility type in
+	 * `lib.es5.d.ts`. This package declares its vocabulary in `declare global`, so
+	 * a union under that name is a duplicate-identifier error here and, worse,
+	 * would shadow the utility in every consumer that installs the package —
+	 * breaking unrelated code that never touched returns. Any future contract
+	 * tempted by a short generic-sounding name (`Record`, `Awaited`, `Parameters`)
+	 * has the same problem.
+	 */
+	type ReturnDirection = 'customer' | 'supplier';
 
 	/**
 	 * Credit-note state machine for a return: `not_requested` (no NC asked
