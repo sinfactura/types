@@ -23,6 +23,7 @@ export * from "./cycleCount.js";
 export * from "./demo.js";
 export * from "./impersonation.js";
 export * from "./imports.js";
+export * from "./inventory.js";
 export * from "./invitation.js";
 export * from "./invoice.js";
 export * from "./log.js";

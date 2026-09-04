@@ -10,10 +10,13 @@ declare global {
    * anything, cannot be assumed unique inside a store, and a recall matched on
    * it alone pulls stock that was never affected. `lotId` is the only identity.
    *
-   * ⚠️ **A lot is store-wide, not per-location.** There is no published
-   * `InventoryLevel` to scope it to, so a lot cannot yet answer "how many of
-   * this batch are in THAT warehouse" — only "how many are in this store". A
-   * consumer must not present it as a per-location figure it cannot compute.
+   * ⚠️ **A lot is store-wide, not per-location.** The row carries no
+   * `warehouseId`, so a lot cannot answer "how many of this batch are in THAT
+   * warehouse" — only "how many are in this store". `InventoryLevel` being
+   * published does not change that: it scopes a BALANCE to a location, not a
+   * batch, and its `expiryEarliest` is a denormalised hint rather than a
+   * per-location lot breakdown. A consumer must not present a lot as a
+   * per-location figure it cannot compute.
    */
   interface Lot {
     storeId: string;

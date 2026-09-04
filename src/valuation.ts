@@ -31,13 +31,13 @@ declare global {
    * field that lets the two diverge is `StockSaleWrite.unitCost`; until a writer
    * populates it, selecting a method changes nothing a report can see.
    *
-   * ⚠️ **WAC's per-location average has no home in this package yet.** A single
-   * average belongs to one stock location, and there is no published
-   * `InventoryLevel` to hang it on. It must NOT be parked on `Product` as a
-   * global scalar to get it shipped: `Product.cost` already occupies that slot
-   * with a different meaning (last purchase price), and a second store-wide
-   * average would be wrong the moment a second location exists — which is the
-   * exact scenario the method is being introduced for.
+   * ⚠️ **WAC's per-location average lives on `InventoryLevel.avgCost`, and
+   * nowhere else.** A single average belongs to one stock location. It must NOT
+   * be parked on `Product` as a global scalar: `Product.cost` already occupies
+   * that slot with a different meaning (last purchase price), and a second
+   * store-wide average would be wrong the moment a second location exists —
+   * which is the exact scenario the method is being introduced for. FIFO's
+   * layers live beside it on `InventoryLevel.costLayers`.
    *
    * ⚠️ **The method is a property of the ROW, not of the store, at read time.**
    * An operator who switches methods does not intend to re-value the past, but
