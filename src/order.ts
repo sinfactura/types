@@ -72,6 +72,17 @@ declare global {
 	interface Order {
 		storeId: string;
 		orderId: string;
+		/**
+		 * The scheduled pickup or delivery booking for this order, if one was
+		 * made. Set so "which appointment is this order's?" is a GetItem on a
+		 * row the caller already holds, rather than a reverse index.
+		 *
+		 * ⚠️ This and `Appointment.orderId` are two halves of one link and can
+		 * drift. The APPOINTMENT is authoritative: it is the row the scheduler
+		 * writes under a conditional update, and a stale pointer here must be
+		 * treated as absent rather than followed.
+		 */
+		appointmentId?: string;
 		customerId: string;
 		customer: Partial<Customer>;
 		createdAt: number;

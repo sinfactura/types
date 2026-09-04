@@ -7,6 +7,29 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.196
+
+- **`appointment.ts`** (new) — `AppointmentType` (6 members), `AppointmentStatus`,
+  `Appointment` and `AppointmentTypeConfig`, for the internal scheduling tool.
+- ⚠️ `AppointmentStatus` deliberately has **no `AVAILABLE`** member: an open slot
+  is a computation over config and availability rows, not a booking, and a status
+  for it would require rows to exist before anyone books — defeating the
+  conditional write that makes double-booking impossible. Nor `REMINDED`: one
+  status cannot say WHICH reminder fired.
+- ⚠️ `startTimestamp` / `endTimestamp` (UTC ms) are **authoritative**;
+  `date` / `startTime` / `endTime` are display strings derived from them at write
+  time. Never derive the other direction, and never update one pair without the
+  other.
+- **`store.ts`** — `Store.config.appointmentTypes?: AppointmentTypeConfig[]`,
+  beside the other per-store feature config.
+- **`order.ts`** — `Order.appointmentId?`, so "which appointment is this order's?"
+  is a `GetItem` on a row the caller already holds rather than a reverse index.
+  ⚠️ It and `Appointment.orderId` are two halves of one link: the **appointment**
+  is authoritative, and a stale pointer here reads as absent.
+- **`socket.ts`** — `'appointments'` joins `SOCKET_ACTIONS`. Operator-only. One
+  action covers create, update AND cancel, because a cancellation is
+  `status: 'CANCELLED'` and never a row delete.
+
 ## 1.10.195
 
 - **`socket.ts`** — `'attendance'` joins `SOCKET_ACTIONS`. Operator-only; `data` is

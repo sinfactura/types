@@ -261,6 +261,12 @@ declare global {
       /** Bill/coin catalog a blind declaration is validated against. Absent falls back to the api's built-in default. */
       denominationSets?: DenominationSet;
       /**
+       * Per-type slotting rules for the appointment scheduler, one entry per
+       * `AppointmentType` the store has configured. Absent means the scheduler
+       * has never been set up; a type missing from the array is not bookable.
+       */
+      appointmentTypes?: AppointmentTypeConfig[];
+      /**
        * Ceiling on concurrent refresh-token sessions per user. When a new login
        * would exceed it the OLDEST family is revoked, so the cap never blocks a
        * login — it evicts.

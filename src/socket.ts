@@ -35,6 +35,16 @@ export const SOCKET_ACTIONS = [
 	// Entity upserts — mostly emitted by `dynamoUpdate`'s auto-broadcast.
 	'account',
 	/**
+	 * A scheduled booking created, updated or cancelled. Operator-only —
+	 * broadcast via `wsPostStore(..., { audience: 'operator' })`; Phase 1 is an
+	 * internal ops tool with no customer-facing booking surface.
+	 *
+	 * `data` is the `Appointment` row. One action covers create, update AND
+	 * cancel: a cancellation is `status: 'CANCELLED'`, never a row delete, so a
+	 * separate delete frame would describe a transition that never happens.
+	 */
+	'appointments',
+	/**
 	 * The staff clock-in/clock-out roster. Operator-only — broadcast via
 	 * `wsPostStore(..., { audience: 'operator' })`, never to a customer socket.
 	 * `data` is the `AttendanceShift` rollup row, the same shape

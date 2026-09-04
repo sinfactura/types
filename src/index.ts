@@ -7,6 +7,7 @@ export * from "./account.js";
 export * from "./afip.js";
 export * from "./ai.js";
 export * from "./api.js";
+export * from "./appointment.js";
 export * from "./audit.js";
 export * from "./attendance.js";
 export * from "./auth.js";
