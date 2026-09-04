@@ -7,6 +7,45 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.198
+
+- **`customer.ts`** — `ChannelConsentStamp` and `CustomerMarketing.consent` /
+  `unsubscribeToken`. Additive only: every existing boolean keeps its type and
+  every current reader keeps working.
+- ⚠️ Consent provenance is **per-channel**, never one stamp for the whole
+  object: a customer may grant email today and SMS in three months, and a single
+  timestamp would be overwritten by the second grant — losing the answer to
+  *when was email consent obtained*, the one question a dispute turns on.
+- ⚠️ **Absence NEVER means consent.** Every reader defaults a missing channel to
+  `false`. Forward-only: no row is backfilled, so every row written before this
+  is un-consented by construction.
+- ⚠️ `ChannelConsentStamp.ip` is **PII under Ley 25.326**, stored deliberately as
+  the evidence that makes the record defensible. It must never reach a log, a
+  Sentry event, the `ERROR` partition, an export, or any projection served to
+  anyone but the data subject.
+- **`userActivity.ts`** — `ActivityEventBase` extracted; `UserActivityEventBase`
+  now extends it and is **structurally unchanged**, so no consumer sees a
+  difference. New `CustomerActivityEventBase` carries `actor_role: 'CUSTOMER'`.
+- ⚠️ `'CUSTOMER'` was NOT added to the staff `actor_role` union. A customer is
+  not a staff role, and widening it would force every exhaustive switch to
+  handle a case that cannot occur for those events.
+- **`userActivity.ts`** — `CustomerConsentGrantChange` plus
+  `CustomerConsentUpdatedEvent` (customer self-service) and
+  `CustomerConsentImportedEvent` (staff CSV import). ⚠️ `CustomerConsentChange`
+  is untouched: its `to: false` literal is the compile-time guarantee that a
+  staff edit can only CLEAR consent, never grant it. Do not merge the two.
+- **`marketing.ts`** (new) — `Campaign`, `Template`, `Promotion`,
+  `CampaignChannel`, `CampaignStatus`. ⚠️ `CampaignChannel` is `'email'` only:
+  WhatsApp marketing sits in a parked epic and SMS is future research, so
+  publishing either would imply capability nobody is building.
+- ⚠️ `Promotion` carries **no discount mechanics** — `couponCode` links to the
+  existing `Coupon`, which keeps every money field. A second place that can
+  disagree on terms is a second answer to what the customer actually got.
+- **Not published:** `Segment`. Its `criteria` contract is unresolved — the
+  consuming epic specifies RFM segmentation, and an unversioned
+  `Record<string, unknown>` that campaigns immediately reference would be
+  expensive to reshape.
+
 ## 1.10.197
 
 - **`delivery.ts`** (new) — `DeliveryStatus`, `DeliveryEventType`,

@@ -12,16 +12,85 @@
 
 declare global {
 
-	interface UserActivityEventBase {
+	/**
+	 * Everything an activity row carries regardless of WHO acted. Split out so
+	 * the staff and customer actor vocabularies cannot drift: there is one list
+	 * of common fields, and each base below adds only its own `actor_role`.
+	 *
+	 * ⚠️ `actor_ip` is PII under Ley 25.326 — never render it to a party other
+	 * than the data subject, and keep it out of every log surface.
+	 */
+	interface ActivityEventBase {
 		tenant_store_id: string;
 		user_id: string;
-		actor_role: 'USER' | 'ADMIN' | 'SUPERVISOR' | 'MANAGER' | 'PRINTER';
 		actor_full_name: string;       // denormalized at write time so rows survive renames
 		actor_ip?: string;             // API Gateway sourceIp; absent for system-triggered actions
 		event_id: string;              // UUID v4 (idempotency key)
 		schema_version: 1;             // literal — bump on breaking change
 		ts: string;                    // ISO 8601 with offset
 	}
+
+	/**
+	 * A row written for a STAFF action. Structurally identical to what this
+	 * interface has always been — the split above adds no field and removes
+	 * none, so no existing consumer sees a change.
+	 *
+	 * ⚠️ `actor_role` is a STAFF vocabulary and `'CUSTOMER'` is deliberately NOT
+	 * a member. A customer is not a staff role, and widening this union would
+	 * force every exhaustive switch over it to handle a case that cannot occur
+	 * for these events. Customer-initiated rows use
+	 * {@link CustomerActivityEventBase} instead.
+	 */
+	interface UserActivityEventBase extends ActivityEventBase {
+		actor_role: 'USER' | 'ADMIN' | 'SUPERVISOR' | 'MANAGER' | 'PRINTER';
+	}
+
+	/**
+	 * A row written for an action the CUSTOMER took themselves, landing in the
+	 * same append-only store. `user_id` is the customer's own id.
+	 *
+	 * ⚠️ Not `StorefrontEvent`. That stream is client-emitted telemetry rendered
+	 * in a customer-visible feed, and its own contract forbids carrying changed
+	 * VALUES — only field names. A consent record has to be server-attested and
+	 * has to carry the values, which is the whole point of an evidentiary trail.
+	 */
+	interface CustomerActivityEventBase extends ActivityEventBase {
+		actor_role: 'CUSTOMER';
+	}
+
+	/**
+	 * One channel's consent transition where a GRANT is possible.
+	 *
+	 * ⚠️ Distinct from {@link CustomerConsentChange}, whose `to: false` literal
+	 * is the compile-time guarantee that a STAFF edit can only ever clear
+	 * consent, never grant it. Do not merge the two — widening that literal to
+	 * `boolean` would delete the guarantee, and no comment replaces a type.
+	 */
+	interface CustomerConsentGrantChange {
+		channel: 'adds' | 'email' | 'phone' | 'sms' | 'whatsapp';
+		from: boolean | null;
+		to: boolean;
+		source: 'ui' | 'import' | 'api' | 'storefront';
+		/** ⚠️ PII — absent when the write had no request-level IP. */
+		ip?: string;
+	}
+
+	/** A customer changed their own marketing consent through a self-service surface. */
+	interface CustomerConsentUpdatedEvent extends CustomerActivityEventBase {
+		event: 'Customer Consent Updated';
+		customer_id: string;
+		consent_changes: CustomerConsentGrantChange[];
+	}
+
+	/** A staff CSV import set consent on a customer row, on the customer's word. */
+	interface CustomerConsentImportedEvent extends UserActivityEventBase {
+		event: 'Customer Consent Imported';
+		customer_id: string;
+		consent_changes: CustomerConsentGrantChange[];
+	}
+
+	/** Rows written for a customer's own action. Kept separate from {@link UserActivityEvent}. */
+	type CustomerActivityEvent = CustomerConsentUpdatedEvent;
 
 	// Phase 1 (1.6.11) — 17 variants
 
@@ -1069,6 +1138,7 @@ declare global {
 	// Discriminated union. Count in this comment has drifted before — recount
 	// the arms before trusting any number stated here.
 	type UserActivityEvent =
+		| CustomerConsentImportedEvent
 		// Phase 1
 		| UserLoggedInEvent
 		| UserLoggedOutEvent

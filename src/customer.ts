@@ -10,12 +10,52 @@ declare global {
     province: string;
   }
 
+  /**
+   * Provenance for ONE channel's current consent value.
+   *
+   * ⚠️ `ip` is PII under Ley 25.326 and is stored deliberately — it is the
+   * evidence that makes a consent record defensible, and dropping it weakens
+   * the defence. It must never reach a log line, a Sentry event, the DDB
+   * `ERROR` partition, an export, or any projection served to a party other
+   * than the data subject themselves.
+   */
+  interface ChannelConsentStamp {
+    /** ms epoch of the grant or withdrawal this stamp describes. */
+    ts: number;
+    source: 'ui' | 'import' | 'api' | 'storefront';
+    /** Absent when the write had no request-level IP (a CSV import, a job). */
+    ip?: string;
+  }
+
   interface CustomerMarketing {
     adds?: boolean;
     email?: boolean;
     phone?: boolean;
     sms?: boolean;
     whatsapp?: boolean;
+    /**
+     * Per-channel provenance for the CURRENT boolean above — the latest
+     * grant's or withdrawal's source and timestamp.
+     *
+     * ⚠️ This is NOT a history. It answers "what do we believe right now, and
+     * why". The append-only proof of every prior state — what changed, from
+     * what to what, when, and by whom — lives in the activity audit trail.
+     *
+     * ⚠️ Per-CHANNEL deliberately, never one stamp for the whole object: a
+     * customer may grant email today and SMS in three months, and a single
+     * timestamp would be overwritten by the second grant and could no longer
+     * answer when email consent was obtained — the one question a dispute
+     * turns on.
+     *
+     * Absence means the channel is untouched since this field shipped, or the
+     * row predates it. Forward-only: never backfilled.
+     *
+     * ⚠️ Absence NEVER means consent. Every reader must default a missing
+     * channel to `false`.
+     */
+    consent?: Partial<Record<'adds' | 'email' | 'phone' | 'sms' | 'whatsapp', ChannelConsentStamp>>;
+    /** Per-customer, not per-channel — one unsubscribe link covers every channel. */
+    unsubscribeToken?: string;
   }
 
   /** Write shape for customer create/update — carries the transient photo controls. */

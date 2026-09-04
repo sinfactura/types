@@ -31,6 +31,7 @@ export * from "./invoice.js";
 export * from "./log.js";
 export * from "./lot.js";
 export * from "./maintenance.js";
+export * from "./marketing.js";
 export * from "./mercadolibre.js";
 export * from "./mercadopago.js";
 export * from "./notification.js";
