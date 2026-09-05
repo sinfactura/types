@@ -84,16 +84,27 @@ declare global {
 		 */
 		appointmentId?: string;
 		/**
-		 * ⚠️ OPTIONAL, because a walk-in counter sale genuinely has no customer.
-		 * `customerId` is `.optional()` on the api's order-create schema and
-		 * {@link CreateOrderRequest.cartId} below already documents a walk-in cart
-		 * that "has no `customerId` at all"; declaring it required here was the
-		 * contract disagreeing with both the writer and its own neighbouring
-		 * comment. A reader must treat absent as an ordinary walk-in — NOT as a
-		 * malformed row — and render it without a customer block rather than
-		 * refusing it.
+		 * ⚠️ REQUIRED here, and knowingly stricter than the data. Legacy ORDER
+		 * rows written before the walk-in system-customer branch existed carry no
+		 * `customerId`, and this platform is forward-only, so nothing will
+		 * backfill them — the honest declaration is optional.
+		 *
+		 * It was briefly published as optional and reverted in the next patch,
+		 * because widening it is not additive for the api: eleven order paths
+		 * (returns, credit notes, delivery, balance movements, ML claims) feed
+		 * this straight into a `customerId: string` slot, and each needs a real
+		 * answer to "can a customerless order be returned/credited, and against
+		 * whom" before it can compile. Those are money-path product decisions,
+		 * not type errors, and `?? ''` is NOT an escape: an empty string keys the
+		 * `PK-customerId` index and produces an order nothing can resolve an owner
+		 * for, silently.
+		 *
+		 * Both current writers always supply one (the POS create assigns the
+		 * system customer to a walk-in; the web create takes it from the
+		 * authorizer), so this is accurate for every row written from here on.
+		 * Widen it only together with those eleven readers.
 		 */
-		customerId?: string;
+		customerId: string;
 		customer: Partial<Customer>;
 		createdAt: number;
 		/**
