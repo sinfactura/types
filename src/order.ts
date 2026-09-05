@@ -83,9 +83,42 @@ declare global {
 		 * treated as absent rather than followed.
 		 */
 		appointmentId?: string;
-		customerId: string;
+		/**
+		 * ⚠️ OPTIONAL, because a walk-in counter sale genuinely has no customer.
+		 * `customerId` is `.optional()` on the api's order-create schema and
+		 * {@link CreateOrderRequest.cartId} below already documents a walk-in cart
+		 * that "has no `customerId` at all"; declaring it required here was the
+		 * contract disagreeing with both the writer and its own neighbouring
+		 * comment. A reader must treat absent as an ordinary walk-in — NOT as a
+		 * malformed row — and render it without a customer block rather than
+		 * refusing it.
+		 */
+		customerId?: string;
 		customer: Partial<Customer>;
 		createdAt: number;
+		/**
+		 * When the sale was actually RUNG, epoch ms — set only by an offline till
+		 * draining a queued counter sale, and absent on every ordinary order,
+		 * where `createdAt` already is that moment.
+		 *
+		 * ⚠️ This, not `createdAt`, is what `dated` and the fiscal window derive
+		 * from when present: a sale rung at 18:50 and drained at 09:10 the next
+		 * morning belongs to the day it was rung. The drawer event follows it into
+		 * the shift that was open at `soldAt`, even if that shift has since closed.
+		 */
+		soldAt?: number;
+		/**
+		 * Monotonic allocation timestamp for the order's `SALE#` row, epoch ms —
+		 * server-allocated, never client-supplied.
+		 *
+		 * ⚠️ Exists because two sales rung in the SAME millisecond otherwise mint
+		 * the same `SALE#` sort key and the second silently overwrites the first.
+		 * `createdAt` cannot serve: it is the wall-clock stamp and is not unique
+		 * under concurrency. Optional and permanently so — rows written before it
+		 * existed carry none, and this platform is forward-only, so a reader falls
+		 * back to `createdAt` rather than treating absence as a gap.
+		 */
+		saleTs?: number;
 		/**
 		 * `YYYYMMDD` in Buenos Aires time (e.g. `20260810`), stamped at creation
 		 * and never rewritten — the sort key of the `PK-dated` index the per-day
@@ -940,6 +973,29 @@ declare global {
 		reference?: string;
 	}
 
+	/**
+	 * One scanned line of a counter sale the till assembled itself, offline —
+	 * RAW input, never a persisted shape. See {@link CreateOrderRequest.lines}.
+	 */
+	interface OrderLineInput {
+		productId: string;
+		quantity: number;
+		/**
+		 * Unit price at the moment the sale was rung, in the order's currency.
+		 *
+		 * ⚠️ Sale-time and AUTHORITATIVE for a queued sale: the customer walked
+		 * out holding a printed slip, so the persisted order must agree with it and
+		 * the server does not re-price. That is a deliberate departure from the
+		 * cart path, where the price is the catalogue's. It is not a licence to set
+		 * any price: a store with `changePrice: false` refuses a line whose price
+		 * differs from the catalogue price, and a non-positive price is refused
+		 * everywhere.
+		 */
+		price: number;
+		/** Per-line discount, subject to the same operator capability as a cart discount. */
+		lineDiscount?: number;
+	}
+
 	interface CreateOrderRequest extends Omit<Partial<Order>, 'tenders' | 'creditOverride'> {
 		/**
 		 * Sent ONLY when the cashier proceeded past a credit-limit warning. Carries
@@ -979,7 +1035,27 @@ declare global {
 		 * the write.
 		 */
 		cartId?: string;
-		/** Counter sale — a request directive, stripped before the write, never stored. */
+		/**
+		 * Lines the till assembled ITSELF, as an alternative to {@link cartId} —
+		 * for a counter sale rung while the device was offline, with no server-side
+		 * cart to convert. Accepted ONLY alongside `counterSale: true` and an
+		 * `Idempotency-Key` header; a request carrying `lines` needs neither
+		 * `orderId` nor `customerId` nor `cartId`, and satisfies the "name
+		 * something to build from" gate on its own.
+		 *
+		 * ⚠️ NOT stored on the order. Like `cartId` it routes the request and is
+		 * stripped before the write — the built order carries the resulting items,
+		 * not this input.
+		 *
+		 * ⚠️ The replay window is the idempotency TTL, 24 h, and that is the
+		 * CEILING for how long a till may hold a queued sale. A device queueing
+		 * longer than that re-opens the double-charge the key exists to prevent.
+		 */
+		lines?: OrderLineInput[];
+		/**
+		 * Counter sale — a request directive, stripped before the write, never
+		 * stored. Required alongside {@link lines}, which is refused without it.
+		 */
 		counterSale?: boolean;
 		/** Send the order's SMS notification. Directive only, never stored. */
 		sendSms?: boolean;
