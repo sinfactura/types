@@ -36,6 +36,30 @@ declare global {
 	}
 
 	/**
+	 * One currency's slice of a `GET /reports?mode=sales` RANGE.
+	 *
+	 * Sits beside `data` in the response, never inside a `ReportSales` row:
+	 * `{ message, data, byCurrency, mixedCurrency, truncated? }`. The per-day rows
+	 * remain unchanged and remain BLENDED across currencies — a client rendering a
+	 * mixed range must show these range totals and SUPPRESS the day rows, because a
+	 * blended day figure is a wrong number rather than an imprecise one.
+	 *
+	 * ⚠️ Deliberately carries no `net`, `returns`, `returnCount`, `returnCost` or
+	 * `quantity`. `Return` has no currency of its own, and joining each return to
+	 * its order to infer one was rejected as too costly for this endpoint — so those
+	 * figures CANNOT be split per currency at all. They are absent rather than zero
+	 * because a zero here would assert a measurement nobody took.
+	 */
+	interface ReportSalesCurrency {
+		/** The catalog currency id these figures are denominated in. */
+		currency: string;
+		/** GROSS revenue of delivered orders in this currency. */
+		total: number;
+		/** GROSS COGS of those orders. */
+		cost: number;
+	}
+
+	/**
 	 * One FAC/NC/net bucket of the ventas IVA summary. Every amount is a POSITIVE
 	 * magnitude, including `credit` — netting is expressed by the `net` bucket only.
 	 */
