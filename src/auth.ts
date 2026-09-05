@@ -804,6 +804,22 @@ export type SignInMethodErrorCode = (typeof SIGN_IN_METHOD_ERROR_CODES)[number];
  *   and proceed; a retry loop here is how a client turns one race into a
  *   thundering herd against its own session.
  *
+ * - `ACCOUNT_DISABLED` · 401 — the account was disabled between minting the
+ *   refresh token and presenting it. The token itself still verifies, which is
+ *   why this is not `INVALID_REFRESH_TOKEN`: nothing is wrong with the token.
+ * - `USER_NOT_FOUND` · 401 — the user row is gone. ⚠️ Distinct from
+ *   `ACCOUNT_DISABLED` on purpose — simply absent is not disabled, and
+ *   collapsing them loses the only signal that a record was deleted rather
+ *   than deactivated.
+ * - `ROLE_NOT_ALLOWED` · 401 — the role no longer permits this surface. The
+ *   session was legitimate when minted and is not any more.
+ *
+ * ⚠️ These three are FATAL and must not be retried. A consumer that classifies
+ * fatality by matching a code list, WITHOUT also reading the status, silently
+ * omits them the moment they are added here — and a disabled client then
+ * refreshes forever against an account that will never be re-enabled by
+ * retrying. Treat any 401 in this union as fatal; the list is the narrower
+ * check, not the safer one.
  * ⚠️ 401 members: wipe the session and route to login. Treating any of them as
  * retryable produces an infinite refresh loop against a token that will never
  * verify again.
@@ -818,6 +834,9 @@ export const REFRESH_ERROR_CODES = [
 	'FAMILY_REVOKED',
 	'SESSION_EXPIRED_ABSOLUTE',
 	'CONCURRENT_ROTATION',
+	'ACCOUNT_DISABLED',
+	'USER_NOT_FOUND',
+	'ROLE_NOT_ALLOWED',
 ] as const;
 
 export type RefreshErrorCode = (typeof REFRESH_ERROR_CODES)[number];
