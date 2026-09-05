@@ -197,6 +197,24 @@ declare global {
      * and silently never refreshes in the browser — i.e. everywhere real.
      */
     refreshToken?: string;
+
+    /**
+     * The "remember this device" trust, delivered in the body ONLY under the
+     * body refresh transport — the native-mobile opt-in — and only on a login
+     * that both asked to be remembered and actually PERFORMED a second factor.
+     * The DEFAULT is cookie transport, where the trust ships in an HttpOnly
+     * `sf_device` `Set-Cookie` and this key is absent from the body entirely.
+     *
+     * Mirrors `refreshToken` above exactly, including its failure mode: it
+     * reads `undefined` on an ordinary browser login and nothing breaks,
+     * because the cookie the client cannot see is doing the work. So its
+     * absence is never evidence that the device was not trusted.
+     *
+     * ⚠️ Presenting it back is a SECOND-FACTOR bypass, not a session — it is
+     * what lets a login skip the TOTP prompt. Treat it at rest exactly as the
+     * refresh token is treated, never in a log, a URL or an analytics payload.
+     */
+    deviceToken?: string;
   }
 }
 
