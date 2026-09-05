@@ -84,27 +84,42 @@ declare global {
 		 */
 		appointmentId?: string;
 		/**
-		 * ⚠️ REQUIRED here, and knowingly stricter than the data. Legacy ORDER
-		 * rows written before the walk-in system-customer branch existed carry no
-		 * `customerId`, and this platform is forward-only, so nothing will
-		 * backfill them — the honest declaration is optional.
+		 * OPTIONAL. The eleven readers that forced this to be required have all
+		 * been closed, and the widening was gated on a measured zero-error
+		 * typecheck against the widened declaration — never on a count of call
+		 * sites.
 		 *
-		 * It was briefly published as optional and reverted in the next patch,
-		 * because widening it is not additive for the api: eleven order paths
-		 * (returns, credit notes, delivery, balance movements, ML claims) feed
-		 * this straight into a `customerId: string` slot, and each needs a real
-		 * answer to "can a customerless order be returned/credited, and against
-		 * whom" before it can compile. Those are money-path product decisions,
-		 * not type errors, and `?? ''` is NOT an escape: an empty string keys the
-		 * `PK-customerId` index and produces an order nothing can resolve an owner
-		 * for, silently.
+		 * Legacy ORDER rows written before the walk-in system-customer branch
+		 * existed carry no `customerId`, and this platform is forward-only, so
+		 * nothing will backfill them. Optional is the honest declaration.
 		 *
-		 * Both current writers always supply one (the POS create assigns the
-		 * system customer to a walk-in; the web create takes it from the
-		 * authorizer), so this is accurate for every row written from here on.
-		 * Widen it only together with those eleven readers.
+		 * ⚠️ It was published as optional ONCE BEFORE and reverted in the next
+		 * patch, because widening it is not additive for the api: eleven order
+		 * paths (returns, credit notes, delivery, balance movements, ML claims)
+		 * fed this straight into a `customerId: string` slot, and each needed a
+		 * real answer to "can a customerless order be returned or credited, and
+		 * against whom" before it could compile. `?? ''` was never an escape: an
+		 * empty string keys the `PK-customerId` index and produces an order
+		 * nothing can resolve an owner for, silently. All eleven now refuse
+		 * explicitly instead.
+		 *
+		 * ⚠️ Five writers mint an ORDER row, not two, and the enumeration is the
+		 * load-bearing part. `orders/_post.ts` and `web/orders/_post.ts` go
+		 * through `createOrder`; `services/_deliverOrder.ts` builds an ORDER
+		 * `Put` DIRECTLY without it, and `orders/_editPlan.ts` and
+		 * `services/mercadolibreOrders.ts` write the row too. All five supply a
+		 * `customerId` today — but only by accident of `ServiceOrder.customerId`
+		 * and the ML writer's own field being required `string`. Widening either
+		 * of those re-opens this one, silently, with nothing linking the two
+		 * changes.
+		 *
+		 * ⚠️ Widening a related id is NOT safe by analogy. `invoices/_post.ts`
+		 * asserts order ownership as `order?.customerId === customerId`; if that
+		 * argument is ever allowed to be `undefined`, `undefined === undefined`
+		 * passes and a customerless order becomes invoiceable — vacuously, for
+		 * every caller. `IssueInvoiceArgs.customerId` must stay `string`.
 		 */
-		customerId: string;
+		customerId?: string;
 		customer: Partial<Customer>;
 		createdAt: number;
 		/**
