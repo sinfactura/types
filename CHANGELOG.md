@@ -7,6 +7,23 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.213
+
+- **`pushDevice.ts`** (new) — the push-notification device registry: `PushDevice` (stored row),
+  `PushDeviceSummary` (what every read surface returns), `PushDevicePlatform`, and the
+  `POST`/`GET`/`DELETE /devices` request and response shapes. `pushToken` is a credential and is
+  absent from `PushDeviceSummary` by construction — an ALLOW-list, not the row with a key
+  deleted, so a field added to `PushDevice` later cannot leak by default. The token is typed
+  opaque on purpose: Expo's `ExponentPushToken[…]` format covers `ios`/`android` only, while the
+  `'web'` channel is FCM with a different shape, so format validation belongs at the edge where
+  it can branch on `platform`.
+- ⚠️ **Named `PushDevice*`, never `Device*`.** `AuthUser.deviceToken` is the unrelated
+  TRUSTED-DEVICE second-factor bypass; the near-collision already sent one consumer toward the
+  wrong contract, and the prefix is the guard against reusing a 2FA credential as a push token.
+- **`auth.ts`** — records the spelling constraint on the still-unpublished `ENROLLMENT_REQUIRED`:
+  a released Cloud Print agent substring-matches on `PRINTER` in the error code, so a
+  surface-prefixed sibling would silently trip a client-side branch in every deployed agent.
+
 ## 1.10.212
 
 - **`auth.ts`** — `REFRESH_ERROR_CODES` / `RefreshErrorCode`: the nine wire codes the operator

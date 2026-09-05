@@ -842,6 +842,14 @@ export type RefreshErrorCode = (typeof REFRESH_ERROR_CODES)[number];
  * the wire today. It is added here when, and only when, something sends it.
  * Publishing a code the wire never sends is how a consumer ends up with a dead
  * branch it believes is covered.
+ *
+ * ⚠️ When it IS added, it must be spelled exactly `ENROLLMENT_REQUIRED`, with no
+ * `PRINTER` substring — however natural a surface-prefixed sibling looks. A released
+ * Cloud Print agent substring-matches on `PRINTER` in the error code for an unrelated
+ * client-side condition; api `_printer.ts:196-198` documents this, and it is why the
+ * code emitted there is `TWO_FA_NOT_SUPPORTED` rather than anything clearer. A
+ * `PRINTER_ENROLLMENT_REQUIRED` would silently trip that branch in every deployed
+ * agent, and the failure would surface in the agent, never in our logs.
  */
 export const STEP_UP_ERROR_CODES = ['REQUIRES_2FA'] as const;
 
