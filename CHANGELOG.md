@@ -7,6 +7,13 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.208
+
+- **`store.ts`** — `Store['config'].reportDigest?: ReportDigestConfig` (`{ frequency: 'none' |
+  'daily' | 'weekly' | 'monthly' }`). Opt-in: absent and `'none'` both send nothing. Send time
+  and recipients are deliberately not configurable. Privileged-tier write, and the digest is
+  gated on `advancedReports` failing CLOSED.
+
 ## 1.10.207
 
 - **`marketing.ts`** — `SegmentOperator` absence semantics stated precisely: `marketing.*`

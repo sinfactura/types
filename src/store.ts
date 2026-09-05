@@ -156,6 +156,16 @@ declare global {
     currentAppVersion?: string;
   }
 
+  /**
+   * Cadence of the scheduled sales digest. `'none'` and absence are the same
+   * refusal — both send nothing — and `'none'` exists so a store can turn the
+   * digest OFF without the api having to distinguish "never configured" from
+   * "configured off".
+   */
+  interface ReportDigestConfig {
+    frequency: 'none' | 'daily' | 'weekly' | 'monthly';
+  }
+
   interface Store {
     /**
      * Cmd-K palette overrides. Absent means "all built-in verbs, default order".
@@ -266,6 +276,31 @@ declare global {
        * has never been set up; a type missing from the array is not bookable.
        */
       appointmentTypes?: AppointmentTypeConfig[];
+      /**
+       * Scheduled sales digest emailed to the store's operators.
+       *
+       * Absent, or `frequency: 'none'`, means NOTHING is sent — the digest is
+       * opt-in, and a store row that predates this field must never start
+       * receiving mail because a field appeared.
+       *
+       * The send time is fixed (08:00 in the STORE's own timezone, not UTC —
+       * a UTC day boundary files the first three hours of every AR tenant's
+       * day into the wrong digest), and the recipients are the store's own
+       * operator addresses. Neither is configurable here: nothing has asked
+       * for either, and forward-only means both can be added later without
+       * disturbing a stored row.
+       *
+       * ⚠️ Writable at the PRIVILEGED tier, like `stock` — it is deliberately
+       * NOT a user-writable config leaf, so it takes the
+       * ADMIN/SUPERVISOR/MANAGER check and its `STORE_CONFIG_FORBIDDEN`
+       * refusal rather than being a per-user preference.
+       *
+       * The digest itself is gated on the `advancedReports` entitlement, read
+       * per store at send time and failing CLOSED — a cron has no request
+       * context, so an unresolved entitlement map means no send rather than a
+       * send to everyone.
+       */
+      reportDigest?: ReportDigestConfig;
       /**
        * Ceiling on concurrent refresh-token sessions per user. When a new login
        * would exceed it the OLDEST family is revoked, so the cap never blocks a
