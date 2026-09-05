@@ -80,6 +80,25 @@ declare global {
 	 * All gated features. Add new keys here when a new feature becomes gateable;
 	 * every existing plan in `FEATURE_MATRIX` must then declare the new key
 	 * (TypeScript enforces this via `Record<FeatureKey, Entitlement>`).
+	 *
+	 * ⚠️ **`Record<FeatureKey, …>` is NOT the only construction a new member
+	 * breaks, and searching for it alone will tell you a consumer is unaffected
+	 * when it is not.** Measured: a grep for `Record<FeatureKey` across the api
+	 * returned only a type alias, which was reported as "adding a key is a no-op
+	 * here" — and the very next `typecheck` failed with
+	 * `Type '"marketing"' does not satisfy the constraint 'never'`, from an
+	 * exhaustiveness tripwire written as `Exclude<FeatureKey, (typeof KEYS)[number]>`
+	 * against a literal tuple. Enumerate the FORMS, not one spelling of them:
+	 * `Record<>`, `Exclude<>` against a tuple, a switch, an array literal whose
+	 * length is asserted.
+	 *
+	 * ⚠️ **And a new member can be a WIRE change, not merely a wider type.** A
+	 * consumer that validates a seed payload against the key count — the api does,
+	 * with an exact `.length(FEATURE_KEYS.length)` — starts rejecting every
+	 * payload written against the previous length the moment this union grows.
+	 * That is deliberate there (loud at the seeding call, rather than a tier
+	 * quietly missing a feature), but it means the caller must be updated in the
+	 * same change. Adding a key is never only additive downstream.
 	 */
 	type FeatureKey =
 		// Usage limits (numeric / metered)
