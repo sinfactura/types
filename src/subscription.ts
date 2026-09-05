@@ -116,7 +116,9 @@ declare global {
 		// Canales de venta
 		| 'storefront' // NEW — gates the public e-commerce storefront sales channel
 		// Fidelización
-		| 'loyalty'; // NEW — boolean gate: points program, tiers, rewards and the redemption that mints a coupon
+		| 'loyalty' // NEW — boolean gate: points program, tiers, rewards and the redemption that mints a coupon
+		// Marketing
+		| 'marketing'; // NEW — boolean gate: campaigns and segments. Seeded enabled:false on every tier, because PATCH /platform/billing/plans/{tier} can only update a row that already exists; the operator tunes it per-tier afterwards. ⚠️ Unrelated to the customer entity's `marketingConsent` / `CustomerMarketing`, which is a consent sub-object, not a plan feature.
 
 	/** Full feature matrix — every tier declares every feature. */
 	type FeatureMatrix = Record<PlanTier, Record<FeatureKey, Entitlement>>;
