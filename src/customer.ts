@@ -61,6 +61,27 @@ declare global {
   /** Write shape for customer create/update — carries the transient photo controls. */
   type CustomerUpsertInput = Partial<Customer> & PhotoUploadControls;
 
+  /**
+   * One unsettled debit on a customer's current account, as denormalised onto
+   * the `Customer` row for the accounts report's aging summary.
+   *
+   * ⚠️ `dated` is a **`YYYYMMDD` CALENDAR INTEGER** (`20260905`) — never an ms
+   * epoch, never a string. It matches `getDated()` and the `dated` already
+   * written on `ACCOUNT#`/`BALANCE-` rows, so the two agree by construction.
+   *
+   * ⚠️ **NEVER SUBTRACT TWO OF THESE.** They are decimal-packed calendar
+   * fields, so `20260101 - 20251231` is `8870` for two days one apart — an
+   * age that lands a one-day-old debit in the most-overdue bucket, which is
+   * the one a collections operator acts on hardest. Convert both endpoints to
+   * a timestamp first; a fixed-offset conversion applied to both cancels
+   * exactly, so whole-day integers come out with nothing to round.
+   */
+  interface OpenDebit {
+    /** `YYYYMMDD` calendar integer — see the warnings above. */
+    dated: number;
+    amount: number;
+  }
+
   interface Customer {
     storeId: string;
     customerId: string;
@@ -188,6 +209,38 @@ declare global {
     };
     marketing?: CustomerMarketing;
     minBuy?: number;
+    /**
+     * Unsettled debits denormalised onto this row so the accounts report can
+     * bucket them by age without a per-customer query — the same
+     * denormalisation `balance` and `lastReminderAt` already make here.
+     *
+     * FIFO-ordered, **oldest first**, so a credit consumes the oldest debt
+     * first. Capped; the writer REFUSES at the cap rather than evicting, and
+     * sets `openDebitsOverflow`.
+     *
+     * ⚠️ **Deliberately NOT on `CUSTOMER_OPERATOR_BROADCAST_FIELDS`.** That
+     * projection is an allow-list, so this field is absent from the operator
+     * WS frame by construction rather than by scrubbing — and it must stay
+     * absent. `wsPostStore` also reaches the row's own customer, and a store's
+     * collections working-set is the store's posture, not the customer's
+     * record: a debtor who can read the bucket edges can time around them.
+     * `balance` is on that list as a deliberate exception; this is not.
+     *
+     * ⚠️ A whole-attribute `SET` here is NOT safe beside the seven atomic
+     * `balance` deltas. Those are arithmetic (`ADD balance :add`) precisely so
+     * concurrent writers compose; replacing this array wholesale loses updates
+     * the arithmetic next to it would have kept.
+     */
+    openDebits?: OpenDebit[];
+    /**
+     * The cap was reached and the write was REFUSED, so `openDebits` is not a
+     * complete picture of this customer's arrears.
+     *
+     * ⚠️ Absence means "not overflowed", never "unknown" — but a reader must
+     * still not treat a present-and-`false` value as proof the array is
+     * complete on a row written before this field existed. Forward-only.
+     */
+    openDebitsOverflow?: boolean;
     /**
      * FK into `Store.paymentMethods`. OPTIONAL for the same reason as
      * `deliveryMethod` above, and with the same reader contract: resolve against

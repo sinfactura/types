@@ -153,6 +153,81 @@ declare global {
 		reg_cbte: string;
 	}
 
+	/**
+	 * One aging bucket on a `mode=accounts` row.
+	 *
+	 * ⚠️ **BOTH EDGES ARE INCLUSIVE**, in whole days — `toDays: null` means
+	 * unbounded above. This is closed-closed, NOT half-open: the buckets are
+	 * `[0,30]`, `[31,60]`, `[61,90]`, `[91,null]`, so the next `fromDays` is the
+	 * previous `toDays` PLUS ONE. Nothing is in two buckets and nothing falls
+	 * between them.
+	 *
+	 * ⚠️ That is only well-defined because **non-integer edges are dropped**
+	 * rather than coerced. A fractional edge like `30.5` would leave a real gap
+	 * between `30` and `31` and money would fall into it, so the integer filter
+	 * is load-bearing for this convention — not defensive hygiene to relax later.
+	 *
+	 * ⚠️ Edges are **caller input**, so a `NaN` reaching the comparison is not
+	 * inert: every comparison against `NaN` is false, which routes EVERY debit
+	 * to the open-ended bucket and reports a whole ledger as severely overdue.
+	 * Filter, never coerce.
+	 */
+	interface AgingBucket {
+		/** Inclusive lower edge, whole days. */
+		fromDays: number;
+		/** INCLUSIVE upper edge, whole days. `null` = unbounded above. */
+		toDays: number | null;
+		amount: number;
+	}
+
+	/**
+	 * Aging summary on a `GET /reports?mode=accounts` row.
+	 *
+	 * ⚠️ **The two failure states are independent and can co-occur** — do not
+	 * collapse them into one flag. They want opposite operator actions.
+	 *
+	 * - `available: true` — `untracked` is debt predating the summary, i.e. the
+	 *   forward-only gap. Readable as that and nothing else.
+	 * - `available: false` — the customer's debit array overflowed its cap.
+	 *   **`buckets` is EMPTY**, and `untracked` is an undifferentiated residual
+	 *   that mixes the capped overflow with the forward-only gap. It is NOT
+	 *   readable as either state alone; go to the per-customer ledger.
+	 *
+	 * `buckets` is empty rather than partial on purpose: a consumer that sums a
+	 * partial array renders a debtor as LESS overdue than they are, and that is
+	 * the direction that costs money. An empty array cannot be summed into a
+	 * plausible-looking wrong answer.
+	 */
+	interface ReportAccountsAging {
+		/** Empty when `available` is `false` — see the reading rule above. */
+		buckets: AgingBucket[];
+		/**
+		 * `max(0, balance - sum(buckets))`, clamped so a customer in credit never
+		 * reports negative arrears. Meaning depends on `available`.
+		 */
+		untracked: number;
+		/** `false` = the debit array overflowed its cap; the summary is not usable. */
+		available: boolean;
+	}
+
+	/**
+	 * `GET /reports?mode=accounts` response row — one per customer with a
+	 * non-zero balance, debtors first then credits, each ascending by `balance`.
+	 *
+	 * ⚠️ `balance` is a LIVE running balance read off the `Customer` row, not a
+	 * sum over the period. `aging` is derived from the same row's denormalised
+	 * open debits, so the two agree by construction — but only for debits the
+	 * row actually carries. See `ReportAccountsAging.untracked`.
+	 */
+	interface ReportAccountsRow {
+		storeId: string;
+		customerId: string;
+		fullName: string;
+		balance?: number;
+		/** Absent on a row whose aging was not computed at all. */
+		aging?: ReportAccountsAging;
+	}
+
 }
 
 export {}; // NOSONAR
