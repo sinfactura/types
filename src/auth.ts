@@ -768,4 +768,83 @@ export const SIGN_IN_METHOD_ERROR_CODES = [
 
 export type SignInMethodErrorCode = (typeof SIGN_IN_METHOD_ERROR_CODES)[number];
 
+/**
+ * `body.error` codes the operator refresh/session leg can refuse with —
+ * `POST /auth { mode: 'refresh' }` and the body-transport ingress it shares with
+ * `logout` and `sessions`.
+ *
+ * A CONST TUPLE for the same reason as the sign-in cohort above: consumers
+ * switch exhaustively on these, and a bare union cannot key a `Record` the
+ * compiler re-checks when a member is added. Module-scope, not ambient.
+ *
+ * ⚠️ Published because every consumer was hand-pinning them and at least one had
+ * them WRONG — lowercase spellings that predated the casing normalisation. A
+ * hand-pinned wire contract does not fail loudly when it drifts; it silently
+ * stops matching, and a session-expiry branch that never fires looks like a
+ * working app until the token actually expires.
+ *
+ * The status is stated per member below because the client obligation differs by
+ * status, but ⚠️ MATCH ON `body.error`, never on the status alone — 401 covers
+ * six distinct causes with one remedy, and 409 is not a failure at all.
+ *
+ * - `MISSING_REFRESH_TOKEN` · 401 — no token presented at all.
+ * - `INVALID_REFRESH_TOKEN` · 401 — presented, did not verify.
+ * - `NOT_A_REFRESH_TOKEN` · 401 — a well-formed token of the wrong kind, e.g. an
+ *   access token replayed at the refresh endpoint.
+ * - `LEGACY_STATELESS_TOKEN` · 401 — minted before refresh tokens were tracked
+ *   server-side. Indistinguishable from expiry to the user; same remedy.
+ * - `CSRF_ORIGIN_REJECTED` · 403 — ⚠️ COOKIE TRANSPORT ONLY, and therefore
+ *   UNREACHABLE from a native client, which cannot send the cookie in the first
+ *   place. A native client seeing this is not a CSRF failure to handle: it means
+ *   the request went out on the wrong transport.
+ * - `REFRESH_TOKEN_UNKNOWN` · 401 — verified, but no longer stored.
+ * - `FAMILY_REVOKED` · 401 — the whole token family was invalidated, which is
+ *   what a detected replay looks like from here. Wipe the session; do not retry.
+ * - `SESSION_EXPIRED_ABSOLUTE` · 401 — the session hit its absolute lifetime cap.
+ *   Rotation cannot extend past it, so re-login is the only path.
+ * - `CONCURRENT_ROTATION` · 409 — ⚠️ NOT a failure and NOT a reason to log out.
+ *   Another in-flight request is already rotating. Re-read the stored token ONCE
+ *   and proceed; a retry loop here is how a client turns one race into a
+ *   thundering herd against its own session.
+ *
+ * ⚠️ 401 members: wipe the session and route to login. Treating any of them as
+ * retryable produces an infinite refresh loop against a token that will never
+ * verify again.
+ */
+export const REFRESH_ERROR_CODES = [
+	'MISSING_REFRESH_TOKEN',
+	'INVALID_REFRESH_TOKEN',
+	'NOT_A_REFRESH_TOKEN',
+	'LEGACY_STATELESS_TOKEN',
+	'CSRF_ORIGIN_REJECTED',
+	'REFRESH_TOKEN_UNKNOWN',
+	'FAMILY_REVOKED',
+	'SESSION_EXPIRED_ABSOLUTE',
+	'CONCURRENT_ROTATION',
+] as const;
+
+export type RefreshErrorCode = (typeof REFRESH_ERROR_CODES)[number];
+
+/**
+ * Login-leg discriminators that are a CHALLENGE rather than a refusal — the
+ * credentials were accepted and the server is asking for one more factor.
+ *
+ * ⚠️ Kept apart from `LoginErrorCode` deliberately. Those members mean the
+ * attempt FAILED; this one means it is still in progress. A consumer that folds
+ * them together renders "wrong password" at a 2FA prompt.
+ *
+ * - `REQUIRES_2FA` · 401 — re-submit the same credentials plus `totpCode` in one
+ *   call. Stateless: nothing is held server-side between the challenge and the
+ *   answer, so there is no pending-login handle to keep and nothing to expire.
+ *
+ * ⚠️ An `ENROLLMENT_REQUIRED` step-up — a tier that mandates 2FA meeting an
+ * operator who has not enrolled — is DELIBERATELY ABSENT: no emitter exists on
+ * the wire today. It is added here when, and only when, something sends it.
+ * Publishing a code the wire never sends is how a consumer ends up with a dead
+ * branch it believes is covered.
+ */
+export const STEP_UP_ERROR_CODES = ['REQUIRES_2FA'] as const;
+
+export type StepUpErrorCode = (typeof STEP_UP_ERROR_CODES)[number];
+
 export {}; // NOSONAR

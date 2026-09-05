@@ -7,6 +7,34 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.212
+
+- **`auth.ts`** — `REFRESH_ERROR_CODES` / `RefreshErrorCode`: the nine wire codes the operator
+  refresh and session leg emits, as a runtime tuple, with each member's HTTP status and client
+  obligation. Every member grep-verified against an emitter on api `main`, and every emitter
+  against a member. `STEP_UP_ERROR_CODES` / `StepUpErrorCode` publishes `REQUIRES_2FA` separately —
+  it is a challenge, not a refusal. Native and web clients were hand-pinning all of these.
+- **`literals.ts`** (new) — `LITERAL_SURFACES` / `LiteralSurface`, plus `LiteralLayer`,
+  `LiteralsSurfaceResponse`, `LiteralsLegacyResponse` and the `LiteralsResponse` union for
+  `GET /literals`. Surface mode returns unmerged layers in merge order; legacy mode returns a
+  merged map under a different key. Both are conditional GETs.
+
+## 1.10.211
+
+- **`reminder.ts`** (new) — `ReminderRecord` plus `ReminderKind`, `ReminderChannel` and
+  `ReminderDocumentType`: the append-only record of a document-directed email that was actually
+  delivered. **`customer.ts`** — `Customer.lastReminderAt?: number`, a read-time cache of those
+  rows, fed only by `kind: 'reminder'`.
+
+## 1.10.210
+
+- **`report.ts`** — `ReportSalesCurrency` for the per-currency sales range slice.
+
+## 1.10.209
+
+- **`user.ts`** — `AuthUser.deviceToken` for the trusted-device header transport, which native
+  clients need because they cannot echo the `sf_device` cookie.
+
 ## 1.10.208
 
 - **`store.ts`** — `Store['config'].reportDigest?: ReportDigestConfig` (`{ frequency: 'none' |
