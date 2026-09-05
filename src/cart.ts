@@ -459,6 +459,27 @@ declare global {
 		 */
 		maxPerCustomer?: number;
 		/**
+		 * Binds this coupon to ONE customer: when present, it is redeemable only by
+		 * that customer and refused for anyone else, however they came by the code.
+		 *
+		 * ⚠️ NOT a stronger `maxPerCustomer`. That is a per-customer CEILING — any
+		 * holder of the code may redeem, each within their own allowance. This is
+		 * OWNERSHIP: the code in a stranger's hands is worth nothing. A minted
+		 * loyalty reward always carries it, because points one customer earned must
+		 * not be spendable by whoever the code reaches.
+		 *
+		 * ⚠️ Optional, and absent means unbound — every coupon minted before this
+		 * field existed keeps working exactly as it did. This package is
+		 * forward-only; a bound coupon is a NEW row, never a reinterpretation of an
+		 * old one.
+		 *
+		 * ⚠️ A mismatch is reported as `COUPON_NOT_FOUND`, the same refusal an
+		 * unknown code and a disabled coupon get. Answering "this coupon is not
+		 * yours" would confirm to whoever holds a leaked code that the code is real
+		 * and tell them it belongs to someone.
+		 */
+		customerId?: string;
+		/**
 		 * Redemptions consumed so far, incremented atomically at checkout under a
 		 * condition. ⚠️ Never write this directly — the conditional increment IS
 		 * the cap, and a plain overwrite loses every concurrent redemption.

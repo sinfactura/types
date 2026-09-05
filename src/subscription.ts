@@ -114,7 +114,9 @@ declare global {
 		| 'advancedPricing' // boolean gate: absolute / per-list-currency / breaks / promos
 		| 'marketplaceChannels' // NEW — boolean gate: marketplace integrations (MercadoLibre first); PLAN#{tier} rows PATCHed per the marketplace-channels ceremony
 		// Canales de venta
-		| 'storefront'; // NEW — gates the public e-commerce storefront sales channel
+		| 'storefront' // NEW — gates the public e-commerce storefront sales channel
+		// Fidelización
+		| 'loyalty'; // NEW — boolean gate: points program, tiers, rewards and the redemption that mints a coupon
 
 	/** Full feature matrix — every tier declares every feature. */
 	type FeatureMatrix = Record<PlanTier, Record<FeatureKey, Entitlement>>;

@@ -30,6 +30,7 @@ export * from "./invitation.js";
 export * from "./invoice.js";
 export * from "./log.js";
 export * from "./lot.js";
+export * from "./loyalty.js";
 export * from "./maintenance.js";
 export * from "./marketing.js";
 export * from "./mercadolibre.js";

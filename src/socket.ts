@@ -83,6 +83,20 @@ export const SOCKET_ACTIONS = [
 	'globals',
 	'invoices',
 	'literals',
+	/**
+	 * A customer's loyalty balance moved — an earn, a redemption or an
+	 * adjustment. Operator-only today: `wsPostStore(..., { audience: 'operator' })`.
+	 *
+	 * `data` is the `LoyaltyAccount` row, which carries `customerId` by
+	 * construction. That field is the identity axis a client caches on, so a
+	 * balance frame that could not answer it would never be placeable and
+	 * would be dropped silently rather than loudly.
+	 *
+	 * ⚠️ The frame carries the BALANCE, never the ledger row: points, the
+	 * order they came from and the acting user are operator-side history, and
+	 * `scrubForCustomer` knows nothing about this entity.
+	 */
+	'loyalty',
 	'orders',
 	'products',
 	/**

@@ -7,6 +7,49 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.205
+
+- **`marketing.ts`** — `SegmentOperator` docblock defines the `within`/`olderThan`
+  unit (days), reserves `includes`, and states absent-field semantics.
+- **`loyalty.ts`** (new) — `LoyaltyProgram`, `LoyaltyTier`, `LoyaltyAccount`,
+  `LoyaltyTransaction`, `LoyaltyReward`. Two rules are stated as contract facts
+  because neither is expressible in the type: the ledger is **append-only** (a
+  correction is a new compensating `'adjust'` row, the nota-de-crédito rule,
+  ADR-0013 §4), and `LoyaltyAccount.balance` **moves only under a conditional
+  update**, the same shape as `Coupon.redemptions` / `discountSpent` — a plain
+  overwrite loses every concurrent redemption. `LoyaltyTransaction` carries the
+  full ADR-0013 §1 stamp (`currency` + `currencyValue` + `currencyValueAt`,
+  frozen at write) on every row, `'adjust'` included; an unpriced currency
+  refuses the write rather than accruing at an assumed rate of 1.
+- **`cart.ts`** — `Coupon.customerId?`. When present the coupon is redeemable
+  ONLY by that customer. Distinct from `maxPerCustomer`, which is a per-customer
+  ceiling any holder of the code may spend against, not an owner: a minted
+  loyalty reward is points one customer earned and must not be spendable by
+  whoever the code reaches. Optional because this package is forward-only —
+  every existing coupon keeps working unbound. A mismatch answers
+  `COUPON_NOT_FOUND`, the same refusal a disabled coupon gets, so a leaked code
+  teaches an enumerator nothing.
+- **`subscription.ts`** — `FeatureKey` gains `'loyalty'` (boolean gate). Like
+  `'storefront'` and `'marketplaceChannels'`, the per-tier entitlement is a
+  `PLAN#{tier}` row PATCH, not a value in this package.
+- **`socket.ts`** — `'loyalty'` action, emitted on every balance change.
+  Operator-only; `data` is the `LoyaltyAccount` row, which carries `customerId`
+  by construction — the identity axis a client caches on, and a balance frame
+  that cannot answer it never appends.
+
+## 1.10.204
+
+- **`order.ts`** — `Order.customerId` restored to REQUIRED (the 1.10.203
+  widening broke eleven api reader sites; re-widening lands with those readers).
+  `soldAt`, `saleTs`, `CreateOrderRequest.lines` / `OrderLineInput` kept.
+
+## 1.10.203
+
+- **`order.ts`** — `CreateOrderRequest.lines?: OrderLineInput[]` (counter sale
+  from a queued till), `Order.soldAt?` (moment the sale was rung), `Order.saleTs?`
+  (server-allocated monotonic SALE# key). `customerId` made optional — reverted
+  in 1.10.204.
+
 ## 1.10.202
 
 - **`userActivity.ts`** — `CustomerConsentImportCompletedEvent` (`'Customer Consent

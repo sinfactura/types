@@ -40,6 +40,15 @@ declare global {
     updatedAt?: number;
   }
 
+  /**
+   * `within` / `olderThan` take a POSITIVE INTEGER NUMBER OF DAYS measured from
+   * the evaluation instant (`lastBuy within 90` = bought in the last 90 days);
+   * a stored `90` has always meant days. `includes` is RESERVED — every
+   * `SegmentField` is a number or a boolean today, the handler refuses it on
+   * write, and a string/array field lands together with it or not at all. An
+   * absent field never matches a comparison (no `creditLimit` is "no ceiling",
+   * not zero; an absent `marketing.*` channel is NOT consent).
+   */
   type SegmentOperator = 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'within' | 'olderThan' | 'includes';
 
   /**
