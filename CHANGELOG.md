@@ -7,6 +7,11 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.206
+
+- **`socket.ts`** — `SOCKET_ACTIONS` gains `'warehouses'` (the `Warehouse` row is the
+  frame; the entity has existed since 1.10.202, the action string had not).
+
 ## 1.10.205
 
 - **`marketing.ts`** — `SegmentOperator` docblock defines the `within`/`olderThan`

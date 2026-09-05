@@ -154,6 +154,7 @@ export const SOCKET_ACTIONS = [
 	'support',
 	'surveys',
 	'users',
+	'warehouses',
 	'favorites',
 	/**
 	 * BE → all store users on an outbound-webhook config mutation.
