@@ -7,6 +7,26 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.214
+
+- **`auth.ts`** — the login-leg wire error codes the clients were hand-pinning. `LOGIN_ERROR_CODES`
+  is now a runtime `as const` tuple and `LoginErrorCode` derives from it, so the type and the values
+  cannot drift; `LOGIN_2FA_ERROR_CODES` + `Login2faErrorCode` publish the second-factor failures as
+  a separate cohort. Every member verified against an emitter on api `origin/main`.
+- ⚠️ **`ROLE_NOT_ALLOWED` is NEW in `LoginErrorCode`** (emitters: `_login.ts:188`,
+  `_magicLinkVerify.ts:139`, `_printer.ts:189`, `_social.ts:115` — four, not the three the issue
+  listed). An exhaustive `switch` over `LoginErrorCode` in a consumer will now fail to compile until
+  it handles the member. That break is deliberate: the code has been on the wire all along and every
+  client was falling through to a generic "login failed" on a TERMINAL refusal — the password was
+  correct, the user's ROLES may not use that surface, and retrying can never succeed.
+- ⚠️ **`INVALID_2FA_CODE` carries TWO different HTTP statuses** — 401 from the login step-up
+  (`helpers/totp.ts:361,383`), 400 from the 2FA management routes (`_2faDisable.ts`,
+  `_2faRecoveryCodes.ts`, `_2faVerifyEnrollment.ts`). Documented on the member, because a consumer
+  keying on the status rather than on `body.error` will log a user out for mistyping a digit while
+  changing their own 2FA settings. `2FA_LOCKED` is 429 from both.
+- **`ENROLLMENT_REQUIRED` still deliberately unpublished** — re-verified this release: zero emitters
+  anywhere on api `origin/main`.
+
 ## 1.10.213
 
 - **`pushDevice.ts`** (new) — the push-notification device registry: `PushDevice` (stored row),

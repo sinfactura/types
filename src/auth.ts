@@ -49,16 +49,13 @@ declare global {
 		email: string;
 	}
 
-	// Wire error codes for the password brute-force lockout flow. ATTESTATION_*
-	// are the mobile (body-transport) captcha-tier equivalents of CAPTCHA_*.
-	type LoginErrorCode =
-		| 'WRONG_CREDENTIALS'
-		| 'ACCOUNT_LOCKED'
-		| 'ACCOUNT_DISABLED'
-		| 'CAPTCHA_REQUIRED'
-		| 'CAPTCHA_INVALID'
-		| 'ATTESTATION_REQUIRED'
-		| 'ATTESTATION_INVALID';
+	// Wire error codes for a REFUSED login attempt — the credential/eligibility
+	// failures. ATTESTATION_* are the mobile (body-transport) captcha-tier
+	// equivalents of CAPTCHA_*.
+	//
+	// ⚠️ DERIVED from the `LOGIN_ERROR_CODES` tuple at the bottom of this file, so
+	// the type and the runtime values cannot drift. Edit the tuple, never this.
+	type LoginErrorCode = (typeof LOGIN_ERROR_CODES)[number];
 
 	// `retryAfterSeconds` (seconds) mirrors the FE's existing 429 rate-limit convention.
 	interface AccountLockedResponse {
@@ -854,5 +851,74 @@ export type RefreshErrorCode = (typeof REFRESH_ERROR_CODES)[number];
 export const STEP_UP_ERROR_CODES = ['REQUIRES_2FA'] as const;
 
 export type StepUpErrorCode = (typeof STEP_UP_ERROR_CODES)[number];
+
+/**
+ * Login-leg REFUSALS — the attempt is over and the credentials or the caller's
+ * eligibility are why. The runtime source of truth for `LoginErrorCode`.
+ *
+ * ⚠️ Published as a tuple because a bare union cannot be switched exhaustively
+ * at runtime, which is the whole reason consumers were hand-pinning these.
+ *
+ * - `WRONG_CREDENTIALS` · 400 — email/password did not match.
+ * - `ACCOUNT_LOCKED` · 400 — brute-force lockout; the response carries
+ *   `retryAfterSeconds` (see `AccountLockedResponse`).
+ * - `ACCOUNT_DISABLED` · 400 — the user row is disabled.
+ * - `CAPTCHA_REQUIRED` / `CAPTCHA_INVALID` — the browser captcha tier.
+ * - `ATTESTATION_REQUIRED` / `ATTESTATION_INVALID` — the mobile
+ *   (body-transport) equivalents of the two above.
+ * - `ROLE_NOT_ALLOWED` · 400 — ⚠️ TERMINAL, and not a credential failure at all:
+ *   the password was right and this user's ROLES may not use this surface.
+ *   Retrying, re-prompting, or offering a password reset all leave the user
+ *   stuck in a loop that cannot succeed. Say the account may not use this app.
+ *
+ * ⚠️ `ROLE_NOT_ALLOWED` was added to this union after the fact. A consumer with
+ * an exhaustive `switch` over `LoginErrorCode` will now fail to compile until it
+ * handles the new member — that break is the point, because the code has been on
+ * the wire from four emitters all along and every client was silently falling
+ * through to a generic "login failed".
+ */
+export const LOGIN_ERROR_CODES = [
+	'WRONG_CREDENTIALS',
+	'ACCOUNT_LOCKED',
+	'ACCOUNT_DISABLED',
+	'CAPTCHA_REQUIRED',
+	'CAPTCHA_INVALID',
+	'ATTESTATION_REQUIRED',
+	'ATTESTATION_INVALID',
+	'ROLE_NOT_ALLOWED',
+] as const;
+
+/**
+ * Second-factor FAILURES on the login step-up — the siblings of
+ * `STEP_UP_ERROR_CODES`' single success-path discriminator.
+ *
+ * ⚠️ Kept apart from `LOGIN_ERROR_CODES` for the same reason `REQUIRES_2FA` is:
+ * those members mean the CREDENTIAL attempt failed, these mean the credential
+ * was accepted and the SECOND FACTOR failed. A consumer that folds them together
+ * re-prompts for a password when it should re-prompt for a six-digit code.
+ *
+ * - `INVALID_2FA_CODE` · ⚠️ **401 OR 400 — the status depends on the path**, and
+ *   this is the detail most likely to be got wrong:
+ *   - **401** from the LOGIN step-up (`helpers/totp.ts`) — the user is not
+ *     authenticated yet. Re-prompt for the code; do NOT wipe a session, there
+ *     isn't one.
+ *   - **400** from the 2FA MANAGEMENT routes (disable, recovery-codes,
+ *     verify-enrollment) — the user IS authenticated and is proving the factor
+ *     to change it. Re-prompt within the same authenticated screen.
+ *   ⚠️ A consumer keying on the STATUS rather than on `body.error` will treat one
+ *   of these two as the other — and the 401 branch of a generic handler usually
+ *   wipes the session, which logs the user out for mistyping a digit while
+ *   changing their own 2FA settings.
+ * - `2FA_LOCKED` · 429 — the factor is locked for ~15 minutes after repeated
+ *   failures. Back off; a retry loop cannot shorten it. Reached from the login
+ *   step-up AND from the disable / recovery-codes management routes.
+ *
+ * ⚠️ `ENROLLMENT_REQUIRED` is DELIBERATELY ABSENT here too — see
+ * `STEP_UP_ERROR_CODES` for the emitter rule and for the `PRINTER`-substring
+ * hazard that constrains how it must eventually be spelled.
+ */
+export const LOGIN_2FA_ERROR_CODES = ['INVALID_2FA_CODE', '2FA_LOCKED'] as const;
+
+export type Login2faErrorCode = (typeof LOGIN_2FA_ERROR_CODES)[number];
 
 export {}; // NOSONAR
