@@ -160,6 +160,22 @@ declare global {
     lastBuy?: number;
     lastLog?: number;
     /**
+     * ms epoch of the last COLLECTIONS chase, so the accounts report can show
+     * it without a per-customer query — the same denormalisation `balance`
+     * already makes on this row.
+     *
+     * ⚠️ Fed ONLY by a `ReminderRecord` with `kind: 'reminder'`. It is
+     * therefore absent on every customer until the dunning mode ships, and
+     * that is correct rather than missing: populating it from transactional
+     * mail would read as "already chased" to a collections operator who would
+     * then skip a debtor.
+     *
+     * ⚠️ A cache of the `REMINDER#{storeId}#{customerId}` rows, never an
+     * independent truth. If the two can disagree, the list and the per-customer
+     * history show different answers for the same customer.
+     */
+    lastReminderAt?: number;
+    /**
      * Per-account brute-force counter for `POST /auth?mode=login` (web).
      * Mirrors `User.login` exactly. Storage-only — must never leave the API;
      * `sanitizeCustomerRow` strips it at every wire boundary (auth-response
