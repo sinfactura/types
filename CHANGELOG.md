@@ -7,6 +7,12 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.207
+
+- **`marketing.ts`** — `SegmentOperator` absence semantics stated precisely: `marketing.*`
+  and `disabled` absent read as `false`; `balance`/`creditLimit`/`lastBuy` absent match no
+  comparison. Docblock only.
+
 ## 1.10.206
 
 - **`socket.ts`** — `SOCKET_ACTIONS` gains `'warehouses'` (the `Warehouse` row is the

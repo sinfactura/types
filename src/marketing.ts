@@ -45,9 +45,13 @@ declare global {
    * the evaluation instant (`lastBuy within 90` = bought in the last 90 days);
    * a stored `90` has always meant days. `includes` is RESERVED — every
    * `SegmentField` is a number or a boolean today, the handler refuses it on
-   * write, and a string/array field lands together with it or not at all. An
-   * absent field never matches a comparison (no `creditLimit` is "no ceiling",
-   * not zero; an absent `marketing.*` channel is NOT consent).
+   * write, and a string/array field lands together with it or not at all.
+   * Absent fields: two DEFAULTS, seven NO-MATCH. An absent `marketing.*`
+   * channel and an absent `disabled` read as `false` (absence is never consent,
+   * and a missing `disabled` is a live customer) — so `eq false` matches them
+   * and `eq true` never can. `balance`, `creditLimit` and `lastBuy` absent match
+   * NO comparison at all, `ne` included (no `creditLimit` is "no ceiling", not
+   * zero).
    */
   type SegmentOperator = 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'within' | 'olderThan' | 'includes';
 
