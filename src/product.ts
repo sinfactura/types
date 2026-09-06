@@ -247,6 +247,45 @@ declare global {
 		 * field, not that the class is fresh.
 		 */
 		abcClassifiedAt?: number;
+		/**
+		 * Shipping weight, in GRAMS.
+		 *
+		 * ⚠️ **The unit is in the name because a bare `weight` is unrecoverable.**
+		 * Grams and kilograms are both plausible readings of the same number, both
+		 * numeric, and nothing downstream can tell them apart — so the error is three
+		 * orders of magnitude and it renders without complaint. Do not add a separate
+		 * unit column either: a unit field is a second thing to get wrong, and it can
+		 * disagree with the value it describes. A carrier payload wanting kilograms
+		 * converts once at its own boundary.
+		 *
+		 * Integer-valued in practice; sub-gram precision is not meaningful for
+		 * shipping and no consumer should assume it. Bound it at the wire — a
+		 * negative weight is not a value, and an implausibly large one is the tell
+		 * for exactly the unit confusion above.
+		 *
+		 * ⚠️ Absence means UNMEASURED, never zero. A zero-weight product would quote
+		 * a shipping cost of nothing; an absent one must refuse to quote at all.
+		 */
+		weightGrams?: number;
+		/**
+		 * Longest edge of the product's shipping envelope, in MILLIMETRES.
+		 *
+		 * ⚠️ Same naming rule as `weightGrams`, for the same reason — see its note.
+		 * The three dimensions carry no declared orientation beyond this one being
+		 * the longest; a packing algorithm that needs a specific axis must not infer
+		 * it from the field names.
+		 *
+		 * ⚠️ Absence means UNMEASURED. All three of `lengthMm`/`widthMm`/`heightMm`
+		 * are independently optional, so a partially-measured product is
+		 * representable — and a volumetric calculation must check for all three
+		 * rather than defaulting a missing one to zero, which would silently produce
+		 * a volume of nothing.
+		 */
+		lengthMm?: number;
+		/** Second edge of the shipping envelope, in MILLIMETRES. See {@link Product.lengthMm}. */
+		widthMm?: number;
+		/** Third edge of the shipping envelope, in MILLIMETRES. See {@link Product.lengthMm}. */
+		heightMm?: number;
 		limit?: number;
 		incomes?: {
 			stockId: string;
