@@ -243,6 +243,34 @@ declare global {
 		noGravado: number;
 		exento: number;
 		total: number;
+		/**
+		 * Percepciones de IVA sufridas in the period.
+		 *
+		 * ⚠️ **Already inside `total`, not additional to it.** Every column here
+		 * sums the same field on the underlying `SupplierInvoice`, and that
+		 * invoice's own `total` is the gross figure the supplier billed —
+		 * netos + ivas + percepciones. A reader that adds this to `total` to get
+		 * "the real total" double-counts it.
+		 *
+		 * It is broken out because it is the figure an operator needs for their
+		 * monthly IIBB/IVA DDJJ and it is otherwise only visible one invoice at a
+		 * time, and because the same number already reaches ARCA through the Libro
+		 * IVA Digital — so it is authoritative, merely unsummed.
+		 *
+		 * ⚠️ Optional because the api emits it only once deployed with the change
+		 * that computes it; merged is not deployed. Absent means "this api has not
+		 * shipped the column", never "zero percepciones in the period" — a period
+		 * with none reports `0`.
+		 */
+		per_iva?: number;
+		/**
+		 * Percepciones de Ingresos Brutos sufridas in the period.
+		 *
+		 * Same contract as `per_iva` in every respect: already inside `total`,
+		 * `0` for a period with none, and absent only when the api predates the
+		 * column.
+		 */
+		per_iibb?: number;
 	}
 
 	interface ReportSupplierInvoicesResponse {
