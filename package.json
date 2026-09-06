@@ -1,6 +1,6 @@
 {
   "name": "sinfactura-types",
-  "version": "1.10.222",
+  "version": "1.10.223",
   "main": "dist/index.js",
   "type": "module",
   "types": "./dist/index.d.ts",

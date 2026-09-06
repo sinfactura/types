@@ -14,15 +14,26 @@ declare global {
   /**
    * The document the email was ABOUT, so the queue can say what was chased
    * without a second lookup.
+   *
+   * ⚠️ `'account'` is the odd member and is deliberate: a collections chase is
+   * about the customer's BALANCE, not about any one document. There is no
+   * invoice to name even if one were wanted — an open debit is `{ dated,
+   * amount }` with no document id, so the aging pass cannot say which invoice
+   * the oldest money came from. Its `documentId` is therefore the customerId:
+   * the account is identified by its customer, the same way
+   * `PaymentReceiptTrigger` already uses `'account'` for an operator-entered
+   * credit against that ledger.
    */
-  type ReminderDocumentType = 'invoice' | 'order' | 'payment' | 'return' | 'serviceOrder';
+  type ReminderDocumentType = 'invoice' | 'order' | 'payment' | 'return' | 'serviceOrder' | 'account';
 
   /**
    * Why the email went out.
    *
-   * ⚠️ `'transactional'` is today's entire population — an invoice copy, an
+   * ⚠️ `'transactional'` is the bulk of the population — an invoice copy, an
    * order confirmation, a receipt. `'reminder'` is a deliberate collections
-   * chase and does not exist until the dunning mode ships.
+   * chase, and it has exactly ONE producer: the operator-triggered dunning
+   * send. Nothing automatic writes it, so a `'reminder'` row always means a
+   * person decided to chase this customer.
    *
    * ⚠️ This discriminant is the whole reason `Customer.lastReminderAt` can be
    * trusted. Feeding that field from transactional sends would tell a
@@ -56,7 +67,14 @@ declare global {
     sentAt: number;
     kind: ReminderKind;
     documentType: ReminderDocumentType;
-    /** The document's own id, as the operator sees it. */
+    /**
+     * The document's own id, as the operator sees it.
+     *
+     * ⚠️ For `documentType: 'account'` this is the CUSTOMER id, duplicating
+     * `customerId` above. That is the honest encoding rather than a redundancy
+     * to clean up: the thing chased is the account, and the account has no id
+     * of its own.
+     */
     documentId: string;
     channel: ReminderChannel;
     /**
