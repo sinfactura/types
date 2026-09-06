@@ -7,6 +7,28 @@ detail and `npm view sinfactura-types versions` for the published list.
 Versioning follows [`PUBLISHING.md`](./PUBLISHING.md): additive changes ship as
 **patch** bumps by project convention; breaking reshapes are major.
 
+## 1.10.220
+
+- **`marketing.ts`** — the campaign send pipeline's two contracts. `Campaign` gains the optional
+  aggregate counters `queuedCount` / `sentCount` / `failedCount`, maintained by an atomic DynamoDB
+  `ADD`; **absence means no send has been attempted, and is never the same as `0`**, so an absent
+  counter renders as "not sent yet". They are documented as NOT a substitute for the per-recipient
+  rows — no recipient identity, no failure reason, no `'skipped'` tally, and a double-landed `ADD`
+  is unreconcilable from the counter alone.
+- **`CampaignRecipient` + `CampaignRecipientStatus`** (new) — per-recipient send state, one row per
+  recipient per campaign, written by the send worker: `storeId`, `campaignId`, `customerId`,
+  `status`, `email`, optional `sentAt` / `failedAt` / `reason` (SCREAMING_SNAKE, for the `'failed'`
+  and `'skipped'` cases), `createdAt`, optional `updatedAt` and an optional `ttl` (Unix SECONDS —
+  these rows are high-volume and TTL-reaped).
+- ⚠️ **The row lives in a DEDICATED per-campaign partition**, not the shared store partition —
+  recipients-per-campaign is the high-cardinality case, so co-locating would make every campaign
+  list read page through a send log.
+- ⚠️ **`'skipped'` is a refusal that was honoured, not a delivery failure.** Consent is re-checked
+  LIVE at send time and never inherited from segment membership (a segment is a targeting filter,
+  not a permission), and an ABSENT `marketing.*` channel is NOT consent — every reader defaults a
+  missing channel to `false`. Never retry a skip; never roll it into a failure rate.
+- No `SOCKET_ACTIONS` change: `'campaigns'` is already published and already emitted.
+
 ## 1.10.214
 
 - **`auth.ts`** — the login-leg wire error codes the clients were hand-pinning. `LOGIN_ERROR_CODES`

@@ -23,8 +23,85 @@ declare global {
     promotionId?: string;
     scheduledAt?: number;
     sentAt?: number;
+    /**
+     * Aggregate send counters, maintained by an atomic DynamoDB `ADD` as the
+     * send worker drains the recipient list — so they are eventually consistent
+     * with, and can lag, the per-recipient `CampaignRecipient` rows.
+     *
+     * ⚠️ ABSENCE MEANS NO SEND HAS BEEN ATTEMPTED, and is never the same as
+     * zero: a campaign that has not left `'draft'` carries no counters at all.
+     * Render an absent counter as "not sent yet", never as `0`.
+     *
+     * ⚠️ NOT a substitute for the per-recipient rows. They carry no recipient
+     * identity, no failure reason and no `'skipped'` tally, and an `ADD` that
+     * lands twice on a retry cannot be reconciled from the counter alone —
+     * audit a send against `CampaignRecipient`, never against these three.
+     */
+    queuedCount?: number;
+    sentCount?: number;
+    failedCount?: number;
     createdAt: number;
     updatedAt?: number;
+  }
+
+  /**
+   * Send state of ONE recipient within a campaign.
+   *
+   * `'queued'` — accepted for delivery, not yet handed to the transport.
+   * `'sent'` — the transport ACCEPTED it; acceptance is never proof of inbox
+   * placement. `'failed'` — the transport refused or errored. `'skipped'` — the
+   * segment matched the recipient but the recipient was not eligible at send
+   * time (no marketing consent for the channel, or a suppressed address).
+   *
+   * ⚠️ `'skipped'` is a REFUSAL that was honoured, not a delivery problem:
+   * never retry it, and never roll it into a failure rate.
+   */
+  type CampaignRecipientStatus = 'queued' | 'sent' | 'failed' | 'skipped';
+
+  /**
+   * One row per recipient per campaign, written by the campaign send worker.
+   *
+   * ⚠️ The row lives in a DEDICATED PER-CAMPAIGN PARTITION, not the shared
+   * store partition. Recipients-per-campaign is the high-cardinality case here
+   * — a single send can write more rows than a store's entire campaign history
+   * — so co-locating them would make every campaign list read page through a
+   * send log. Query these by campaign; there is no store-wide listing.
+   *
+   * ⚠️ Consent is re-checked LIVE at send time and is never inherited from
+   * segment membership: a segment is a targeting filter, not a permission (see
+   * `Segment`). A recipient the segment matched but the consent check refused
+   * is recorded as `'skipped'` rather than dropped, so the refusal is auditable.
+   *
+   * ⚠️ An ABSENT marketing channel on the customer is NOT consent. Every reader
+   * defaults a missing `marketing.*` channel to `false`; nothing in this
+   * pipeline may read absence as permission to send.
+   */
+  interface CampaignRecipient {
+    storeId: string;
+    campaignId: string;
+    customerId: string;
+    status: CampaignRecipientStatus;
+    /** The destination the send was addressed to, as resolved at send time. */
+    email: string;
+    /** Unix MILLISECONDS. Present on `'sent'` rows only. */
+    sentAt?: number;
+    /** Unix MILLISECONDS. Present on `'failed'` rows only. */
+    failedAt?: number;
+    /**
+     * Machine-readable cause for the `'failed'` and `'skipped'` cases — a bare
+     * SCREAMING_SNAKE code, never a human sentence, so a report can group on
+     * it. Absent on `'queued'` and `'sent'`.
+     */
+    reason?: string;
+    /** Unix MILLISECONDS. */
+    createdAt: number;
+    updatedAt?: number;
+    /**
+     * Unix SECONDS — a DynamoDB TTL attribute, not a millisecond timestamp like
+     * `createdAt` on the same row. These rows are high-volume and are reaped, so
+     * a campaign's durable record is its aggregate counters, not this log.
+     */
+    ttl?: number;
   }
 
   interface Template {
