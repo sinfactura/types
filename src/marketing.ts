@@ -33,13 +33,40 @@ declare global {
      * Render an absent counter as "not sent yet", never as `0`.
      *
      * ⚠️ NOT a substitute for the per-recipient rows. They carry no recipient
-     * identity, no failure reason and no `'skipped'` tally, and an `ADD` that
-     * lands twice on a retry cannot be reconciled from the counter alone —
-     * audit a send against `CampaignRecipient`, never against these three.
+     * identity and no failure reason, and an `ADD` that lands twice on a retry
+     * cannot be reconciled from the counter alone — audit a send against
+     * `CampaignRecipient`, never against these four.
+     *
+     * `queuedCount` is the DENOMINATOR, written once when the scheduler claims
+     * the campaign and fans it out. Every recipient reaches exactly one of the
+     * other three, so `sent + failed + skipped >= queued` is what marks a
+     * campaign drained — a per-recipient Query cannot answer that, because a
+     * recipient row does not exist until a worker claims it, which makes a
+     * recipient still sitting in the queue indistinguishable from one that
+     * finished.
+     *
+     * ⚠️ `skippedCount` tallies refusals that were HONOURED — no live marketing
+     * consent, or a suppressed address. It is deliberately kept out of
+     * `failedCount`: a refusal is not a delivery problem, and retrying one is
+     * how a "no" becomes a delivered email.
      */
     queuedCount?: number;
     sentCount?: number;
     failedCount?: number;
+    skippedCount?: number;
+    /**
+     * How many times the scheduler has claimed this campaign and attempted a
+     * fan-out. Incremented on each claim, NOT on each recipient.
+     *
+     * ⚠️ This exists to BOUND a retry loop, not to report progress. The
+     * enqueue can fail part-way — the claim commits before the fan-out, and the
+     * batch send throws on its first failing chunk — and the recovery is to
+     * revert the campaign to `'scheduled'` so the next tick retries it. Without
+     * a bound, a permanently-broken queue re-resolves the segment and re-walks
+     * the store's whole customer partition on every tick, forever. Past the
+     * bound the scheduler stops reverting and asks for an operator.
+     */
+    sendAttempts?: number;
     createdAt: number;
     updatedAt?: number;
   }
