@@ -277,6 +277,27 @@ declare global {
        */
       appointmentTypes?: AppointmentTypeConfig[];
       /**
+       * SLA targets for service orders — how long an order may sit in each stage
+       * before it is late. Absent, or empty, means service orders are NOT judged
+       * at all and every `ServiceOrder.slaStatus` is absent rather than
+       * `on_track`.
+       *
+       * ⚠️ Configuration, and small by construction: `serviceType` has four
+       * members and `ServiceStageStatus` six, so the whole set is capped at 4x6
+       * type-specific rules plus 6 defaults with no growth path. That ceiling is
+       * why these live on the store row instead of in their own partition.
+       *
+       * ⚠️ Resolution is most-specific-wins with a fallback to the entry whose
+       * `serviceType` is ABSENT — see `ServiceSlaRule`. Never fall through to
+       * unjudged when a default exists.
+       *
+       * ⚠️ Written through its own validated route, never as a `PATCH /store`
+       * leaf: that body's `config` object is `.loose()`, so an undeclared leaf
+       * reaches the row whatever any schema says. Same reason
+       * `appointmentTypes` above has its own.
+       */
+      serviceSlaRules?: ServiceSlaRule[];
+      /**
        * Scheduled sales digest emailed to the store's operators.
        *
        * Absent, or `frequency: 'none'`, means NOTHING is sent — the digest is

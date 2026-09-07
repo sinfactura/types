@@ -85,6 +85,60 @@ declare global {
 	type ServiceStageStatus = Exclude<ServiceStatus, ServiceTerminalStatus>;
 
 	/**
+	 * How the CURRENT stage is doing against its configured target.
+	 *
+	 * ⚠️ Three values and no fourth for "not judged" — **absence is that state**,
+	 * and the distinction is the whole safety property. A store with no rules
+	 * configured, or a type nothing matches, must not read as `on_track`: an
+	 * unset target rendering green is an unset rule reading as a met one, on
+	 * exactly the screen someone consults to find late work.
+	 */
+	type ServiceSlaStatus = 'on_track' | 'at_risk' | 'breached';
+
+	/**
+	 * One SLA target: how long an order may sit in one stage before it is late.
+	 *
+	 * ⚠️ **Resolution is most-specific-wins, falling back to the store default —
+	 * never to "no SLA".** A rule whose `serviceType` matches the order's beats
+	 * one without; absent `serviceType` IS the store default. Falling through to
+	 * unjudged instead would make a store that set a default see nothing on
+	 * exactly the types it had not enumerated, which is the failure the optional
+	 * discriminator exists to avoid.
+	 *
+	 * ⚠️ Keyed on `serviceType`, the four-member union carried on the order
+	 * itself — NOT on a service-type id. There is no service-type entity; the
+	 * thing with an id is `ServiceTemplate`, which is a different concept and is
+	 * documented as provenance that must never be dereferenced at read time. A
+	 * rule keyed on a template id could never match anything an order holds.
+	 */
+	interface ServiceSlaRule {
+		/** Absent means the store default — the rule used when no type-specific one matches. */
+		serviceType?: ServiceType;
+		/**
+		 * The stage this target applies to.
+		 *
+		 * `ServiceStageStatus`, not `ServiceStatus`: a terminal order's
+		 * current-stage elapsed time only measures how long ago it was closed and
+		 * grows forever, so a target on `delivered` could never be met or missed.
+		 * Deriving the union makes that rule unrepresentable rather than merely
+		 * discouraged.
+		 */
+		stage: ServiceStageStatus;
+		/** Hours in this stage before the order is `breached`. */
+		targetHours: number;
+		/**
+		 * Percentage of `targetHours` at which the order turns `at_risk`.
+		 *
+		 * `80` means at_risk from 80% of the target. It is a percentage rather
+		 * than an absolute warning threshold so one number stays correct when
+		 * `targetHours` is edited — the two would otherwise silently invert, with
+		 * a warning threshold sitting past a shortened target and the order going
+		 * straight from `on_track` to `breached`.
+		 */
+		warnAtPercent: number;
+	}
+
+	/**
 	 * Why a `returned_unrepaired` order ended that way. Required on that status
 	 * and meaningless on any other.
 	 */
@@ -837,6 +891,28 @@ declare global {
 		 * compute it.
 		 */
 		depositBalance?: ServiceDepositBalance;
+
+		/**
+		 * How the CURRENT stage is doing against the matching `ServiceSlaRule`.
+		 *
+		 * ⚠️ **Derived on the way out and NEVER persisted** — the stored row does
+		 * not carry this attribute, on any write path. SLA aging advances with the
+		 * CLOCK, not with a write: an order sitting untouched crosses its warning
+		 * threshold and then its target with nothing happening to the row, so a
+		 * stored value refreshed on transitions would be accurate only for orders
+		 * somebody is actively working, and stale for exactly the neglected ones
+		 * this exists to surface.
+		 *
+		 * ⚠️ Absent means **not judged**, never `on_track` — no rule matches, the
+		 * store has configured none, or the order is terminal.
+		 *
+		 * Unlike `depositBalance` this IS computed on list reads, because
+		 * colouring late tickets on the board is the point; it costs one projected
+		 * `Store` read per request, not per row. The client obligation is the same
+		 * as `depositBalance`'s: REFETCH after a mutation rather than merging a
+		 * write response over a previously-read derivation.
+		 */
+		slaStatus?: ServiceSlaStatus;
 
 		// Technician assignment
 		technicianId?: string;
