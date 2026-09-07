@@ -1,0 +1,30 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.ARGENTINE_PROVINCES = void 0;
+exports.ARGENTINE_PROVINCES = [
+    '',
+    'CIUDAD AUTONOMA BUENOS AIRES',
+    'BUENOS AIRES',
+    'CATAMARCA',
+    'CHACO',
+    'CHUBUT',
+    'CORDOBA',
+    'CORRIENTES',
+    'ENTRE RIOS',
+    'FORMOSA',
+    'JUJUY',
+    'LA PAMPA',
+    'LA RIOJA',
+    'MENDOZA',
+    'MISIONES',
+    'NEUQUEN',
+    'RIO NEGRO',
+    'SALTA',
+    'SAN JUAN',
+    'SAN LUIS',
+    'SANTA CRUZ',
+    'SANTA FE',
+    'SANTIAGO DEL ESTERO',
+    'TIERRA DEL FUEGO',
+    'TUCUMAN',
+];
