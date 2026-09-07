@@ -238,6 +238,38 @@ declare global {
 		 * reversed, and must not be reversed twice.
 		 */
 		reverses?: string;
+		/**
+		 * Unix ms the work session STARTED, when it was measured rather than typed.
+		 *
+		 * Set by the technician timer's `timerStop`, which derives `hours` from
+		 * `stoppedAt - startedAt`; absent on a hand-entered log and on every entry
+		 * written before the timer existed. Forward-only — nothing backfills it.
+		 *
+		 * ⚠️ NOT a second source of truth for `hours`. `hours` stays the field every
+		 * consumer sums, and `laborCost` is still derived from it alone; this is
+		 * provenance, so an operator can see a session was clocked rather than
+		 * estimated. A reader must not recompute hours from it — a reversal's `hours`
+		 * is negative and its `startedAt` is absent.
+		 */
+		startedAt?: number;
+		/**
+		 * How the entry got its hours: typed by a person, or measured by the timer.
+		 *
+		 * Absent on every entry written before the timer existed, which reads as
+		 * `'manual'` — the only thing that could have produced them.
+		 *
+		 * ⚠️ There is deliberately NO `state` field here, and no `'running'` value
+		 * anywhere in this interface. `ServiceOrder.workLogs` is an append-only
+		 * signed ledger of sessions that HAPPENED, so a row only exists once the
+		 * timer has stopped and a `state` would be the constant `'stopped'` on every
+		 * row that can exist. A running timer lives in its own sentinel row, written
+		 * under `attribute_not_exists` so a second concurrent start fails at the
+		 * database rather than at a read-then-write; putting a mutable state on this
+		 * ledger would make that sentinel a second source of truth for the same fact
+		 * and let the two disagree, which is the property the append-only rule
+		 * exists to prevent.
+		 */
+		source?: 'manual' | 'timer';
 	}
 
 	/** One entry in a service order's status history (append-only audit trail). */
