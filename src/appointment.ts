@@ -125,7 +125,50 @@ declare global {
      * case here, not the rare one.
      */
     version: number;
+    /**
+     * One entry per customer-facing reminder actually SENT for this booking.
+     *
+     * ⚠️ This is the per-reminder record `AppointmentStatus`'s own docblock
+     * says any real implementation needs — it is not an addition to the
+     * contract so much as the thing that docblock anticipated, and it is why
+     * there is no `REMINDED` status member to reuse: a single status cannot
+     * say WHICH reminder fired, and the status is redundant the moment this
+     * exists.
+     *
+     * ⚠️ **The projection makes idempotency POSSIBLE; it does not confer it.**
+     * A blind `list_append` is not idempotent — a retried sweep would send a
+     * customer the same reminder twice. An implementation must re-read, check
+     * that this reminder is not already present, and write under the asserted
+     * `version`, retrying on the conditional failure. The conditional is the
+     * feature, not an optimisation.
+     *
+     * ⚠️ **Whatever writes this must compute the fire time from
+     * `startTimestamp`, never from the local `date` + `startTime` pair.** Those
+     * are display-convenience values DERIVED from the timestamps — the half
+     * that looks right while being wrong — so a 24h-before sweep reading them
+     * fires at the wrong instant for any store whose offset moved.
+     *
+     * Absent on every row written before the sweep exists, and absent is not
+     * "no reminders were sent" for such a row — it is "this row predates the
+     * record". Nothing backfills it.
+     */
+    remindersSent?: AppointmentReminderSent[];
   }
+
+  /**
+   * One reminder that was sent, on one channel, at one instant.
+   *
+   * ⚠️ `at` is when the reminder was SENT, not the appointment's start — the
+   * two are what a cadence (24h before, 2h before) is expressed between, and
+   * collapsing them would make a re-send indistinguishable from the original.
+   */
+  interface AppointmentReminderSent {
+    /** Epoch ms at which this reminder was dispatched. */
+    at: number;
+    channel: AppointmentReminderChannel;
+  }
+
+  type AppointmentReminderChannel = 'email' | 'whatsapp' | 'sms';
 
   /**
    * Per-store slotting rules for ONE `AppointmentType`. Stored as an array on

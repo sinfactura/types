@@ -44,6 +44,26 @@ export enum NotificationTypeEnum {
 	 * fails silently.
 	 */
 	ABANDONED_CART = 'ABANDONED_CART',
+	/**
+	 * A booking was confirmed, and its twin below when one is cancelled.
+	 *
+	 * ⚠️ Additive, on the same grounds as `ABANDONED_CART`:
+	 * `UserNotifications` is `Partial<Record<NotificationTypeEnum, boolean>>`,
+	 * so every existing preferences row stays valid and an absent key already
+	 * reads as "not opted in". No consumer migration is owed.
+	 *
+	 * ⚠️ **There is deliberately no `APPOINTMENT_REMINDER` beside these, and
+	 * the omission is about AUDIENCE, not about scope.** This enum is the
+	 * OPERATOR bell and `UserNotifications` is a `User` preference map — an
+	 * operator wants to know a booking moved, so these two belong. A reminder
+	 * is an outbound message to a CUSTOMER over email/WhatsApp/SMS, and putting
+	 * it here would make its opt-out a staff preference, which is the wrong
+	 * person's consent. A customer has no notification preference row at all
+	 * today, which is why the reminder path is blocked on the notification
+	 * spine rather than merely unbuilt.
+	 */
+	APPOINTMENT_CONFIRMED = 'APPOINTMENT_CONFIRMED',
+	APPOINTMENT_CANCELLED = 'APPOINTMENT_CANCELLED',
 }
 
 declare global {
