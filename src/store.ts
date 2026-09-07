@@ -166,6 +166,43 @@ declare global {
     frequency: 'none' | 'daily' | 'weekly' | 'monthly';
   }
 
+  /**
+   * Cut-offs and window for the periodic ABC (Pareto) classification of the
+   * catalogue. Every member is optional and absence falls back to the api's
+   * built-in defaults, so a store that has never configured this is still
+   * classified — the job runs on defaults rather than not running.
+   *
+   * ⚠️ The two cut-offs are CUMULATIVE consumption-value share, not per-product
+   * share, and that is the whole of Pareto: products are ranked by consumption
+   * value descending, the running total is taken as a percentage of the store's
+   * total, and the class is the first band the running total falls inside. A
+   * per-product reading would put almost every product in `C` on any real
+   * catalogue.
+   *
+   * ⚠️ `bCumulativePercent` must be greater than `aCumulativePercent`; a pair
+   * that inverts them describes no `B` band at all. The api clamps rather than
+   * refusing, because this is a config leaf on a row that is written through a
+   * `.loose()` body and a refusal here would strand the whole catalogue
+   * unclassified rather than one field unread.
+   */
+  interface AbcClassificationConfig {
+    /**
+     * Trailing window, in days, of `SALE#` ledger rows the ranking is computed
+     * over. Absent falls back to the api default (90).
+     *
+     * ⚠️ A window is not the same as available history. `dated` on the `SALE#`
+     * ledger is forward-only from 2026-08-29, so a 90-day window on a store
+     * that started yesterday ranks one day of sales — correct arithmetic over a
+     * thin sample, which is exactly why an unclassified product must stay
+     * unclassified rather than being defaulted into a band.
+     */
+    windowDays?: number;
+    /** Cumulative consumption-value share, in percent, up to which a product is `A`. Absent falls back to 80. */
+    aCumulativePercent?: number;
+    /** Cumulative consumption-value share, in percent, up to which a product is `B`. Absent falls back to 95. */
+    bCumulativePercent?: number;
+  }
+
   interface Store {
     /**
      * Cmd-K palette overrides. Absent means "all built-in verbs, default order".
@@ -322,6 +359,24 @@ declare global {
        * send to everyone.
        */
       reportDigest?: ReportDigestConfig;
+      /**
+       * Cut-offs and window for the periodic ABC classification job.
+       *
+       * Absent means the job runs on the api's defaults — NOT that it is off.
+       * The classification is a platform capability rather than an opt-in
+       * feature, and a store that never configured it still wants its catalogue
+       * ranked; the leaf exists to move the cut-offs, not to switch the job on.
+       *
+       * ⚠️ Writable at the PRIVILEGED tier, like `reportDigest` above — the
+       * cut-offs decide how often a product is counted, so they are an
+       * ADMIN/SUPERVISOR/MANAGER setting with a `STORE_CONFIG_FORBIDDEN`
+       * refusal, never a per-user preference.
+       *
+       * ⚠️ Changing either cut-off re-bands the whole catalogue on the next run
+       * and emits a `products` frame for every product that moved. That is
+       * intended, and it is why the job caps its own fan-out.
+       */
+      abcClassification?: AbcClassificationConfig;
       /**
        * Ceiling on concurrent refresh-token sessions per user. When a new login
        * would exceed it the OLDEST family is revoked, so the cap never blocks a
