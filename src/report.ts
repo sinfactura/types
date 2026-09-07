@@ -228,6 +228,60 @@ declare global {
 		aging?: ReportAccountsAging;
 	}
 
+	/**
+	 * The report modes `POST /reports/narrative` will narrate.
+	 *
+	 * ⚠️ NOT every report mode, and deliberately NOT the api's own `ReportMode`.
+	 * That union is the key of an exhaustive `MODE_ROLES` record whose job is to
+	 * fail `typecheck` when a mode is added without a role decision — an
+	 * api-internal routing concern that does not belong in a shared package. This
+	 * is the wire contract: the modes a caller may ask prose for.
+	 *
+	 * ⚠️ The endpoint's request schema still accepts EVERY report mode, so one
+	 * that is absent here is refused explicitly with its own error code rather
+	 * than by failing enum validation. A typed consumer gets a compile-time
+	 * signal; an untyped one gets a legible runtime answer. Do not "fix" the
+	 * server to reject unknown modes at the schema — the explicit refusal is the
+	 * acceptance criterion.
+	 *
+	 * ⚠️ The cuenta corriente surfaces are excluded in v1 — `accounts` (the
+	 * receivables report, which returns debtors and creditors from one read) and
+	 * `supplier-invoices` (the compras mirror). Their figures are the least
+	 * trustworthy under a partial read, and a narrative over them would be
+	 * confidently wrong. Widening this list later is safe; narrating something
+	 * that should not have been narrated is not.
+	 */
+	type ReportNarrativeMode = 'sales' | 'invoices' | 'libro-iva-digital' | 'iva-simple-apertura' | 'stocks';
+
+	/** How much attention one narrated finding deserves. Two levels, not a spectrum. */
+	type ReportNarrativeSeverity = 'info' | 'warn';
+
+	interface ReportNarrativeFinding {
+		text: string;
+		severity: ReportNarrativeSeverity;
+	}
+
+	/**
+	 * An AI narration of a report the SERVER re-read for itself.
+	 *
+	 * ⚠️ The request carries the report's IDENTITY — mode and range — never its
+	 * FIGURES. The lambda re-reads the report and narrates what it read, so a
+	 * client cannot make the narrative assert a number the server never saw. An
+	 * operator reading the prose has no way to tell a client-supplied figure from
+	 * a real one, which is why the boundary is drawn at the request rather than
+	 * checked afterwards.
+	 *
+	 * ⚠️ Not persisted. A stored narrative ages badly against a report that
+	 * moves, and nothing in the design asks for a history.
+	 */
+	interface ReportNarrative {
+		headline: string;
+		/** Between three and five, enforced by the model's forced output schema rather than by the prompt. */
+		findings: ReportNarrativeFinding[];
+		/** Unix ms the narration was produced. */
+		generatedAt: number;
+	}
+
 }
 
 export {}; // NOSONAR
