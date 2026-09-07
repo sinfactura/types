@@ -248,6 +248,48 @@ declare global {
 		 */
 		abcClassifiedAt?: number;
 		/**
+		 * Unix ms of the last movement that CREDITED this product's stock — a
+		 * receipt, a restock on a return or cancellation, a positive adjustment, or
+		 * a MercadoLibre sale being retracted.
+		 *
+		 * ⚠️ Absence means NO RECORDED INBOUND, not "never received". The three
+		 * `last*At` stamps are forward-only: nothing backfills them, so a product
+		 * whose last receipt predates the stamp reads as absent forever. A reader
+		 * that treats absence as "very old" is right about the aging question and
+		 * wrong about the audit one — never present it as a date.
+		 */
+		lastInboundAt?: number;
+		/**
+		 * Unix ms of the last movement that DEBITED this product — a sale, a service
+		 * part consumed, an edit that increased a line, or a negative adjustment.
+		 *
+		 * ⚠️ **This, not `lastMovementAt`, is what a dead-stock report ages on.** A
+		 * receipt does not make stock young: a product nobody has bought for a year
+		 * is dead stock whether or not a case of it arrived last week, and bucketing
+		 * on last movement would file exactly that case as fresh. `lastMovementAt`
+		 * answers a different question — when did this row's stock last change at
+		 * all — which is the one an audit or a reconciliation asks.
+		 *
+		 * ⚠️ A SERVICE line stamps this while moving no stock. `lastOutboundAt` means
+		 * "last sold or consumed", not "last decremented", so a service product that
+		 * carries no stock still records when it was last billed.
+		 *
+		 * ⚠️ Forward-only, like its two siblings — see `lastInboundAt`.
+		 */
+		lastOutboundAt?: number;
+		/**
+		 * Unix ms of the most recent movement in either direction — the max of
+		 * `lastInboundAt` and `lastOutboundAt` as of the last write.
+		 *
+		 * Stored rather than derived so a catalogue-wide "what has moved since X"
+		 * is one projection instead of a per-row comparison, and so a reader that
+		 * wants only recency does not have to know which stamps exist.
+		 *
+		 * ⚠️ Read the `lastOutboundAt` docblock before reaching for this one: for
+		 * dead stock it is the WRONG field, and it is the more obvious of the two.
+		 */
+		lastMovementAt?: number;
+		/**
 		 * Shipping weight, in GRAMS.
 		 *
 		 * ⚠️ **The unit is in the name because a bare `weight` is unrecoverable.**
