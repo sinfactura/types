@@ -223,7 +223,12 @@ export const SOCKET_ACTIONS = [
 	// fleet-health telemetry (`queueDepth`) moved. Deliberately NOT folded into
 	// `printers_changed` — kept separately debuggable.
 	'agent_status_changed',
-	// BE → agent, fanned to every printer connection on the store: routing rules changed, re-read them.
+	// BE → BOTH audiences: the OPERATOR panel (`wsPostStore`, audience 'operator')
+	// AND every printer connection on the store (`dispatchToPrinters`).
+	// ⚠️ Despite that agent leg, the operator panel is the actual CONSUMER —
+	// Cloud Print lists this in `IGNORED_ACTIONS` and drops it on arrival. This
+	// comment previously read "BE → agent … re-read them", which was wrong twice:
+	// it omitted the operator audience and named a re-read nothing performs.
 	'print_rules_changed',
 	// BE → agent, scoped to ONE agent's connections: that agent's COMPLETE
 	// per-printer `active` set (`PrintersActiveData`) — full replacement, never
