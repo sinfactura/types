@@ -272,6 +272,34 @@ declare global {
 		source?: 'manual' | 'timer';
 	}
 
+	/**
+	 * The running-timer sentinel — one row per technician, for exactly as long as
+	 * their timer runs. PK `SERVICETIMER#{storeId}`, SK `{technicianId}`.
+	 *
+	 * ⚠️ Written under `attribute_not_exists`, which is what makes a second
+	 * concurrent start fail at the database rather than at a read-then-write the
+	 * second tap can race — a technician with a phone and a workshop tablet is the
+	 * ordinary case, not an exotic one. Same mechanism as {@link OpenShift}.
+	 *
+	 * ⚠️ Keyed by TECHNICIAN, not by service order, because that is the invariant:
+	 * at most one running timer per technician across every ticket in the store.
+	 * Keying it by order would permit exactly what it exists to stop.
+	 *
+	 * ⚠️ Disposable state, not audit. It is DELETED on stop rather than marked
+	 * stopped — the {@link WorkLog} the stop appends is the durable record, and a
+	 * partition of stopped sentinels would be a second, mutable account of the same
+	 * sessions. Nothing accumulates here, and nothing may read this to reconstruct
+	 * history.
+	 */
+	interface ServiceTimerSentinel {
+		storeId: string;
+		technicianId: string;
+		/** The ticket being worked. A timer is always against one order. */
+		serviceOrderId: string;
+		/** Unix ms the timer started — the sole input to the stopped entry's `hours`. */
+		startedAt: number;
+	}
+
 	/** One entry in a service order's status history (append-only audit trail). */
 	interface ServiceStatusEntry {
 		status: ServiceStatus;
