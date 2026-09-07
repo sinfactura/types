@@ -1,8 +1,19 @@
 name: Build dist branch
 
+# ⏹ RETIRED — this repository no longer builds or publishes anything.
+#
+# This job force-pushed a `dist` branch as an alternative consumption route. It
+# has no consumer: `app`, `storefront` and `mobile` each pin an exact npm version
+# of `sinfactura-types`, none a git ref (verified before disabling), so taking it
+# down carries no consumer risk. The package now builds and publishes from
+# `sinfactura/api` (`.github/workflows/publish-types.yml`).
+#
+# The `push` trigger is removed and the job is `if: false`, so neither a push nor a
+# manual dispatch can run it. Note this job holds `contents: write` and force-pushes
+# an orphan branch — leaving it dispatchable on an otherwise-archived repository is
+# exactly the kind of live write path an archive is supposed to close.
+
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -14,6 +25,7 @@ concurrency:
 
 jobs:
   build-and-publish:
+    if: false # ⏹ retired — see the banner above
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main
