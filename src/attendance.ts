@@ -75,14 +75,28 @@ declare global {
 
   /**
    * The derived daily roll-up — one per employee per day. PK `STORE#{storeId}`,
-   * SK `SHIFT#{date}#{userId}`, mirroring `CashShift`'s `${date}-${userId}`
-   * composite id so the two shift concepts key the same way.
+   * SK `SHIFT#{date}#{userId}`. The composite id mirrors `CashShift`'s
+   * `${date}-${userId}`, but the separator is deliberately `#` rather than a
+   * hyphen: both shift concepts share the `STORE#{storeId}` partition, and the
+   * separator is the only thing keeping `SHIFT#20260904#USR001` (attendance)
+   * and `SHIFT#20260904-USR001` (cash drawer) from being mistaken for one
+   * another.
    *
-   * ⚠️ Written ONLY by the projector reading the `ClockEvent` ledger — never
-   * hand-written by a handler and never patched by a client. That is the
-   * property that lets it be dropped and rebuilt; a direct write would make the
-   * projection and the ledger able to disagree with nothing to reconcile them.
-   * `totalMinutes`/`overtimeMinutes` are computed there for the same reason.
+   * ⚠️ DERIVED, never client-shaped: every field here is computed from the
+   * `ClockEvent` ledger, and no client may patch one directly. That is the
+   * property that lets the row be dropped and rebuilt — a client-shaped write
+   * would let the roll-up and the ledger disagree with nothing able to
+   * reconcile them. `totalMinutes`/`overtimeMinutes` exist here only as a cache
+   * of that derivation.
+   *
+   * ⚠️ There is NO projector Lambda, and this comment used to claim there was
+   * ("written ONLY by the projector … never hand-written by a handler"). Read
+   * literally that forbids the correction endpoint from re-deriving the row,
+   * which is the opposite of what the domain requires. Each writer re-derives
+   * inline instead: the clock-in/clock-out handlers, the missed-clock-out sweep,
+   * and `POST /attendance/correction`, which recomputes the whole day from the
+   * amended ledger. The invariant that is real is the one above — DERIVED, not
+   * *derived by one particular component*.
    */
   interface AttendanceShift {
     shiftId: string; // `${date}-${userId}` — URL-safe id
